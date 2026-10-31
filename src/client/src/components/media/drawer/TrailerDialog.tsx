@@ -213,9 +213,12 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
                     // overlay is portaled to body (outside the drawer), so without this every click is dead.
                     <div ref={stageRef} className={cn("pointer-events-auto fixed inset-0 z-[2147483647] bg-black", !active && "hidden")}>
                         <div ref={hostRef} className="h-full w-full" />
-                        {/* Gesture capture strip: covers the player ABOVE its control bar (bottom ~80px left
-                            free) so the native controls stay usable while swipe-up follows / swipe-down dismisses. */}
-                        <div className="absolute inset-x-0 top-0 bottom-20 z-[5] touch-pan-x" onWheel={onWheel} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} />
+                        {/* Gesture capture bands — TOP + BOTTOM only (where the hints are), NOT the center.
+                            This leaves the player's centre (click-to-play / the big play button) and the whole
+                            YouTube control bar directly clickable, while swipes over the hint bands still
+                            follow (up) / close (down). A full-cover strip blocked the player's controls. */}
+                        <div className="absolute inset-x-0 top-0 h-28 z-[5] touch-pan-x" onWheel={onWheel} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} />
+                        <div className="absolute inset-x-0 bottom-20 h-28 z-[5] touch-pan-x" onWheel={onWheel} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} />
                         {/* Gesture hints (non-interactive). Up = follow, down = close. */}
                         <div className="pointer-events-none absolute inset-x-0 top-5 z-10 flex flex-col items-center gap-0.5 text-white/70">
                             <ChevronUp className="size-5" />
