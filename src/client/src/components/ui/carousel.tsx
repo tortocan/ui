@@ -96,21 +96,22 @@ function Carousel({ orientation = "horizontal", opts, setApi, plugins, wheelScro
         }
     }, [api, onSelect])
 
-    // Mouse-wheel → horizontal scroll. The embla-carousel-wheel-gestures plugin worked in headless
-    // Chromium but not on real macOS mouse wheels, so we drive Embla's engine ourselves: take the
-    // dominant wheel axis (a plain mouse wheel only emits deltaY), and if the rail can still move
-    // that way, preventDefault and scroll the track by that pixel distance via the engine's
-    // scrollTo.distance. When the rail is maxed out in that direction we DON'T preventDefault, so the
-    // page/drawer scrolls normally past it. iOS touch-drag is untouched (this only binds `wheel`).
+    // Mouse-wheel → horizontal scroll, HORIZONTAL GESTURES ONLY. We drive Embla's engine ourselves
+    // from the wheel's horizontal delta (deltaX — a trackpad/Magic Mouse sideways swipe or shift+wheel).
+    // A vertical wheel (deltaY) is deliberately ignored so it scrolls the PAGE, not the rail. If the
+    // rail can still move, preventDefault and scroll the track by that pixel distance via the engine's
+    // scrollTo.distance; when maxed out we DON'T preventDefault so the page scrolls past it. iOS
+    // touch-drag is untouched (this only binds `wheel`).
     React.useEffect(() => {
         if (!api || orientation !== "horizontal" || !wheelScroll) return
         const node = typeof api.rootNode === "function" ? api.rootNode() : null
         if (!node) return
         const isLoop = !!opts?.loop
         const onWheel = (e: WheelEvent) => {
-            // Normalize line-mode deltas (Firefox) to pixels so the step feels the same everywhere.
+            // Horizontal delta only — a vertical wheel falls through to the page. Normalize line-mode
+            // deltas (Firefox) to pixels so the step feels the same everywhere.
             const scale = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? node.clientWidth : 1
-            const delta = (Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX) * scale
+            const delta = e.deltaX * scale
             if (!delta) return
             const engine = api.internalEngine()
             if (isLoop) {
