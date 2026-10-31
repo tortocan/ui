@@ -65,7 +65,7 @@ export function ContinueWatchingRail() {
             <Carousel opts={{ align: "start", loop: false, dragFree: true }} className="w-full">
                 <CarouselContent className="-ml-2 md:-ml-4">
                     {items.map((it) => (
-                        <CarouselItem key={it.key} className="basis-1/2 pl-2 sm:basis-1/3 md:basis-1/4 md:pl-4 lg:basis-1/5 xl:basis-1/7">
+                        <CarouselItem key={it.key} className="basis-1/2 pl-2 sm:basis-1/3 md:basis-1/4 md:pl-4 lg:basis-1/5 xl:basis-1/7 last:mr-4 md:last:mr-6">
                             <div className="relative">
                                 <MediaCard title={it.title} imagePath={it.poster} imageAlt={it.title} id={it.id} type={it.type} year={it.year} rating={it.rating} />
                                 {/* Resume progress bar */}

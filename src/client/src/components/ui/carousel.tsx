@@ -106,21 +106,36 @@ function Carousel({ orientation = "horizontal", opts, setApi, plugins, wheelScro
         if (!api || orientation !== "horizontal" || !wheelScroll) return
         const node = typeof api.rootNode === "function" ? api.rootNode() : null
         if (!node) return
+        const isLoop = !!opts?.loop
         const onWheel = (e: WheelEvent) => {
             // Normalize line-mode deltas (Firefox) to pixels so the step feels the same everywhere.
             const scale = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? node.clientWidth : 1
             const delta = (Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX) * scale
             if (!delta) return
-            // Let the page scroll when the rail can't move further in the wheel's direction.
-            if ((delta > 0 && !api.canScrollNext()) || (delta < 0 && !api.canScrollPrev())) return
-            e.preventDefault()
             const engine = api.internalEngine()
+            if (isLoop) {
+                // Loop carousels scroll infinitely — there's no pixel limit to clamp against.
+                e.preventDefault()
+                engine.scrollBody.useDuration(0)
+                engine.scrollTo.distance(-delta, false)
+                return
+            }
+            // Clamp the step to the TRUE pixel limit (engine.limit), NOT the snap index. Embla's
+            // canScrollNext()/canScrollPrev() are snap-index based and flip false once you're inside the
+            // last/first snap, which used to strand the final sub-snap pixels and clip the last card
+            // (the "can't scroll more" bug). We base the room on engine.target — the committed
+            // destination, stable across instant ticks — constrain the next position to the limit, and
+            // only skip preventDefault when genuinely pinned at a boundary so the page scrolls past.
+            const cur = engine.target.get()
+            const applied = engine.limit.constrain(cur - delta) - cur // -delta: wheel-down moves toward the end
+            if (Math.abs(applied) < 0.5) return
+            e.preventDefault()
             engine.scrollBody.useDuration(0)
-            engine.scrollTo.distance(-delta, false)
+            engine.scrollTo.distance(applied, false)
         }
         node.addEventListener("wheel", onWheel, { passive: false })
         return () => node.removeEventListener("wheel", onWheel)
-    }, [api, orientation, wheelScroll])
+    }, [api, orientation, wheelScroll, opts?.loop])
 
     return (
         <CarouselContext.Provider

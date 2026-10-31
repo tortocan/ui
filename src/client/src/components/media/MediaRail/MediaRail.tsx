@@ -5,6 +5,12 @@ import { Skeleton } from "@/components/ui/skeleton.tsx"
 import { SeeMoreCard } from "./SeeMoreCard.tsx"
 import { cn } from "@/lib/utils.ts"
 
+// Shared slide sizing for every rail item (incl. skeletons and the trailing See-more card).
+// `last:mr-*` gives the DOM-last slide a trailing inset: Embla folds the last slide's margin-right
+// into contentSize, so the scroll limit extends past the last card by that much — the last card
+// clears the edge with breathing room instead of jamming flush-right (the iOS/macOS feel).
+const RAIL_ITEM_CLASS = "basis-1/2 pl-2 sm:basis-1/3 md:basis-1/4 md:pl-4 lg:basis-1/5 xl:basis-1/7 last:mr-4 md:last:mr-6"
+
 export interface MediaRailProps<T> {
     title?: React.ReactNode | string
     fetcher: () => Promise<{ results: T[] } | T[]>
@@ -78,17 +84,17 @@ export function MediaRail<T>({ title, fetcher, getKey, renderItem, className, it
                 <CarouselContent className="-ml-2 md:-ml-4">
                     {isLoading
                         ? Array.from({ length: skeletonCount }).map((_, i) => (
-                              <CarouselItem key={`skeleton-${i}`} className={cn("basis-1/2 pl-2 sm:basis-1/3 md:basis-1/4 md:pl-4 lg:basis-1/5 xl:basis-1/7", itemClassName)}>
+                              <CarouselItem key={`skeleton-${i}`} className={cn(RAIL_ITEM_CLASS, itemClassName)}>
                                   {renderSkeleton ? renderSkeleton(i) : defaultRenderSkeleton(i)}
                               </CarouselItem>
                           ))
                         : items.map((item) => (
-                              <CarouselItem key={getKey(item)} className={cn("basis-1/2 pl-2 sm:basis-1/3 md:basis-1/4 md:pl-4 lg:basis-1/5 xl:basis-1/7", itemClassName)}>
+                              <CarouselItem key={getKey(item)} className={cn(RAIL_ITEM_CLASS, itemClassName)}>
                                   <div>{renderItem(item)}</div>
                               </CarouselItem>
                           ))}
                     {!isLoading && items.length > 0 && showSeeMore && (
-                        <CarouselItem className={cn("basis-1/2 pl-2 sm:basis-1/3 md:basis-1/4 md:pl-4 lg:basis-1/5 xl:basis-1/7", itemClassName)}>
+                        <CarouselItem className={cn(RAIL_ITEM_CLASS, itemClassName)}>
                             <SeeMoreCard href={seeMoreHref!} />
                         </CarouselItem>
                     )}
