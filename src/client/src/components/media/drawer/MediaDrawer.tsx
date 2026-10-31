@@ -126,6 +126,8 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
                             meta={data.runtime ? formatRuntime(data.runtime) : null}
                             genres={data.genres}
                             description={data.overview}
+                            networkLogo={data.networkLogo}
+                            studioLogo={data.studioLogo}
                             heightClassName="h-screen"
                             className="animate-in duration-700 fade-in"
                             onPlay={handlePlay}

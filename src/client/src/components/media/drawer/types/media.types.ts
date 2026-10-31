@@ -11,6 +11,9 @@ export interface MediaNormalized {
     backdropUrl: string | null
     posterUrl: string | null
     logoUrl: string | null
+    /** First network logo (TV) and first production-company logo — shown by MediaHeroCard like the carousel. */
+    networkLogo: string | null
+    studioLogo: string | null
     trailer: string | null
     cast: MediaCast[]
     recommendations: MediaRecommendation[]

@@ -2,10 +2,23 @@ import type { MovieDetailsWithAppends, TVDetailsWithAppends, TVSeason } from "@l
 import { MOVIE_APPENDS, TV_APPENDS } from "../constants/tmdb"
 import type { MediaCast, MediaEpisode, MediaNormalized, MediaRecommendation } from "../types/media.types"
 
+type WithLogo = { logo_path?: string | null }
+
+// Company/network logo_path may come through raw (the TMDB client only auto-resolves known image
+// fields) — pass a full URL through, otherwise prepend the image base. Same helper as the hero carousel.
+function logoUrl(path?: string | null): string | null {
+    if (!path) return null
+    return path.startsWith("http") ? path : `https://image.tmdb.org/t/p/w500${path}`
+}
+
 export const mapMedia = (data: MovieDetailsWithAppends<typeof MOVIE_APPENDS> | TVDetailsWithAppends<typeof TV_APPENDS>, type: "movie" | "tv"): MediaNormalized => {
     const isMovie = type === "movie"
     const movieData = isMovie ? (data as MovieDetailsWithAppends<typeof MOVIE_APPENDS>) : null
     const tvData = !isMovie ? (data as TVDetailsWithAppends<typeof TV_APPENDS>) : null
+
+    // Provider logos: network (TV only) top-right, studio (production company) bottom-right — like the carousel.
+    const companies = ((data as { production_companies?: WithLogo[] }).production_companies ?? []) as WithLogo[]
+    const networks = (tvData?.networks ?? []) as WithLogo[]
 
     // Prefer an official YouTube Trailer, then any Trailer/Teaser/Clip, then any YouTube video —
     // long-running shows frequently expose only teasers/clips (or nothing) under "Trailer".
@@ -49,6 +62,8 @@ export const mapMedia = (data: MovieDetailsWithAppends<typeof MOVIE_APPENDS> | T
         backdropUrl: data.backdrop_path ?? "/favicon.svg",
         posterUrl: data.poster_path ?? "/favicon.svg",
         logoUrl: data.images?.logos[0]?.file_path,
+        networkLogo: logoUrl(networks.find((n) => n.logo_path)?.logo_path),
+        studioLogo: logoUrl(companies.find((c) => c.logo_path)?.logo_path),
         trailer,
         cast,
         recommendations,
