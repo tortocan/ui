@@ -1,5 +1,5 @@
 import { ArrowLeft, Play, RotateCcw } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
 import { useOmss } from "@/hooks/use-omss"
 import { Button } from "@/components/ui/button"
@@ -27,6 +27,24 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
     const { closeAll, close } = useMediaDrawer()
 
     const navigate = useNavigate()
+
+    // Swipe/scroll UP to close — but only when the body is already at the top, so it never fights
+    // normal downward scrolling through the episodes/cast/recommendations. Wheel covers a trackpad
+    // two-finger swipe; touch covers a finger flick.
+    const swipeRef = useRef<{ y: number; atTop: boolean } | null>(null)
+    const onBodyWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+        if (e.currentTarget.scrollTop <= 0 && e.deltaY < -40) closeAll()
+    }
+    const onBodyTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+        swipeRef.current = { y: e.touches[0]?.clientY ?? 0, atTop: e.currentTarget.scrollTop <= 0 }
+    }
+    const onBodyTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+        const start = swipeRef.current
+        swipeRef.current = null
+        if (!start || !start.atTop) return
+        const end = e.changedTouches[0]?.clientY
+        if (end != null && start.y - end > 70) closeAll()
+    }
 
     // Turn Play into "Resume" from the scrobbler. For a movie: the stored position → "Resume · {time}".
     // For a show: the in-progress episode, else the earliest unwatched episode → "Resume · S{s}E{e}",
@@ -93,7 +111,7 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
                 ) : !data ? (
                     <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Failed to load media details.</div>
                 ) : (
-                    <div className="relative h-full overflow-y-auto">
+                    <div className="relative h-full overflow-y-auto" onWheel={onBodyWheel} onTouchStart={onBodyTouchStart} onTouchEnd={onBodyTouchEnd}>
                         {/* STICKY HERO */}
                         <div className="sticky top-0 h-screen w-full">
                             {data.backdropUrl ? (
