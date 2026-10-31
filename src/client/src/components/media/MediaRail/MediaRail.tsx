@@ -1,6 +1,8 @@
 import * as React from "react"
+import { useLocation } from "react-router-dom"
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel.tsx"
 import { Skeleton } from "@/components/ui/skeleton.tsx"
+import { SeeMoreCard } from "./SeeMoreCard.tsx"
 import { cn } from "@/lib/utils.ts"
 
 export interface MediaRailProps<T> {
@@ -13,6 +15,8 @@ export interface MediaRailProps<T> {
     itemClassName?: string
     skeletonCount?: number
     renderSkeleton?: (index: number) => React.ReactNode
+    /** When set, a trailing "See more" card at the end of the rail navigates to this route. */
+    seeMoreHref?: string
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -43,8 +47,12 @@ export function useMediaRail<T>(fetcher: () => Promise<{ results: T[] } | T[]>) 
     return { items, isLoading, error, refetch: fetchData }
 }
 
-export function MediaRail<T>({ title, fetcher, getKey, renderItem, className, itemClassName, skeletonCount = 6, renderSkeleton }: MediaRailProps<T>) {
+export function MediaRail<T>({ title, fetcher, getKey, renderItem, className, itemClassName, skeletonCount = 6, renderSkeleton, seeMoreHref }: MediaRailProps<T>) {
     const { items, isLoading, error } = useMediaRail(fetcher)
+    const { pathname } = useLocation()
+    // Only append the trailing "See more" card when it leads somewhere other than the current page
+    // (the Movies / TV Shows pages reuse these rails and would otherwise self-link).
+    const showSeeMore = !!seeMoreHref && pathname !== seeMoreHref
 
     if (error) {
         return null
@@ -79,6 +87,11 @@ export function MediaRail<T>({ title, fetcher, getKey, renderItem, className, it
                                   <div>{renderItem(item)}</div>
                               </CarouselItem>
                           ))}
+                    {!isLoading && items.length > 0 && showSeeMore && (
+                        <CarouselItem className={cn("basis-1/2 pl-2 sm:basis-1/3 md:basis-1/4 md:pl-4 lg:basis-1/5 xl:basis-1/7", itemClassName)}>
+                            <SeeMoreCard href={seeMoreHref!} />
+                        </CarouselItem>
+                    )}
                 </CarouselContent>
                 {!isLoading && items.length > 0 && (
                     <>
