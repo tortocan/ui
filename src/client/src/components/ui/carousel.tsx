@@ -1,6 +1,5 @@
 import * as React from "react"
 import useEmblaCarousel, { type UseEmblaCarouselType } from "embla-carousel-react"
-import { WheelGesturesPlugin } from "embla-carousel-wheel-gestures"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -44,18 +43,12 @@ function useCarousel() {
 }
 
 function Carousel({ orientation = "horizontal", opts, setApi, plugins, wheelScroll = true, className, children, ...props }: React.ComponentProps<"div"> & CarouselProps) {
-    // Add wheel-to-horizontal scroll by default on horizontal carousels, merged with any caller
-    // plugins (e.g. the hero's autoplay). forceWheelAxis "y" maps a vertical mouse wheel to the rail.
-    const resolvedPlugins = React.useMemo(
-        () => [...(plugins ?? []), ...(wheelScroll && orientation === "horizontal" ? [WheelGesturesPlugin({ forceWheelAxis: "y" })] : [])],
-        [plugins, wheelScroll, orientation]
-    )
     const [carouselRef, api] = useEmblaCarousel(
         {
             ...opts,
             axis: orientation === "horizontal" ? "x" : "y",
         },
-        resolvedPlugins
+        plugins
     )
     const [canScrollPrev, setCanScrollPrev] = React.useState(false)
     const [canScrollNext, setCanScrollNext] = React.useState(false)
@@ -103,25 +96,31 @@ function Carousel({ orientation = "horizontal", opts, setApi, plugins, wheelScro
         }
     }, [api, onSelect])
 
-    // Stop the native vertical page scroll while the wheel is driving a horizontal rail. The
-    // wheel-gestures plugin moves the rail sideways but doesn't reliably cancel the page's own
-    // scroll, so a mouse wheel scrolled the page up/down AND nudged the rail. Here we preventDefault
-    // only while the rail can still scroll in the wheel's direction, releasing at the ends so the
-    // page scrolls past a maxed-out rail (non-passive listener required for preventDefault to apply).
+    // Mouse-wheel → horizontal scroll. The embla-carousel-wheel-gestures plugin worked in headless
+    // Chromium but not on real macOS mouse wheels, so we drive Embla's engine ourselves: take the
+    // dominant wheel axis (a plain mouse wheel only emits deltaY), and if the rail can still move
+    // that way, preventDefault and scroll the track by that pixel distance via the engine's
+    // scrollTo.distance. When the rail is maxed out in that direction we DON'T preventDefault, so the
+    // page/drawer scrolls normally past it. iOS touch-drag is untouched (this only binds `wheel`).
     React.useEffect(() => {
-        if (!api || !wheelScroll || orientation !== "horizontal") return
+        if (!api || orientation !== "horizontal" || !wheelScroll) return
         const node = typeof api.rootNode === "function" ? api.rootNode() : null
         if (!node) return
         const onWheel = (e: WheelEvent) => {
-            const delta = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX
+            // Normalize line-mode deltas (Firefox) to pixels so the step feels the same everywhere.
+            const scale = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? node.clientWidth : 1
+            const delta = (Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX) * scale
             if (!delta) return
-            if ((delta > 0 && api.canScrollNext()) || (delta < 0 && api.canScrollPrev())) {
-                e.preventDefault()
-            }
+            // Let the page scroll when the rail can't move further in the wheel's direction.
+            if ((delta > 0 && !api.canScrollNext()) || (delta < 0 && !api.canScrollPrev())) return
+            e.preventDefault()
+            const engine = api.internalEngine()
+            engine.scrollBody.useDuration(0)
+            engine.scrollTo.distance(-delta, false)
         }
         node.addEventListener("wheel", onWheel, { passive: false })
         return () => node.removeEventListener("wheel", onWheel)
-    }, [api, wheelScroll, orientation])
+    }, [api, orientation, wheelScroll])
 
     return (
         <CarouselContext.Provider
@@ -136,7 +135,20 @@ function Carousel({ orientation = "horizontal", opts, setApi, plugins, wheelScro
                 canScrollNext,
             }}
         >
-            <div onKeyDownCapture={handleKeyDown} className={cn("relative", className)} role="region" aria-roledescription="carousel" data-slot="carousel" {...props}>
+            {/* data-lenis-prevent: on desktop the app runs Lenis smooth-scroll with a global wheel
+                listener that would otherwise swallow the vertical wheel into page scroll (this is why
+                rails scrolled vertically on macOS but worked on iOS, where Lenis isn't started). This
+                tells Lenis to ignore the wheel over the rail so our onWheel handler owns it; when the
+                rail is maxed out our handler skips preventDefault and native scroll moves the page. */}
+            <div
+                onKeyDownCapture={handleKeyDown}
+                className={cn("relative", className)}
+                role="region"
+                aria-roledescription="carousel"
+                data-slot="carousel"
+                {...(wheelScroll && orientation === "horizontal" ? { "data-lenis-prevent": true } : {})}
+                {...props}
+            >
                 {children}
             </div>
         </CarouselContext.Provider>
