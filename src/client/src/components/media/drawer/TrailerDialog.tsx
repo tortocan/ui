@@ -1,11 +1,12 @@
-import React, { useEffect, useRef, useState } from "react"
-import { Film } from "lucide-react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import React, { useCallback, useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
+import { Film, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
-// Load the YouTube IFrame Player API once (shared across every TrailerDialog instance).
-// We need the JS API (not a bare iframe) so we can force autoplay — including on the
-// search fallback — and detect when the video ENDS to auto-close the player.
+// Load the YouTube IFrame Player API once (shared across every TrailerDialog instance). We need the
+// JS API (not a bare iframe) so we can force autoplay, fall the search case back to loadPlaylist,
+// and detect when the video ENDS to auto-close the player.
 let ytApiPromise: Promise<void> | null = null
 function loadYouTubeApi(): Promise<void> {
     if (typeof window === "undefined") return Promise.resolve()
@@ -25,30 +26,90 @@ function loadYouTubeApi(): Promise<void> {
     return ytApiPromise
 }
 
+// Cross-browser (Safari is webkit-prefixed) fullscreen helpers.
+function requestFs(el: HTMLElement) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fn = el.requestFullscreen ?? (el as any).webkitRequestFullscreen
+    try {
+        return fn?.call(el)
+    } catch {
+        return undefined
+    }
+}
+function fsElement(): Element | null {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return document.fullscreenElement ?? (document as any).webkitFullscreenElement ?? null
+}
+function exitFs() {
+    if (!fsElement()) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fn = document.exitFullscreen ?? (document as any).webkitExitFullscreen
+    try {
+        void fn?.call(document)
+    } catch {
+        /* ignore */
+    }
+}
+
 interface TrailerDialogProps {
     trailerId: string | null
     title: string
 }
 
 export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title }) => {
-    const [open, setOpen] = useState(false)
-    const contentRef = useRef<HTMLDivElement>(null) // the fullscreen target
-    const hostRef = useRef<HTMLDivElement>(null) // YT replaces an inner child of this with its iframe
+    const [active, setActive] = useState(false)
+    const stageRef = useRef<HTMLDivElement>(null) // the fullscreen target (also the visible overlay if FS is blocked)
+    const hostRef = useRef<HTMLDivElement>(null) // YT replaces an imperative child of this with its iframe
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const playerRef = useRef<any>(null)
 
+    // Warm the API up front so onReady fires near-instantly on click (keeps the fullscreen/autoplay
+    // user-activation fresh).
     useEffect(() => {
-        if (!open) return
-        let cancelled = false
+        void loadYouTubeApi()
+    }, [])
+
+    const close = useCallback(() => {
+        exitFs()
+        setActive(false)
+    }, [])
+
+    // Launch straight into fullscreen from the click gesture (the only moment the browser grants it).
+    const launch = useCallback(() => {
+        setActive(true)
+        // stageRef is rendered (hidden) already; reveal + request fullscreen synchronously in the gesture.
+        const el = stageRef.current
+        if (el) {
+            el.classList.remove("hidden")
+            void Promise.resolve(requestFs(el)).catch(() => {})
+        }
+    }, [])
+
+    // Build the player whenever we go active; tear it down when we close.
+    useEffect(() => {
+        if (!active) return
+        let killed = false
+
+        const onFsChange = () => {
+            // User pressed Esc / exited fullscreen → close everything.
+            if (!fsElement()) close()
+        }
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") close()
+        }
+        document.addEventListener("fullscreenchange", onFsChange)
+        document.addEventListener("webkitfullscreenchange", onFsChange)
+        document.addEventListener("keydown", onKey)
 
         void loadYouTubeApi().then(() => {
-            if (cancelled || !hostRef.current) return
+            if (killed || !hostRef.current) return
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const YT = (window as any).YT
-            // YT replaces its target node with an <iframe>; give it an imperative child (NOT a
-            // React-managed node) so React's unmount never collides with YT's DOM surgery.
+            // Give YT an imperative child (NOT a React-managed node) so unmount never collides with
+            // YT's DOM surgery.
             const mount = document.createElement("div")
-            mount.className = "h-full w-full"
+            mount.style.width = "100%"
+            mount.style.height = "100%"
             hostRef.current.appendChild(mount)
 
             playerRef.current = new YT.Player(mount, {
@@ -59,9 +120,9 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title }
                 playerVars: {
                     autoplay: 1,
                     controls: 1,
-                    modestbranding: 1, // trim the YouTube logo chrome
-                    rel: 0, // keep related results to the same channel
-                    iv_load_policy: 3, // hide annotations
+                    modestbranding: 1,
+                    rel: 0,
+                    iv_load_policy: 3,
                     playsinline: 1,
                     fs: 1,
                     origin: window.location.origin,
@@ -69,23 +130,34 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title }
                 events: {
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     onReady: (e: any) => {
-                        // No TMDB key → search YouTube for the trailer and play the top hit.
                         if (!trailerId) e.target.loadPlaylist({ listType: "search", list: `${title} trailer`, index: 0 })
                         e.target.playVideo()
-                        // Best-effort fullscreen (succeeds while the Trailer click's activation is still fresh).
-                        contentRef.current?.requestFullscreen?.().catch(() => {})
+                        // Autoplay fallback: if sound-autoplay is blocked, mute and retry so it still plays.
+                        window.setTimeout(() => {
+                            try {
+                                const s = e.target.getPlayerState?.()
+                                if (s !== 1 && s !== 3) {
+                                    e.target.mute()
+                                    e.target.playVideo()
+                                }
+                            } catch {
+                                /* ignore */
+                            }
+                        }, 1200)
                     },
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     onStateChange: (e: any) => {
-                        if (e.data === YT.PlayerState.ENDED) setOpen(false)
+                        if (e.data === YT.PlayerState.ENDED) close()
                     },
                 },
             })
         })
 
         return () => {
-            cancelled = true
-            if (typeof document !== "undefined" && document.fullscreenElement) void document.exitFullscreen?.().catch(() => {})
+            killed = true
+            document.removeEventListener("fullscreenchange", onFsChange)
+            document.removeEventListener("webkitfullscreenchange", onFsChange)
+            document.removeEventListener("keydown", onKey)
             try {
                 playerRef.current?.destroy?.()
             } catch {
@@ -94,26 +166,32 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title }
             playerRef.current = null
             if (hostRef.current) hostRef.current.innerHTML = ""
         }
-    }, [open, trailerId, title])
+    }, [active, trailerId, title, close])
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button variant={"outline"} className={"rounded-full border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"}>
-                    <Film className="h-4 w-4" aria-hidden />
-                    <span className="ml-2 text-sm font-medium">Trailer</span>
-                </Button>
-            </DialogTrigger>
-            {/* flex (not the base grid) + sm:max-w-none defeats the dialog's sm:max-w-md cap so the panel fills the screen. */}
-            <DialogContent ref={contentRef} className="flex h-screen w-screen max-w-none items-center justify-center gap-0 rounded-none border-none bg-black p-0 sm:max-w-none">
-                <DialogHeader className="sr-only">
-                    <DialogTitle>{title} Trailer</DialogTitle>
-                </DialogHeader>
-                {/* Maximal centered 16:9 stage: width = min(100vw, 100vh*16/9) so it never exceeds the viewport. */}
-                <div className="aspect-video max-h-screen w-full max-w-[calc(100vh*16/9)]">
-                    <div ref={hostRef} className="h-full w-full" />
-                </div>
-            </DialogContent>
-        </Dialog>
+        <>
+            <Button onClick={launch} variant={"outline"} className={"rounded-full border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"}>
+                <Film className="h-4 w-4" aria-hidden />
+                <span className="ml-2 text-sm font-medium">Trailer</span>
+            </Button>
+
+            {typeof document !== "undefined" &&
+                createPortal(
+                    // z-max so it sits above the (full-screen) drawer; stays a full-viewport black panel even
+                    // if the Fullscreen API is refused. Rendered hidden until launched.
+                    <div ref={stageRef} className={cn("fixed inset-0 z-[2147483647] bg-black", !active && "hidden")}>
+                        <button
+                            type="button"
+                            aria-label="Close trailer"
+                            onClick={close}
+                            className="absolute top-4 right-4 z-10 flex size-10 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
+                        >
+                            <X className="size-5" />
+                        </button>
+                        <div ref={hostRef} className="h-full w-full" />
+                    </div>,
+                    document.body
+                )}
+        </>
     )
 }
