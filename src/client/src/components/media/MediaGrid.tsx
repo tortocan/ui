@@ -22,7 +22,7 @@ const GRID = "grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-
 
 /**
  * Shared responsive poster grid + Previous/Next pager, used by both the "Your Movies/TV" library view
- * (LibraryGrid) and the Discover results. Purely presentational — callers resolve the cards and own
+ * (LibraryBrowser) and the Discover results. Purely presentational — callers resolve the cards and own
  * the paging state; this just renders the grid, skeletons, empty state and pager consistently.
  */
 export function MediaGrid({ cards, loading = false, skeletonCount = 21, page, totalPages = 1, onPageChange, emptyTitle = "No results", emptyDescription = "Try widening your filters." }: MediaGridProps) {

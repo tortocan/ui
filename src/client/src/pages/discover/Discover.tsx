@@ -1,43 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
-import { ChevronDownIcon, ShuffleIcon } from "lucide-react"
-import type {
-    CountryISO3166_1,
-    DiscoverMovieParams,
-    DiscoverMovieSortBy,
-    DiscoverTVParams,
-    DiscoverTVSortBy,
-    Genre,
-    MovieResultItem,
-    DiscoverTVResultItem,
-    WatchProviderListItem,
-} from "@lorenzopant/tmdb"
+import { ShuffleIcon } from "lucide-react"
+import type { CountryISO3166_1, DiscoverMovieParams, DiscoverMovieSortBy, DiscoverTVParams, DiscoverTVSortBy, MovieResultItem, DiscoverTVResultItem } from "@lorenzopant/tmdb"
 import { useTmdb } from "@/hooks/use-tmdb"
 import { useAppSettings } from "@/hooks/use-appsettings.ts"
 import { useMediaDrawer } from "@/components/media/drawer/hooks/useMediaDrawer"
 import { BrowseLayout } from "@/components/media/BrowseLayout.tsx"
 import { MediaGrid } from "@/components/media/MediaGrid.tsx"
+import { MediaFilters, SORT_OPTIONS, type SortKey } from "@/components/media/filters/MediaFilters.tsx"
+import { useFilterOptions } from "@/components/media/filters/useFilterOptions.ts"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx"
 import { Combobox, ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList } from "@/components/ui/combobox"
 
 type MediaKind = "movie" | "tv" | "anime"
-type SortKey = "popularity" | "rating" | "newest" | "oldest" | "az"
 type ResultItem = (MovieResultItem | DiscoverTVResultItem) & { media_kind: "movie" | "tv" }
 
 const MEDIA_KIND_OPTIONS: { value: MediaKind; label: string }[] = [
     { value: "movie", label: "Movies" },
     { value: "tv", label: "TV Shows" },
     { value: "anime", label: "Anime" },
-]
-
-const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-    { value: "popularity", label: "Most Popular" },
-    { value: "rating", label: "Top Rated" },
-    { value: "newest", label: "Newest" },
-    { value: "oldest", label: "Oldest" },
-    { value: "az", label: "A-Z" },
 ]
 
 const MOVIE_SORT_MAP: Record<SortKey, DiscoverMovieSortBy> = {
@@ -60,9 +42,6 @@ const TV_SORT_MAP: Record<SortKey, DiscoverTVSortBy> = {
 // approximation used across most TMDB-backed apps.
 const ANIME_GENRE_ID = 16
 const ANIME_ORIGIN_COUNTRY = "JP" as CountryISO3166_1
-
-const CURRENT_YEAR = new Date().getFullYear()
-const YEARS = Array.from({ length: CURRENT_YEAR - 1950 + 1 }, (_, i) => CURRENT_YEAR - i)
 
 export default function Discover() {
     const tmdb = useTmdb()
@@ -91,8 +70,8 @@ export default function Discover() {
 
     const effectiveType: "movie" | "tv" = mediaKind === "movie" ? "movie" : "tv"
 
-    const [genres, setGenres] = useState<Genre[]>([])
-    const [providers, setProviders] = useState<WatchProviderListItem[]>([])
+    // Shared genre + region-sorted provider lists for the filter bar.
+    const { genres, providers } = useFilterOptions(tmdb, effectiveType, region)
 
     // Genre/provider id spaces differ between movie and TV, so selections reset whenever
     // the effective TMDB type changes (Anime still maps to "tv" under the hood). Skip the first run so
@@ -108,40 +87,6 @@ export default function Discover() {
         setProviderIds([])
         setPage(1)
     }, [effectiveType])
-
-    useEffect(() => {
-        let mounted = true
-        ;(effectiveType === "movie" ? tmdb.genres.movie_list() : tmdb.genres.tv_list())
-            .then((data) => {
-                if (mounted) setGenres(data.genres)
-            })
-            .catch((e) => console.error(e))
-        return () => {
-            mounted = false
-        }
-    }, [tmdb, effectiveType])
-
-    useEffect(() => {
-        let mounted = true
-        const watchRegion = (region ?? "US") as CountryISO3166_1
-        ;(effectiveType === "movie" ? tmdb.watch_providers.movie_providers() : tmdb.watch_providers.tv_providers())
-            .then((data) => {
-                if (!mounted) return
-                // The list endpoint returns ~700 global providers unordered — including broad buy/rent
-                // stores (e.g. Apple TV Store) that barely narrow results, which made the filter feel
-                // broken. Keep only providers available in the user's region and order them by that
-                // region's display priority, so the prominent streaming services surface first.
-                const inRegion = data.results.filter((pr) => pr.display_priorities?.[watchRegion] != null)
-                const list = (inRegion.length ? inRegion : data.results).sort(
-                    (a, b) => (a.display_priorities?.[watchRegion] ?? a.display_priority) - (b.display_priorities?.[watchRegion] ?? b.display_priority)
-                )
-                setProviders(list)
-            })
-            .catch((e) => console.error(e))
-        return () => {
-            mounted = false
-        }
-    }, [tmdb, effectiveType, region])
 
     function buildMovieParams(pageOverride?: number): DiscoverMovieParams {
         // Checking multiple genres/providers is meant to broaden results ("any of these"),
@@ -248,8 +193,6 @@ export default function Discover() {
     }
 
     const selectedMediaKindOption = MEDIA_KIND_OPTIONS.find((o) => o.value === mediaKind) ?? MEDIA_KIND_OPTIONS[0]
-    const sortLabel = SORT_OPTIONS.find((o) => o.value === sortKey)?.label ?? "Most Popular"
-
     // Hero reflects the CURRENT filters: it runs the same Discover query (page 1), so changing any
     // filter (media kind, genre, provider, sort, year) updates the carousel content too.
     const heroFetcher = useCallback(
@@ -265,116 +208,29 @@ export default function Discover() {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex flex-wrap items-center gap-2">
                         <h1 className="mr-1 text-2xl font-semibold">Discover</h1>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline">
-                                    {genreIds.length ? `Genres (${genreIds.length})` : "All Genres"}
-                                    <ChevronDownIcon className="size-4 opacity-60" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="max-h-72 overflow-y-auto">
-                                {genres.map((genre) => (
-                                    <DropdownMenuCheckboxItem key={genre.id} checked={genreIds.includes(genre.id)} onCheckedChange={() => toggleGenre(genre.id)} onSelect={(e) => e.preventDefault()}>
-                                        {genre.name}
-                                    </DropdownMenuCheckboxItem>
-                                ))}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline">
-                                    {providerIds.length ? `Providers (${providerIds.length})` : "All Providers"}
-                                    <ChevronDownIcon className="size-4 opacity-60" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="max-h-72 overflow-y-auto">
-                                {providers.map((provider) => (
-                                    <DropdownMenuCheckboxItem
-                                        key={provider.provider_id}
-                                        checked={providerIds.includes(provider.provider_id)}
-                                        onCheckedChange={() => toggleProvider(provider.provider_id)}
-                                        onSelect={(e) => e.preventDefault()}
-                                    >
-                                        {provider.provider_name}
-                                    </DropdownMenuCheckboxItem>
-                                ))}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline">
-                                    {sortLabel}
-                                    <ChevronDownIcon className="size-4 opacity-60" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent>
-                                <DropdownMenuRadioGroup
-                                    value={sortKey}
-                                    onValueChange={(value) => {
-                                        setSortKey(value as SortKey)
-                                        setPage(1)
-                                    }}
-                                >
-                                    {SORT_OPTIONS.map((option) => (
-                                        <DropdownMenuRadioItem key={option.value} value={option.value}>
-                                            {option.label}
-                                        </DropdownMenuRadioItem>
-                                    ))}
-                                </DropdownMenuRadioGroup>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline">
-                                    {fromYear ?? "From Year"}
-                                    <ChevronDownIcon className="size-4 opacity-60" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="max-h-72 overflow-y-auto">
-                                <DropdownMenuRadioGroup
-                                    value={fromYear ? String(fromYear) : "any"}
-                                    onValueChange={(value) => {
-                                        setFromYear(value === "any" ? null : Number(value))
-                                        setPage(1)
-                                    }}
-                                >
-                                    <DropdownMenuRadioItem value="any">Any</DropdownMenuRadioItem>
-                                    {YEARS.map((year) => (
-                                        <DropdownMenuRadioItem key={year} value={String(year)}>
-                                            {year}
-                                        </DropdownMenuRadioItem>
-                                    ))}
-                                </DropdownMenuRadioGroup>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline">
-                                    {toYear ?? "To Year"}
-                                    <ChevronDownIcon className="size-4 opacity-60" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="max-h-72 overflow-y-auto">
-                                <DropdownMenuRadioGroup
-                                    value={toYear ? String(toYear) : "any"}
-                                    onValueChange={(value) => {
-                                        setToYear(value === "any" ? null : Number(value))
-                                        setPage(1)
-                                    }}
-                                >
-                                    <DropdownMenuRadioItem value="any">Any</DropdownMenuRadioItem>
-                                    {YEARS.map((year) => (
-                                        <DropdownMenuRadioItem key={year} value={String(year)}>
-                                            {year}
-                                        </DropdownMenuRadioItem>
-                                    ))}
-                                </DropdownMenuRadioGroup>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                        <MediaFilters
+                            genres={genres}
+                            genreIds={genreIds}
+                            onToggleGenre={toggleGenre}
+                            providers={providers}
+                            providerIds={providerIds}
+                            onToggleProvider={toggleProvider}
+                            sortKey={sortKey}
+                            onSortChange={(k) => {
+                                setSortKey(k)
+                                setPage(1)
+                            }}
+                            fromYear={fromYear}
+                            onFromYear={(y) => {
+                                setFromYear(y)
+                                setPage(1)
+                            }}
+                            toYear={toYear}
+                            onToYear={(y) => {
+                                setToYear(y)
+                                setPage(1)
+                            }}
+                        />
                     </div>
 
                     <div className="flex items-center gap-2">

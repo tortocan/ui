@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx"
 import { useAppSettings } from "@/hooks/use-appsettings.ts"
 import { useOmssLibrary } from "@/hooks/use-omss-library.ts"
-import { LibraryGrid } from "@/components/media/LibraryGrid.tsx"
+import { LibraryBrowser } from "@/components/media/LibraryBrowser.tsx"
 
 export type BrowseKind = "movie" | "tv"
 
@@ -105,8 +105,7 @@ export default function BrowsePage({ kind }: { kind: BrowseKind }) {
     if (libraryOnly) {
         return (
             <BrowseLayout tmdb={tmdb} heroFetcher={fetchHero}>
-                <h2 className="text-2xl font-semibold">Your {cfg.noun}</h2>
-                <LibraryGrid ids={cfg.libraryIds(library)} type={kind} externalLoading={libraryLoading} />
+                <LibraryBrowser ids={cfg.libraryIds(library)} type={kind} externalLoading={libraryLoading} heading={`Your ${cfg.noun}`} />
             </BrowseLayout>
         )
     }
