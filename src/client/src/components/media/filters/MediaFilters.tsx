@@ -1,7 +1,5 @@
-import { ChevronDownIcon } from "lucide-react"
 import type { Genre } from "@lorenzopant/tmdb"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx"
+import { MultiSelectFilter, SingleSelectFilter } from "./FilterDropdowns.tsx"
 import { NETWORKS, STUDIOS } from "./catalog.ts"
 
 export type SortKey = "popularity" | "rating" | "newest" | "oldest" | "az"
@@ -16,6 +14,7 @@ export const SORT_OPTIONS: { value: SortKey; label: string }[] = [
 
 const CURRENT_YEAR = new Date().getFullYear()
 export const YEARS = Array.from({ length: CURRENT_YEAR - 1950 + 1 }, (_, i) => CURRENT_YEAR - i)
+const YEAR_OPTIONS = [{ value: "any", label: "Any" }, ...YEARS.map((y) => ({ value: String(y), label: String(y) }))]
 
 export interface MediaFiltersProps {
     genres: Genre[]
@@ -40,7 +39,8 @@ export interface MediaFiltersProps {
  * Shared filter bar: Genres, Networks (curated TMDB TV networks — hidden on movies), Studios (curated
  * TMDB production companies), sort, From/To Year. Presentational: the caller owns the state and decides
  * what the filters act on (Discover → a TMDB query; the library → owned titles client-side). Rendered
- * as a fragment so the caller controls the surrounding row (heading / extra controls alongside).
+ * as a fragment so the caller controls the surrounding row. Each dropdown is a shared MultiSelectFilter
+ * or SingleSelectFilter (see FilterDropdowns) so there's no per-filter markup duplication.
  */
 export function MediaFilters({
     genres,
@@ -62,111 +62,24 @@ export function MediaFilters({
 
     return (
         <>
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="outline">
-                        {genreIds.length ? `Genres (${genreIds.length})` : "All Genres"}
-                        <ChevronDownIcon className="size-4 opacity-60" />
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="max-h-72 overflow-y-auto">
-                    {genres.map((genre) => (
-                        <DropdownMenuCheckboxItem key={genre.id} checked={genreIds.includes(genre.id)} onCheckedChange={() => onToggleGenre(genre.id)} onSelect={(e) => e.preventDefault()}>
-                            {genre.name}
-                        </DropdownMenuCheckboxItem>
-                    ))}
-                </DropdownMenuContent>
-            </DropdownMenu>
-
-            {showNetworks && (
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline">
-                            {networkIds.length ? `Networks (${networkIds.length})` : "All Networks"}
-                            <ChevronDownIcon className="size-4 opacity-60" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="max-h-72 overflow-y-auto">
-                        {NETWORKS.map((n) => (
-                            <DropdownMenuCheckboxItem key={n.id} checked={networkIds.includes(n.id)} onCheckedChange={() => onToggleNetwork(n.id)} onSelect={(e) => e.preventDefault()}>
-                                {n.name}
-                            </DropdownMenuCheckboxItem>
-                        ))}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            )}
-
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="outline">
-                        {studioIds.length ? `Studios (${studioIds.length})` : "All Studios"}
-                        <ChevronDownIcon className="size-4 opacity-60" />
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="max-h-72 overflow-y-auto">
-                    {STUDIOS.map((s) => (
-                        <DropdownMenuCheckboxItem key={s.id} checked={studioIds.includes(s.id)} onCheckedChange={() => onToggleStudio(s.id)} onSelect={(e) => e.preventDefault()}>
-                            {s.name}
-                        </DropdownMenuCheckboxItem>
-                    ))}
-                </DropdownMenuContent>
-            </DropdownMenu>
-
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="outline">
-                        {sortLabel}
-                        <ChevronDownIcon className="size-4 opacity-60" />
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                    <DropdownMenuRadioGroup value={sortKey} onValueChange={(value) => onSortChange(value as SortKey)}>
-                        {SORT_OPTIONS.map((option) => (
-                            <DropdownMenuRadioItem key={option.value} value={option.value}>
-                                {option.label}
-                            </DropdownMenuRadioItem>
-                        ))}
-                    </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-            </DropdownMenu>
-
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="outline">
-                        {fromYear ?? "From Year"}
-                        <ChevronDownIcon className="size-4 opacity-60" />
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="max-h-72 overflow-y-auto">
-                    <DropdownMenuRadioGroup value={fromYear ? String(fromYear) : "any"} onValueChange={(value) => onFromYear(value === "any" ? null : Number(value))}>
-                        <DropdownMenuRadioItem value="any">Any</DropdownMenuRadioItem>
-                        {YEARS.map((year) => (
-                            <DropdownMenuRadioItem key={year} value={String(year)}>
-                                {year}
-                            </DropdownMenuRadioItem>
-                        ))}
-                    </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-            </DropdownMenu>
-
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="outline">
-                        {toYear ?? "To Year"}
-                        <ChevronDownIcon className="size-4 opacity-60" />
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="max-h-72 overflow-y-auto">
-                    <DropdownMenuRadioGroup value={toYear ? String(toYear) : "any"} onValueChange={(value) => onToYear(value === "any" ? null : Number(value))}>
-                        <DropdownMenuRadioItem value="any">Any</DropdownMenuRadioItem>
-                        {YEARS.map((year) => (
-                            <DropdownMenuRadioItem key={year} value={String(year)}>
-                                {year}
-                            </DropdownMenuRadioItem>
-                        ))}
-                    </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-            </DropdownMenu>
+            <MultiSelectFilter allLabel="All Genres" nounLabel="Genres" items={genres} selected={genreIds} onToggle={onToggleGenre} />
+            {showNetworks && <MultiSelectFilter allLabel="All Networks" nounLabel="Networks" items={NETWORKS} selected={networkIds} onToggle={onToggleNetwork} />}
+            <MultiSelectFilter allLabel="All Studios" nounLabel="Studios" items={STUDIOS} selected={studioIds} onToggle={onToggleStudio} />
+            <SingleSelectFilter triggerLabel={sortLabel} value={sortKey} options={SORT_OPTIONS} onChange={(v) => onSortChange(v as SortKey)} />
+            <SingleSelectFilter
+                scrollable
+                triggerLabel={fromYear ?? "From Year"}
+                value={fromYear ? String(fromYear) : "any"}
+                options={YEAR_OPTIONS}
+                onChange={(v) => onFromYear(v === "any" ? null : Number(v))}
+            />
+            <SingleSelectFilter
+                scrollable
+                triggerLabel={toYear ?? "To Year"}
+                value={toYear ? String(toYear) : "any"}
+                options={YEAR_OPTIONS}
+                onChange={(v) => onToYear(v === "any" ? null : Number(v))}
+            />
         </>
     )
 }
