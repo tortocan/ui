@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { Film, X } from "lucide-react"
+import { ChevronDown, ChevronUp, Film } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { useOmss } from "@/hooks/use-omss"
 import { cn } from "@/lib/utils"
 
 // Load the YouTube IFrame Player API once (shared across every TrailerDialog instance). We need the
@@ -54,14 +56,19 @@ function exitFs() {
 interface TrailerDialogProps {
     trailerId: string | null
     title: string
+    /** Passed from the drawer so swipe-down can follow this title for release notifications. */
+    mediaType?: "movie" | "tv"
+    tmdbId?: number
 }
 
-export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title }) => {
+export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, mediaType, tmdbId }) => {
     const [active, setActive] = useState(false)
+    const [followed, setFollowed] = useState(false)
     const stageRef = useRef<HTMLDivElement>(null) // the fullscreen target / full-viewport overlay
     const hostRef = useRef<HTMLDivElement>(null) // YT replaces an imperative child of this with its iframe
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const playerRef = useRef<any>(null)
+    const { client, valid } = useOmss()
 
     // Warm the API up front so onReady fires near-instantly on click (keeps the fullscreen activation fresh).
     useEffect(() => {
@@ -73,11 +80,26 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title }
         setActive(false)
     }, [])
 
-    // Scroll-up / swipe-up to dismiss. Wheel & touch over the cross-origin iframe never reach us, so
-    // these fire from the capture strip that covers the player above its control bar.
+    // Swipe-down → follow this title for new-release notifications (gatearr /follow). Guarded so a
+    // second swipe doesn't re-POST, and gated on a reachable OMSS backend + a known tmdbId.
+    const doFollow = useCallback(async () => {
+        if (!valid || !mediaType || !tmdbId || followed) return
+        setFollowed(true)
+        try {
+            await client.follow({ mediaType, tmdbId, title })
+            toast.success(`Following — we'll notify you about new releases for ${title}`)
+        } catch {
+            setFollowed(false)
+            toast.error("Couldn't follow this title")
+        }
+    }, [client, valid, mediaType, tmdbId, title, followed])
+
+    // Vertical gestures on the capture strip (wheel & touch over the cross-origin iframe never reach
+    // us, so they fire from the strip): swipe UP dismisses, swipe DOWN follows.
     const touchStartY = useRef<number | null>(null)
     const onWheel = (e: React.WheelEvent) => {
         if (e.deltaY < -24) close()
+        else if (e.deltaY > 24) void doFollow()
     }
     const onTouchStart = (e: React.TouchEvent) => {
         touchStartY.current = e.touches[0]?.clientY ?? null
@@ -86,7 +108,9 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title }
         const start = touchStartY.current
         touchStartY.current = null
         const end = e.changedTouches[0]?.clientY
-        if (start != null && end != null && start - end > 60) close()
+        if (start == null || end == null) return
+        if (start - end > 60) close()
+        else if (end - start > 60) void doFollow()
     }
 
     // Launch straight into fullscreen from the click gesture (the only moment the browser grants it).
@@ -188,18 +212,18 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title }
                     // overlay is portaled to body (outside the drawer), so without this every click is dead.
                     <div ref={stageRef} className={cn("pointer-events-auto fixed inset-0 z-[2147483647] bg-black", !active && "hidden")}>
                         <div ref={hostRef} className="h-full w-full" />
-                        {/* Scroll/swipe-up capture strip: covers the player ABOVE its control bar (bottom ~80px
-                            left free) so the native controls stay usable while scroll-up dismisses. */}
+                        {/* Gesture capture strip: covers the player ABOVE its control bar (bottom ~80px left
+                            free) so the native controls stay usable while swipe-up dismisses / swipe-down follows. */}
                         <div className="absolute inset-x-0 top-0 bottom-20 z-[5] touch-pan-x" onWheel={onWheel} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} />
-                        {/* Close sits just above the YouTube fullscreen button, bottom-right. */}
-                        <button
-                            type="button"
-                            aria-label="Close trailer"
-                            onClick={close}
-                            className="absolute right-4 bottom-16 z-20 flex size-10 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
-                        >
-                            <X className="size-5" />
-                        </button>
+                        {/* Gesture hints (non-interactive). */}
+                        <div className="pointer-events-none absolute inset-x-0 top-5 z-10 flex flex-col items-center gap-0.5 text-white/70">
+                            <ChevronUp className="size-5" />
+                            <span className="text-xs font-medium tracking-wide">Swipe up to close</span>
+                        </div>
+                        <div className="pointer-events-none absolute inset-x-0 bottom-24 z-10 flex flex-col items-center gap-0.5 text-white/70">
+                            <span className="text-xs font-medium tracking-wide">{followed ? "Following — you'll be notified" : "Swipe down to follow"}</span>
+                            <ChevronDown className="size-5" />
+                        </div>
                     </div>,
                     document.body
                 )}

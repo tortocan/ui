@@ -14,6 +14,7 @@ import { supportedRegions, useTmdb } from "@/hooks/use-tmdb.ts"
 import { useOmss } from "@/hooks/use-omss.ts"
 import { useHistory } from "@/hooks/use-history.ts"
 import { useScrobbleHistory } from "@/hooks/use-scrobble-history.ts"
+import { useFollows } from "@/hooks/use-follows.ts"
 import { useMediaDrawer } from "@/components/media/drawer/hooks/useMediaDrawer.ts"
 
 import type { CountryISO3166_1 } from "@lorenzopant/tmdb"
@@ -42,7 +43,7 @@ export default function Settings() {
 
     const [searchParams, setSearchParams] = useSearchParams()
 
-    const validTabs = ["general", "appearance", "history", "scrobbler", "playback", "omss", "tmdb"] as const
+    const validTabs = ["general", "appearance", "history", "scrobbler", "following", "playback", "omss", "tmdb"] as const
 
     type Tab = (typeof validTabs)[number]
 
@@ -77,6 +78,7 @@ export default function Settings() {
     const { valid, baseUrl, setBaseUrl } = useOmss()
     const { clear, history, remove } = useHistory()
     const { items: scrobbleItems, loading: scrobbleLoading, clear: scrobbleClear, remove: scrobbleRemove } = useScrobbleHistory()
+    const { follows, loading: followsLoading, unfollow: followUnfollow, clear: followClear } = useFollows()
     const { open: openMedia } = useMediaDrawer()
     const { cache } = useTmdb()
 
@@ -107,6 +109,7 @@ export default function Settings() {
                     <TabsTrigger value="appearance">{t("tabs.appearance")}</TabsTrigger>
                     <TabsTrigger value="history">{t("tabs.history")}</TabsTrigger>
                     <TabsTrigger value="scrobbler">{t("tabs.scrobbler", "Scrobbler")}</TabsTrigger>
+                    <TabsTrigger value="following">{t("tabs.following", "Following")}</TabsTrigger>
                     <TabsTrigger value="playback">{t("tabs.playback")}</TabsTrigger>
                     <TabsTrigger value="omss">{t("tabs.omss")}</TabsTrigger>
                     <TabsTrigger value="tmdb">{t("tabs.tmdb")}</TabsTrigger>
@@ -430,6 +433,96 @@ export default function Settings() {
                                             </div>
                                         </Item>
                                     ))}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                {/* ---------------- FOLLOWING ---------------- */}
+                <TabsContent value="following">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>{t("following.title", "Following")}</CardTitle>
+                            <CardDescription>{t("following.description", "Titles you follow for new-release notifications. Swipe down on a trailer to follow.")}</CardDescription>
+
+                            <CardAction>
+                                <ConfirmDialog
+                                    title={t("following.clear.title", "Unfollow everything")}
+                                    description={t("following.clear.description", "This removes all your follows. This cannot be undone.")}
+                                    onConfirm={followClear}
+                                    trigger={
+                                        <Button variant="destructive" className={"max-w-min"} disabled={!follows.length}>
+                                            <Trash2 />
+                                            <span className={"ml-1 hidden sm:inline"}>{t("following.clear.button", "Clear")}</span>
+                                        </Button>
+                                    }
+                                />
+                            </CardAction>
+                        </CardHeader>
+
+                        <CardContent className="space-y-4">
+                            {!valid ? (
+                                <Empty className="rounded-lg border py-10">
+                                    <EmptyHeader>
+                                        <EmptyMedia variant="icon">
+                                            <AlertTriangle className="size-5" />
+                                        </EmptyMedia>
+                                        <EmptyTitle>{t("following.unreachable.title", "OMSS backend unreachable")}</EmptyTitle>
+                                        <EmptyDescription>{t("following.unreachable.description", "Set up your OMSS server to follow titles.")}</EmptyDescription>
+                                    </EmptyHeader>
+                                </Empty>
+                            ) : followsLoading ? (
+                                <P className="text-muted-foreground py-10 text-center text-sm">{t("common:loading", "Loading…")}</P>
+                            ) : !follows.length ? (
+                                <Empty className="rounded-lg border py-10">
+                                    <EmptyHeader>
+                                        <EmptyMedia variant="icon">
+                                            <Trash2 className="size-5" />
+                                        </EmptyMedia>
+                                        <EmptyTitle>{t("following.empty.title", "Not following anything yet")}</EmptyTitle>
+                                        <EmptyDescription>{t("following.empty.description", "Open a title's trailer and swipe down to follow it.")}</EmptyDescription>
+                                    </EmptyHeader>
+                                </Empty>
+                            ) : (
+                                <div className="space-y-2">
+                                    {follows.map((f) => {
+                                        const type = f.mediaType === "show" ? "tv" : "movie"
+                                        const label = f.title ?? `${f.mediaType === "show" ? "Show" : "Movie"} ${f.tmdbId}`
+                                        return (
+                                            <Item key={f.mediaKey} className="lenis-stopped flex items-center justify-between border-dashed border-border">
+                                                <ItemContent>
+                                                    <P
+                                                        className="cursor-pointer transition-colors hover:text-primary"
+                                                        role="button"
+                                                        tabIndex={0}
+                                                        onClick={() => openMedia({ type, id: f.tmdbId })}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === "Enter" || e.key === " ") openMedia({ type, id: f.tmdbId })
+                                                        }}
+                                                    >
+                                                        {label}
+                                                    </P>
+                                                </ItemContent>
+
+                                                <div className="flex items-center gap-2">
+                                                    <Badge variant="outline">{f.mediaType === "show" ? t("common:tvShow.singular", "Show") : t("common:movie.singular", "Movie")}</Badge>
+
+                                                    <ConfirmDialog
+                                                        title={t("following.item.removeTitle", "Unfollow")}
+                                                        description={t("following.item.removeDescription", "Stop receiving release notifications for this title.")}
+                                                        onConfirm={() => followUnfollow(f.mediaKey)}
+                                                        trigger={
+                                                            <Button variant="secondary" size="sm">
+                                                                <Trash2 />
+                                                                {t("following.item.removeButton", "Unfollow")}
+                                                            </Button>
+                                                        }
+                                                    />
+                                                </div>
+                                            </Item>
+                                        )
+                                    })}
                                 </div>
                             )}
                         </CardContent>

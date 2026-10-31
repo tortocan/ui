@@ -9,6 +9,7 @@ import { useAppSettings } from "@/hooks/use-appsettings.ts"
 import { useOmss } from "@/hooks/use-omss"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { GlassFilter } from "@/components/ui/glass-filter"
+import { NotificationsBell } from "@/components/layout/NotificationsBell"
 import Favicon from "./Favicon"
 
 const NAV_LINKS = [
@@ -59,6 +60,8 @@ export default function Header() {
                     {/* Actions */}
                     {showHeaderIcons && (
                         <div className="flex items-center gap-1 px-1">
+                            <NotificationsBell />
+
                             <Button variant="ghost" size="icon" className={iconButtonClass} onClick={() => setShowSearch(!showSearch)} aria-label={t("header:searchPlaceholder")}>
                                 <LucideSearch className="size-5" />
                             </Button>
