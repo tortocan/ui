@@ -21,7 +21,7 @@ interface PlayerControlsProps {
     onToggleFullscreen: () => void
     onDivClick: () => void
     onDoubleClick: () => void
-    onWheel: WheelEventHandler<HTMLDivElement>
+    onWheel?: WheelEventHandler<HTMLDivElement>
     show: boolean
     ref: React.RefObject<HTMLDivElement | null>
     isPiP: boolean

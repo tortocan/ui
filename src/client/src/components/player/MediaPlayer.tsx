@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react"
 import Hls from "hls.js"
+import { useNavigate } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 import { usePlayerState } from "./hooks/usePlayerState"
 import { PlayerControls } from "./PlayerControls"
@@ -31,6 +32,25 @@ export function MediaPlayer() {
     const [showAutoplay, setShowAutoplay] = useState(false)
     const [isPiP, setIsPiP] = useState(false)
     const [playbackRate, setPlaybackRate] = useState(1)
+
+    // Swipe DOWN to close the player (back), like the trailer modal. The old swipe up/down → volume
+    // binding is removed. Wheel deltaY < -24 is a physical down-swipe under Mac natural scrolling; the
+    // controls bar stops wheel propagation so scrolling it never closes. Touch: a finger-down swipe.
+    const navigate = useNavigate()
+    const closeTouchStartY = useRef<number | null>(null)
+    const closePlayer = () => navigate(-1)
+    const onPlayerWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+        if (e.deltaY < -24) closePlayer()
+    }
+    const onPlayerTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+        closeTouchStartY.current = e.touches[0]?.clientY ?? null
+    }
+    const onPlayerTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+        const start = closeTouchStartY.current
+        closeTouchStartY.current = null
+        const end = e.changedTouches[0]?.clientY
+        if (start != null && end != null && end - start > 60) closePlayer()
+    }
     const [qualities, setQualities] = useState<
         {
             index: number
@@ -284,7 +304,15 @@ export function MediaPlayer() {
         )
 
     return (
-        <div ref={containerRef} className="group relative h-screen w-full overflow-hidden" onMouseMove={handleMouseMove} onMouseLeave={() => setShowControls(false)}>
+        <div
+            ref={containerRef}
+            className="group relative h-screen w-full overflow-hidden"
+            onMouseMove={handleMouseMove}
+            onMouseLeave={() => setShowControls(false)}
+            onWheel={onPlayerWheel}
+            onTouchStart={onPlayerTouchStart}
+            onTouchEnd={onPlayerTouchEnd}
+        >
             <video
                 ref={videoRef}
                 className="h-full w-full"
@@ -314,20 +342,6 @@ export function MediaPlayer() {
             <PlayerControls
                 isPlaying={isPlaying}
                 onDoubleClick={toggleFullscreen}
-                onWheel={(e: React.WheelEvent<HTMLDivElement>) => {
-                    // scroll up = increase volume
-                    const delta = -e.deltaY * 0.001
-
-                    const newVolume = Math.max(0, Math.min(1, volume + delta))
-
-                    setVolume(newVolume)
-
-                    if (newVolume === 0) {
-                        setIsMuted(true)
-                    } else if (isMuted) {
-                        setIsMuted(false)
-                    }
-                }}
                 currentTime={currentTime}
                 onDivClick={togglePlay}
                 duration={duration}

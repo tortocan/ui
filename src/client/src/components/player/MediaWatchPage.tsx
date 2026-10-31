@@ -48,12 +48,7 @@ function MediaWatchPageContent({ type }: { type: MediaType }) {
 
     return (
         <div className="relative min-h-screen bg-black text-foreground">
-            <div className="absolute top-4 left-4 z-50">
-                <Button variant="ghost" className="border border-border" onClick={() => navigate(-1)}>
-                    <ChevronLeft className="h-6 w-6" /> Back
-                </Button>
-            </div>
-
+            {/* No back button — swipe down on the player closes it (navigate back), like the trailer modal. */}
             <div className="h-full w-full bg-black">
                 <MediaPlayer />
             </div>
