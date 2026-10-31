@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import type { TMDB } from "@lorenzopant/tmdb"
 import Autoplay from "embla-carousel-autoplay"
-import { Calendar, Play, Star } from "lucide-react"
+import { Calendar, Info, Play, Star } from "lucide-react"
 import { Carousel, type CarouselApi, CarouselContent, CarouselItem } from "@/components/ui/carousel"
 import { useHeroSlides } from "./use-heroslides"
 import type { HeroFetcherResult } from "./types"
@@ -105,10 +105,10 @@ export function HeroCarousel({ tmdb, fetcher }: { tmdb: TMDB; fetcher: HeroFetch
                                             ))}
                                         </div>
 
-                                        <p className="max-w-xl text-sm leading-relaxed text-white/70 sm:text-base">
-                                            {slide.description.length > (isMobile ? 100 : 235)
+                                        <p className="max-w-2xl text-base leading-relaxed text-white/80 sm:text-lg">
+                                            {slide.description.length > (isMobile ? 160 : 420)
                                                 ? `${slide.description
-                                                      .slice(0, isMobile ? 100 : 235)
+                                                      .slice(0, isMobile ? 160 : 420)
                                                       .split(" ")
                                                       .slice(0, -1)
                                                       .join(" ")}...`
@@ -134,6 +134,7 @@ export function HeroCarousel({ tmdb, fetcher }: { tmdb: TMDB; fetcher: HeroFetch
                                                 className="rounded-full border-white/30 bg-white/10 px-7 text-white backdrop-blur-md hover:bg-white/20 hover:text-white"
                                                 onClick={() => open({ type: slide.type, id: slide.id })}
                                             >
+                                                <Info className="size-4" />
                                                 Learn more
                                             </Button>
                                         </div>
