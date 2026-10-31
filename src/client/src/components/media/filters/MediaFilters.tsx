@@ -61,7 +61,7 @@ export function MediaFilters({ genres, genreIds, onToggleGenre, providers, provi
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <Button variant="outline">
-                        {providerIds.length ? `Providers (${providerIds.length})` : "All Providers"}
+                        {providerIds.length ? `Networks (${providerIds.length})` : "All Networks"}
                         <ChevronDownIcon className="size-4 opacity-60" />
                     </Button>
                 </DropdownMenuTrigger>
