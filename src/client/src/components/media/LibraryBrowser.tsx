@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import type { CountryISO3166_1 } from "@lorenzopant/tmdb"
 import { useTmdb } from "@/hooks/use-tmdb"
-import { useAppSettings } from "@/hooks/use-appsettings.ts"
 import { MediaGrid, type GridCard } from "@/components/media/MediaGrid.tsx"
 import { MediaFilters, type SortKey } from "@/components/media/filters/MediaFilters.tsx"
 import { useFilterOptions } from "@/components/media/filters/useFilterOptions.ts"
@@ -9,7 +7,7 @@ import { useFilterOptions } from "@/components/media/filters/useFilterOptions.ts
 const PAGE_SIZE = 35
 const CHUNK = 20 // concurrent TMDB detail calls per batch
 
-type LibTitle = GridCard & { popularity: number; genreIds: number[] }
+type LibTitle = GridCard & { popularity: number; genreIds: number[]; companyIds: number[]; networkIds: number[] }
 
 async function inChunks<T, R>(items: T[], size: number, fn: (item: T) => Promise<R>): Promise<R[]> {
     const out: R[] = []
@@ -20,37 +18,35 @@ async function inChunks<T, R>(items: T[], size: number, fn: (item: T) => Promise
 }
 
 /**
- * The "Your Movies / Your TV Shows" library view with the shared Discover-style filter bar. OMSS only
- * gives us owned ids, so we resolve TMDB details for ALL of them once (genre/year/rating/popularity —
+ * The "Your Movies / Your TV Shows" library view with the shared filter bar. OMSS only gives us owned
+ * ids, so we resolve TMDB details for ALL of them once (genre/company/network/year/rating/popularity —
  * the TMDB client caches, chunked to avoid a request storm) and then filter + sort + paginate client
- * side. Genre/year/sort are instant; the Providers filter lazily fetches per-title watch-provider
- * availability for the user's region only while that filter is active.
+ * side. Everything is instant since genres, production companies (Studios) and TV networks all come
+ * from the title details — no extra per-title calls.
  */
 export function LibraryBrowser({ ids, type, externalLoading = false, heading }: { ids: number[]; type: "movie" | "tv"; externalLoading?: boolean; heading?: string }) {
     const tmdb = useTmdb()
-    const { region } = useAppSettings()
-    const { genres, providers } = useFilterOptions(tmdb, type, region)
+    const { genres } = useFilterOptions(tmdb, type)
 
     const [titles, setTitles] = useState<LibTitle[] | null>(null)
     const [genreIds, setGenreIds] = useState<number[]>([])
-    const [providerIds, setProviderIds] = useState<number[]>([])
+    const [networkIds, setNetworkIds] = useState<number[]>([])
+    const [studioIds, setStudioIds] = useState<number[]>([])
     const [sortKey, setSortKey] = useState<SortKey>("popularity")
     const [fromYear, setFromYear] = useState<number | null>(null)
     const [toYear, setToYear] = useState<number | null>(null)
     const [page, setPage] = useState(1)
-    const [providerSets, setProviderSets] = useState<Record<number, Set<number>>>({})
-    const [providerLoading, setProviderLoading] = useState(false)
 
     // Reset everything when the library (ids/type) changes.
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setPage(1)
         setGenreIds([])
-        setProviderIds([])
+        setNetworkIds([])
+        setStudioIds([])
         setSortKey("popularity")
         setFromYear(null)
         setToYear(null)
-        setProviderSets({})
     }, [ids, type])
 
     // Resolve details for every owned id (chunked, cached).
@@ -72,6 +68,8 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
                             rating: m.vote_average,
                             popularity: m.popularity,
                             genreIds: (m.genres ?? []).map((g) => g.id),
+                            companyIds: (m.production_companies ?? []).map((c) => c.id),
+                            networkIds: [],
                         }
                     }
                     const s = await tmdb.tv_series.details({ series_id: id })
@@ -84,6 +82,8 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
                         rating: s.vote_average,
                         popularity: s.popularity,
                         genreIds: (s.genres ?? []).map((g) => g.id),
+                        companyIds: (s.production_companies ?? []).map((c) => c.id),
+                        networkIds: (s.networks ?? []).map((n) => n.id),
                     }
                 } catch {
                     return null
@@ -96,48 +96,14 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
         }
     }, [ids, type, tmdb])
 
-    // Lazily fetch watch-provider availability for owned titles, only while a provider filter is set.
-    useEffect(() => {
-        if (!providerIds.length || !titles) return
-        const missing = titles.filter((t) => providerSets[t.id] == null)
-        if (!missing.length) return
-        let cancelled = false
-        const watchRegion = (region ?? "US") as CountryISO3166_1
-        setProviderLoading(true)
-        void (async () => {
-            const entries = await inChunks(missing, CHUNK, async (t): Promise<[number, Set<number>]> => {
-                try {
-                    const res = type === "movie" ? await tmdb.movies.watch_providers({ movie_id: t.id }) : await tmdb.tv_series.watch_providers({ series_id: t.id })
-                    const regionData = res.results?.[watchRegion]
-                    const set = new Set<number>()
-                    for (const key of ["flatrate", "rent", "buy"] as const) {
-                        for (const pr of regionData?.[key] ?? []) set.add(pr.provider_id)
-                    }
-                    return [t.id, set]
-                } catch {
-                    return [t.id, new Set<number>()]
-                }
-            })
-            if (cancelled) return
-            setProviderSets((prev) => {
-                const next = { ...prev }
-                for (const [id, set] of entries) next[id] = set
-                return next
-            })
-            setProviderLoading(false)
-        })()
-        return () => {
-            cancelled = true
-        }
-    }, [providerIds, titles, type, tmdb, region, providerSets])
-
     const filtered = useMemo(() => {
         if (!titles) return []
         let list = titles
         if (genreIds.length) list = list.filter((t) => t.genreIds.some((g) => genreIds.includes(g)))
+        if (networkIds.length) list = list.filter((t) => t.networkIds.some((n) => networkIds.includes(n)))
+        if (studioIds.length) list = list.filter((t) => t.companyIds.some((c) => studioIds.includes(c)))
         if (fromYear) list = list.filter((t) => t.year && t.year >= fromYear)
         if (toYear) list = list.filter((t) => t.year && t.year <= toYear)
-        if (providerIds.length) list = list.filter((t) => providerSets[t.id] && providerIds.some((p) => providerSets[t.id].has(p)))
         const cmp: Record<SortKey, (a: LibTitle, b: LibTitle) => number> = {
             popularity: (a, b) => b.popularity - a.popularity,
             rating: (a, b) => b.rating - a.rating,
@@ -146,22 +112,18 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
             az: (a, b) => a.title.localeCompare(b.title),
         }
         return [...list].sort(cmp[sortKey])
-    }, [titles, genreIds, fromYear, toYear, providerIds, providerSets, sortKey])
+    }, [titles, genreIds, networkIds, studioIds, fromYear, toYear, sortKey])
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
     const pageCards = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-    const busy = titles === null || externalLoading || (providerIds.length > 0 && providerLoading)
+    const busy = titles === null || externalLoading
 
-    const toggleGenre = (id: number) => {
-        setGenreIds((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
-        setPage(1)
-    }
-    const toggleProvider = (id: number) => {
-        setProviderIds((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
+    const toggle = (setter: (fn: (p: number[]) => number[]) => void) => (id: number) => {
+        setter((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
         setPage(1)
     }
 
-    const anyFilter = genreIds.length > 0 || providerIds.length > 0 || fromYear != null || toYear != null
+    const anyFilter = genreIds.length > 0 || networkIds.length > 0 || studioIds.length > 0 || fromYear != null || toYear != null
     const noLibrary = !busy && (titles?.length ?? 0) === 0 && !anyFilter
 
     return (
@@ -171,10 +133,12 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
                 <MediaFilters
                     genres={genres}
                     genreIds={genreIds}
-                    onToggleGenre={toggleGenre}
-                    providers={providers}
-                    providerIds={providerIds}
-                    onToggleProvider={toggleProvider}
+                    onToggleGenre={toggle(setGenreIds)}
+                    networkIds={networkIds}
+                    onToggleNetwork={toggle(setNetworkIds)}
+                    showNetworks={type === "tv"}
+                    studioIds={studioIds}
+                    onToggleStudio={toggle(setStudioIds)}
                     sortKey={sortKey}
                     onSortChange={(k) => {
                         setSortKey(k)

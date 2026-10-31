@@ -4,7 +4,6 @@ import { toast } from "sonner"
 import { ShuffleIcon } from "lucide-react"
 import type { CountryISO3166_1, DiscoverMovieParams, DiscoverMovieSortBy, DiscoverTVParams, DiscoverTVSortBy, MovieResultItem, DiscoverTVResultItem } from "@lorenzopant/tmdb"
 import { useTmdb } from "@/hooks/use-tmdb"
-import { useAppSettings } from "@/hooks/use-appsettings.ts"
 import { useMediaDrawer } from "@/components/media/drawer/hooks/useMediaDrawer"
 import { BrowseLayout } from "@/components/media/BrowseLayout.tsx"
 import { MediaGrid } from "@/components/media/MediaGrid.tsx"
@@ -45,7 +44,6 @@ const ANIME_ORIGIN_COUNTRY = "JP" as CountryISO3166_1
 
 export default function Discover() {
     const tmdb = useTmdb()
-    const { region } = useAppSettings()
     const { open } = useMediaDrawer()
 
     // Deep-link params (e.g. a rail's "See more" → /discover?type=tv&genre=18 or ?type=movie&sort=rating).
@@ -59,7 +57,8 @@ export default function Discover() {
         const id = Number(searchParams.get("genre"))
         return searchParams.get("genre") && Number.isFinite(id) ? [id] : []
     })
-    const [providerIds, setProviderIds] = useState<number[]>([])
+    const [networkIds, setNetworkIds] = useState<number[]>([])
+    const [studioIds, setStudioIds] = useState<number[]>([])
     const [sortKey, setSortKey] = useState<SortKey>(() => {
         const s = searchParams.get("sort")
         return SORT_OPTIONS.some((o) => o.value === s) ? (s as SortKey) : "popularity"
@@ -70,12 +69,12 @@ export default function Discover() {
 
     const effectiveType: "movie" | "tv" = mediaKind === "movie" ? "movie" : "tv"
 
-    // Shared genre + region-sorted provider lists for the filter bar.
-    const { genres, providers } = useFilterOptions(tmdb, effectiveType, region)
+    // Shared genre list for the filter bar (networks + studios are curated constants).
+    const { genres } = useFilterOptions(tmdb, effectiveType)
 
-    // Genre/provider id spaces differ between movie and TV, so selections reset whenever
-    // the effective TMDB type changes (Anime still maps to "tv" under the hood). Skip the first run so
-    // a genre arriving via ?genre= survives mount; only reset when the user later switches media type.
+    // Genre/network id spaces differ between movie and TV, so selections reset whenever the effective
+    // TMDB type changes (Anime still maps to "tv"). Skip the first run so a genre arriving via ?genre=
+    // survives mount; only reset when the user later switches media type.
     const didResetMountRef = useRef(false)
     useEffect(() => {
         if (!didResetMountRef.current) {
@@ -84,21 +83,20 @@ export default function Discover() {
         }
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setGenreIds([])
-        setProviderIds([])
+        setNetworkIds([])
+        setStudioIds([])
         setPage(1)
     }, [effectiveType])
 
+    // Multiple genres/studios/networks broaden results ("any of these") via TMDB's OR (`|`) syntax.
     function buildMovieParams(pageOverride?: number): DiscoverMovieParams {
-        // Checking multiple genres/providers is meant to broaden results ("any of these"),
-        // so both use TMDB's OR (`|`) syntax instead of the default AND (`,`).
         const genrePart = genreIds
-        const watchRegion = (region ?? "US") as CountryISO3166_1
 
         return {
             page: pageOverride ?? page,
             sort_by: MOVIE_SORT_MAP[sortKey],
             ...(genrePart.length ? { with_genres: genrePart.join("|") } : {}),
-            ...(providerIds.length ? { with_watch_providers: providerIds.join("|"), watch_region: watchRegion } : {}),
+            ...(studioIds.length ? { with_companies: studioIds.join("|") } : {}),
             ...(sortKey === "rating" ? { "vote_count.gte": 50 } : {}),
             ...(fromYear ? { "primary_release_date.gte": `${fromYear}-01-01` } : {}),
             ...(toYear ? { "primary_release_date.lte": `${toYear}-12-31` } : {}),
@@ -107,13 +105,13 @@ export default function Discover() {
 
     function buildTvParams(pageOverride?: number): DiscoverTVParams {
         const genrePart = mediaKind === "anime" ? [...genreIds, ANIME_GENRE_ID] : genreIds
-        const watchRegion = (region ?? "US") as CountryISO3166_1
 
         return {
             page: pageOverride ?? page,
             sort_by: TV_SORT_MAP[sortKey],
             with_genres: genrePart.join("|"),
-            ...(providerIds.length ? { with_watch_providers: providerIds.join("|"), watch_region: watchRegion } : {}),
+            ...(networkIds.length ? { with_networks: networkIds.join("|") } : {}),
+            ...(studioIds.length ? { with_companies: studioIds.join("|") } : {}),
             ...(sortKey === "rating" ? { "vote_count.gte": 50 } : {}),
             ...(mediaKind === "anime" ? { with_origin_country: ANIME_ORIGIN_COUNTRY } : {}),
             ...(fromYear ? { "first_air_date.gte": `${fromYear}-01-01` } : {}),
@@ -155,7 +153,7 @@ export default function Discover() {
             mounted = false
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [tmdb, effectiveType, mediaKind, sortKey, region, fromYear, toYear, page, genreIds.join(","), providerIds.join(",")])
+    }, [tmdb, effectiveType, mediaKind, sortKey, fromYear, toYear, page, genreIds.join(","), networkIds.join(","), studioIds.join(",")])
 
     const [isSurprising, setIsSurprising] = useState(false)
 
@@ -187,18 +185,23 @@ export default function Discover() {
         setPage(1)
     }
 
-    function toggleProvider(id: number) {
-        setProviderIds((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]))
+    function toggleNetwork(id: number) {
+        setNetworkIds((prev) => (prev.includes(id) ? prev.filter((n) => n !== id) : [...prev, id]))
+        setPage(1)
+    }
+
+    function toggleStudio(id: number) {
+        setStudioIds((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]))
         setPage(1)
     }
 
     const selectedMediaKindOption = MEDIA_KIND_OPTIONS.find((o) => o.value === mediaKind) ?? MEDIA_KIND_OPTIONS[0]
     // Hero reflects the CURRENT filters: it runs the same Discover query (page 1), so changing any
-    // filter (media kind, genre, provider, sort, year) updates the carousel content too.
+    // filter (media kind, genre, network, studio, sort, year) updates the carousel content too.
     const heroFetcher = useCallback(
         () => Promise.all([fetchPage(1)]),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [tmdb, effectiveType, mediaKind, sortKey, region, fromYear, toYear, genreIds.join(","), providerIds.join(",")]
+        [tmdb, effectiveType, mediaKind, sortKey, fromYear, toYear, genreIds.join(","), networkIds.join(","), studioIds.join(",")]
     )
 
     return (
@@ -212,9 +215,11 @@ export default function Discover() {
                             genres={genres}
                             genreIds={genreIds}
                             onToggleGenre={toggleGenre}
-                            providers={providers}
-                            providerIds={providerIds}
-                            onToggleProvider={toggleProvider}
+                            networkIds={networkIds}
+                            onToggleNetwork={toggleNetwork}
+                            showNetworks={effectiveType === "tv"}
+                            studioIds={studioIds}
+                            onToggleStudio={toggleStudio}
                             sortKey={sortKey}
                             onSortChange={(k) => {
                                 setSortKey(k)

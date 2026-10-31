@@ -1,7 +1,8 @@
 import { ChevronDownIcon } from "lucide-react"
-import type { Genre, WatchProviderListItem } from "@lorenzopant/tmdb"
+import type { Genre } from "@lorenzopant/tmdb"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx"
+import { NETWORKS, STUDIOS } from "./catalog.ts"
 
 export type SortKey = "popularity" | "rating" | "newest" | "oldest" | "az"
 
@@ -20,9 +21,13 @@ export interface MediaFiltersProps {
     genres: Genre[]
     genreIds: number[]
     onToggleGenre: (id: number) => void
-    providers: WatchProviderListItem[]
-    providerIds: number[]
-    onToggleProvider: (id: number) => void
+    // Networks are TMDB TV networks (TV only); hidden when showNetworks is false (e.g. on movies).
+    networkIds: number[]
+    onToggleNetwork: (id: number) => void
+    showNetworks?: boolean
+    // Studios are TMDB production companies (movies & TV).
+    studioIds: number[]
+    onToggleStudio: (id: number) => void
     sortKey: SortKey
     onSortChange: (key: SortKey) => void
     fromYear: number | null
@@ -32,12 +37,27 @@ export interface MediaFiltersProps {
 }
 
 /**
- * Shared Discover-style filter bar: All Genres, All Providers, sort, From Year, To Year. Purely
- * presentational — the caller owns the state and decides what the filters act on (Discover → a TMDB
- * discover query; the library views → owned titles filtered client-side). Rendered as a fragment so
- * the caller controls the surrounding row (and can place a heading / extra controls alongside).
+ * Shared filter bar: Genres, Networks (curated TMDB TV networks — hidden on movies), Studios (curated
+ * TMDB production companies), sort, From/To Year. Presentational: the caller owns the state and decides
+ * what the filters act on (Discover → a TMDB query; the library → owned titles client-side). Rendered
+ * as a fragment so the caller controls the surrounding row (heading / extra controls alongside).
  */
-export function MediaFilters({ genres, genreIds, onToggleGenre, providers, providerIds, onToggleProvider, sortKey, onSortChange, fromYear, onFromYear, toYear, onToYear }: MediaFiltersProps) {
+export function MediaFilters({
+    genres,
+    genreIds,
+    onToggleGenre,
+    networkIds,
+    onToggleNetwork,
+    showNetworks = true,
+    studioIds,
+    onToggleStudio,
+    sortKey,
+    onSortChange,
+    fromYear,
+    onFromYear,
+    toYear,
+    onToYear,
+}: MediaFiltersProps) {
     const sortLabel = SORT_OPTIONS.find((o) => o.value === sortKey)?.label ?? "Most Popular"
 
     return (
@@ -58,22 +78,35 @@ export function MediaFilters({ genres, genreIds, onToggleGenre, providers, provi
                 </DropdownMenuContent>
             </DropdownMenu>
 
+            {showNetworks && (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline">
+                            {networkIds.length ? `Networks (${networkIds.length})` : "All Networks"}
+                            <ChevronDownIcon className="size-4 opacity-60" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="max-h-72 overflow-y-auto">
+                        {NETWORKS.map((n) => (
+                            <DropdownMenuCheckboxItem key={n.id} checked={networkIds.includes(n.id)} onCheckedChange={() => onToggleNetwork(n.id)} onSelect={(e) => e.preventDefault()}>
+                                {n.name}
+                            </DropdownMenuCheckboxItem>
+                        ))}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            )}
+
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <Button variant="outline">
-                        {providerIds.length ? `Networks (${providerIds.length})` : "All Networks"}
+                        {studioIds.length ? `Studios (${studioIds.length})` : "All Studios"}
                         <ChevronDownIcon className="size-4 opacity-60" />
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="max-h-72 overflow-y-auto">
-                    {providers.map((provider) => (
-                        <DropdownMenuCheckboxItem
-                            key={provider.provider_id}
-                            checked={providerIds.includes(provider.provider_id)}
-                            onCheckedChange={() => onToggleProvider(provider.provider_id)}
-                            onSelect={(e) => e.preventDefault()}
-                        >
-                            {provider.provider_name}
+                    {STUDIOS.map((s) => (
+                        <DropdownMenuCheckboxItem key={s.id} checked={studioIds.includes(s.id)} onCheckedChange={() => onToggleStudio(s.id)} onSelect={(e) => e.preventDefault()}>
+                            {s.name}
                         </DropdownMenuCheckboxItem>
                     ))}
                 </DropdownMenuContent>
