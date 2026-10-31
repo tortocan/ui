@@ -82,6 +82,7 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
     const hostRef = useRef<HTMLDivElement>(null) // YT replaces an imperative child of this with its iframe
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const playerRef = useRef<any>(null)
+    const qualitySetRef = useRef(false)
     const { client, valid } = useOmss()
 
     useEffect(() => {
@@ -185,6 +186,7 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
     useEffect(() => {
         if (!active) return
         let killed = false
+        qualitySetRef.current = false
 
         const onKey = (e: KeyboardEvent) => {
             if (e.key === "Escape") close()
@@ -219,6 +221,7 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
                     iv_load_policy: 3,
                     playsinline: 1,
                     fs: 0,
+                    vq: "hd1080", // hint YouTube to start at HD (it still auto-adapts down to bandwidth)
                     origin: window.location.origin,
                 },
                 events: {
@@ -255,6 +258,17 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     onStateChange: (e: any) => {
                         setPlaying(e.data === 1)
+                        // On first play, nudge to the highest available level (auto still adapts down).
+                        if (e.data === 1 && !qualitySetRef.current) {
+                            qualitySetRef.current = true
+                            try {
+                                const levels: string[] = e.target.getAvailableQualityLevels?.() ?? []
+                                const best = levels.find((l) => l !== "auto")
+                                if (best) e.target.setPlaybackQuality?.(best)
+                            } catch {
+                                /* deprecated API — best-effort only */
+                            }
+                        }
                         if (e.data === YT.PlayerState.ENDED) close()
                     },
                 },
