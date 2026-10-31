@@ -69,7 +69,7 @@ export function HeroCarousel({ tmdb, fetcher }: { tmdb: TMDB; fetcher: HeroFetch
                                 <img
                                     src={slide.networkLogo}
                                     alt=""
-                                    className="pointer-events-none absolute top-20 right-6 z-10 max-h-14 w-auto max-w-[240px] object-contain opacity-90 brightness-0 invert sm:right-8 lg:right-12"
+                                    className="pointer-events-none absolute top-20 right-6 z-10 max-h-14 w-auto max-w-[240px] object-contain opacity-90 [filter:invert(1)_hue-rotate(180deg)] sm:right-8 lg:right-12"
                                 />
                             )}
                             {slide.studioLogo && (
@@ -77,7 +77,7 @@ export function HeroCarousel({ tmdb, fetcher }: { tmdb: TMDB; fetcher: HeroFetch
                                     src={slide.studioLogo}
                                     alt=""
                                     // Lift above the bottom-10% float band (mirrors the hero text) so it isn't covered.
-                                    className="pointer-events-none absolute right-6 bottom-[calc(2rem+8vh)] z-10 max-h-16 w-auto max-w-[260px] object-contain opacity-90 brightness-0 invert sm:right-8 md:bottom-[calc(2rem+10vh)] lg:right-12"
+                                    className="pointer-events-none absolute right-6 bottom-[calc(2rem+8vh)] z-10 max-h-16 w-auto max-w-[260px] object-contain opacity-90 [filter:invert(1)_hue-rotate(180deg)] sm:right-8 md:bottom-[calc(2rem+10vh)] lg:right-12"
                                 />
                             )}
                             {/* pb-[…vh] lifts the hero text/buttons up ~10% so they clear the content that floats over the hero's bottom. */}
