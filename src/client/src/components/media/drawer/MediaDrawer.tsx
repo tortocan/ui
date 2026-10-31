@@ -146,8 +146,10 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
                         />
 
                         {/* DETAIL SECTIONS — float ~10% up over the hero card's bottom, exactly like the
-                            BrowseLayout content float, so the hero shows through the overlap (no black gap). */}
-                        <div className="relative z-20 -mt-[8vh] px-4 pb-10 text-white md:-mt-[10vh] md:px-8">
+                            BrowseLayout content float (same -mt + a p-8-style top padding), so the hero shows
+                            through the overlap (no black gap) while the first section keeps breathing room
+                            below the hero's Play/Trailer buttons instead of hugging them. */}
+                        <div className="relative z-20 -mt-[8vh] px-4 pt-8 pb-10 text-white md:-mt-[10vh] md:px-8">
                             {/* TV EPISODES */}
                             {data.type === "tv" && data.seasons && (
                                 <div className="mb-8">
