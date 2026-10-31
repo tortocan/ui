@@ -65,7 +65,8 @@ export function HeroCarousel({ tmdb, fetcher }: { tmdb: TMDB; fetcher: HeroFetch
                             <div className="absolute inset-0 bg-[linear-gradient(110deg,rgba(0,0,0,0.92)_10%,rgba(0,0,0,0.45)_45%,rgba(0,0,0,0.82)_100%)]" />
                             {/* pb-[…vh] lifts the hero text/buttons up ~10% so they clear the content that floats over the hero's bottom. */}
                             <div className="relative z-10 flex h-full items-end pb-[8vh] md:pb-[10vh]">
-                                <div className="mx-auto w-full max-w-7xl px-6 pb-18 sm:px-8 lg:px-12 lg:pb-23">
+                                {/* Flush-left (no mx-auto/max-w centering) so the hero text hugs the left edge. */}
+                                <div className="w-full px-6 pb-18 sm:px-8 lg:px-12 lg:pb-23">
                                     <div className="max-w-2xl space-y-5">
                                         <img className="max-h-34 max-w-[50vw] sm:max-w-140" src={slide.logo} alt={slide.title} />
                                         <div className="flex flex-wrap items-center gap-4 text-sm text-white/70 sm:text-base">
@@ -113,7 +114,8 @@ export function HeroCarousel({ tmdb, fetcher }: { tmdb: TMDB; fetcher: HeroFetch
                 ))}
             </CarouselContent>
 
-            <div className="absolute bottom-[calc(2rem+8vh)] left-1/2 z-10 flex -translate-x-1/2 gap-3 md:bottom-[calc(2rem+10vh)]">
+            {/* Carousel controls at the TOP-center, just below the fixed nav pill. */}
+            <div className="absolute top-24 left-1/2 z-10 flex -translate-x-1/2 gap-3">
                 {slides.map((slide, index) => {
                     const isActive = activeSlide === index
 
