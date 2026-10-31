@@ -3,16 +3,23 @@ import { useEffect, useState } from "react"
 /** localStorage slot ProfileProvider persists the active profile id under (JSON, may be null). */
 const ACTIVE_PROFILE_KEY = "app.activeProfileId"
 
-/** The active profile id as a string slot ("default" before any profile is chosen). */
-export function activeProfileSlot(): string {
-    if (typeof window === "undefined") return "default"
+/** The active profile id, or null before any profile is chosen. Read fresh from localStorage so it's
+ * current at request time (profile switches reload the page anyway). */
+export function readActiveProfileId(): number | null {
+    if (typeof window === "undefined") return null
     try {
         const raw = localStorage.getItem(ACTIVE_PROFILE_KEY)
         const v = raw ? (JSON.parse(raw) as number | null) : null
-        return v == null ? "default" : String(v)
+        return typeof v === "number" && v > 0 ? v : null
     } catch {
-        return "default"
+        return null
     }
+}
+
+/** The active profile id as a string slot ("default" before any profile is chosen). */
+export function activeProfileSlot(): string {
+    const id = readActiveProfileId()
+    return id == null ? "default" : String(id)
 }
 
 /** Namespace a base settings key by the active profile, e.g. "app.colorTheme" → "app.colorTheme::p1". */

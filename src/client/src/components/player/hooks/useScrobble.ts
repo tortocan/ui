@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react"
 import type { ScrobbleAction, ScrobbleMediaType } from "@omss/sdk"
 import { useOmss } from "@/hooks/use-omss"
+import { readActiveProfileId } from "@/hooks/use-localstorage.ts"
 import type { UnifiedMedia } from "../types/media.types"
 
 // How often, while playing, we checkpoint progress to the backend.
@@ -83,7 +84,10 @@ export function useScrobble(videoRef: React.RefObject<HTMLVideoElement | null>, 
             const snap = snapshot()
             if (!snap || !baseUrl) return
             if (resolvedKeyRef.current !== refKey(snap.ref)) return // wait until resume is resolved
-            const url = `${baseUrl.replace(/\/+$/, "")}/scrobble`
+            // sendBeacon can't set an X-Profile-Id header, so carry the active profile as ?profile=
+            // (gatearr's POST /scrobble accepts it; omitted when no profile is chosen → default profile).
+            const pid = readActiveProfileId()
+            const url = `${baseUrl.replace(/\/+$/, "")}/scrobble${pid != null ? `?profile=${pid}` : ""}`
             const payload = JSON.stringify({ ...snap.ref, progress: snap.progress, action, title: snap.title })
             try {
                 const blob = new Blob([payload], { type: "text/plain" })

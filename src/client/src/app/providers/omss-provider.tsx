@@ -1,6 +1,6 @@
 import React, { createContext, useEffect, useMemo, useState } from "react"
 import { createOmssClient, type OmssClient } from "@omss/sdk"
-import { usePersistentState } from "@/hooks/use-localstorage.ts"
+import { usePersistentState, readActiveProfileId } from "@/hooks/use-localstorage.ts"
 import { useDebouncedValue } from "@/hooks/use-debounce.ts"
 
 type OmssContextType = {
@@ -36,6 +36,13 @@ export function OmssProvider({ children }: { children: React.ReactNode }) {
     const client = useMemo(() => {
         return createOmssClient({
             baseUrl: debouncedBaseUrl,
+            // Tag every OMSS call with the active profile so gatearr scopes scrobble/follow/notifications
+            // to it. Read fresh per request (profile switches reload the page); omitted when no profile is
+            // chosen, so gatearr falls back to the default profile — profiles stay optional.
+            getDefaultHeaders: () => {
+                const id = readActiveProfileId()
+                return id != null ? { "X-Profile-Id": String(id) } : {}
+            },
         })
     }, [debouncedBaseUrl])
 
