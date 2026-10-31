@@ -1,7 +1,6 @@
 import { useCallback } from "react"
 import { useTmdb } from "@/hooks/use-tmdb"
 import { HeroCarousel } from "@/components/media/HeroCarousel/HeroCarousel"
-import { HeroFade } from "@/components/media/HeroCarousel/HeroFade"
 import { MovieRail, TvRail } from "@/components/media/MediaRail/TypedRails.tsx"
 import { ContinueWatchingRail } from "@/components/media/MediaRail/ContinueWatchingRail.tsx"
 
@@ -20,10 +19,8 @@ export function HomePage() {
         <div className="min-h-screen overflow-hidden">
             <HeroCarousel tmdb={tmdb} fetcher={fetchHero} />
 
-            {/* Content floats ~10% up over the hero's bottom; HeroFade blends the overlap. */}
-            <section className="relative z-10 -mt-[8vh] flex flex-col gap-8 bg-background p-8 md:-mt-[10vh]">
-                <HeroFade />
-
+            {/* Content floats ~10% up over the hero's bottom; transparent bg so the hero shows through. */}
+            <section className="relative z-10 -mt-[8vh] flex flex-col gap-8 p-8 md:-mt-[10vh]">
                 <ContinueWatchingRail />
 
                 <MovieRail title="Popular Movies" fetcher={fetchPopularMovies} />

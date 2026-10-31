@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from "react"
 import type { Genre, TMDB, TrendingParams } from "@lorenzopant/tmdb"
 import { useTmdb } from "@/hooks/use-tmdb"
 import { HeroCarousel } from "@/components/media/HeroCarousel/HeroCarousel"
-import { HeroFade } from "@/components/media/HeroCarousel/HeroFade"
 import { MovieRail, TvRail } from "@/components/media/MediaRail/TypedRails.tsx"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx"
@@ -108,9 +107,7 @@ export default function BrowsePage({ kind }: { kind: BrowseKind }) {
             <div className="min-h-screen overflow-hidden">
                 <HeroCarousel tmdb={tmdb} fetcher={fetchHero} />
 
-                <section className="relative z-10 -mt-[8vh] flex flex-col gap-6 bg-background p-8 md:-mt-[10vh]">
-                    <HeroFade />
-
+                <section className="relative z-10 -mt-[8vh] flex flex-col gap-6 p-8 md:-mt-[10vh]">
                     <h2 className="text-2xl font-semibold">Your {cfg.noun}</h2>
                     <LibraryGrid ids={cfg.libraryIds(library)} type={kind} externalLoading={libraryLoading} />
                 </section>
@@ -122,10 +119,8 @@ export default function BrowsePage({ kind }: { kind: BrowseKind }) {
         <div className="min-h-screen overflow-hidden">
             <HeroCarousel tmdb={tmdb} fetcher={fetchHero} />
 
-            {/* Content floats ~10% up over the hero's bottom; HeroFade blends the overlap. */}
-            <section className="relative z-10 -mt-[8vh] flex flex-col gap-8 bg-background p-8 md:-mt-[10vh]">
-                <HeroFade />
-
+            {/* Content floats ~10% up over the hero's bottom; transparent bg so the hero shows through. */}
+            <section className="relative z-10 -mt-[8vh] flex flex-col gap-8 p-8 md:-mt-[10vh]">
                 <Rail
                     title={
                         <div className={"flex items-center justify-between"}>
