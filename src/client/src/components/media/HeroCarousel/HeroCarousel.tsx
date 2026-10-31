@@ -1,10 +1,10 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type { TMDB } from "@lorenzopant/tmdb"
+import Autoplay from "embla-carousel-autoplay"
 import { ArrowRight, PlayCircle } from "lucide-react"
 import { Carousel, type CarouselApi, CarouselContent, CarouselItem } from "@/components/ui/carousel"
 import { useHeroSlides } from "./use-heroslides"
 import type { HeroFetcherResult } from "./types"
-import { useHeroAutoplay } from "./use-hero-autoplay"
 import { Button } from "@/components/ui/button.tsx"
 import { StarRating } from "@/components/media/StarRating"
 import "@/styles/animation.css"
@@ -21,18 +21,26 @@ export function HeroCarousel({ tmdb, fetcher }: { tmdb: TMDB; fetcher: HeroFetch
     const [heroApi, setHeroApi] = useState<CarouselApi>()
     const [activeSlide, setActiveSlide] = useState(0)
     const [progressKey, setProgressKey] = useState(0)
-    const [isHovered, setIsHovered] = useState(false)
 
-    useHeroAutoplay({
-        heroApi,
-        enabled: true,
-        slideCount: slides.length,
-        paused: isHovered,
-        onSelect: (index) => {
-            setActiveSlide(index)
+    // Autoplay is fully managed by the embla-carousel-autoplay plugin (no custom hover-pause hook).
+    // delay matches the dot progress ring (6500ms); it keeps playing through interaction/hover.
+    const plugins = useMemo(() => [Autoplay({ delay: 6500, stopOnInteraction: false, stopOnMouseEnter: false, stopOnFocusIn: false })], [])
+
+    // Keep the active dot + its progress ring in step with whatever slide the plugin (or a swipe) lands on.
+    useEffect(() => {
+        if (!heroApi) return
+        const onSelect = () => {
+            setActiveSlide(heroApi.selectedScrollSnap())
             setProgressKey((p) => p + 1)
-        },
-    })
+        }
+        onSelect()
+        heroApi.on("select", onSelect)
+        heroApi.on("reInit", onSelect)
+        return () => {
+            heroApi.off("select", onSelect)
+            heroApi.off("reInit", onSelect)
+        }
+    }, [heroApi])
 
     const heroEmptyState = useMemo(
         () => (
@@ -46,18 +54,7 @@ export function HeroCarousel({ tmdb, fetcher }: { tmdb: TMDB; fetcher: HeroFetch
     if (loading || slides.length === 0) return heroEmptyState
 
     return (
-        <Carousel
-            setApi={setHeroApi}
-            opts={{ loop: true }}
-            className="h-full w-full"
-            onPointerEnter={() => setIsHovered(true)}
-            onPointerLeave={() => {
-                // Resume: unfreeze + restart the progress ring from 0 so it stays in sync with the
-                // fresh autoplay timer that useHeroAutoplay re-arms on un-pause.
-                setIsHovered(false)
-                setProgressKey((p) => p + 1)
-            }}
-        >
+        <Carousel setApi={setHeroApi} opts={{ loop: true }} plugins={plugins} className="h-full w-full">
             <CarouselContent className="ml-0 h-full">
                 {slides.map((slide) => (
                     <CarouselItem key={`${slide.type}-${slide.id}`} className="pl-0">
@@ -128,14 +125,7 @@ export function HeroCarousel({ tmdb, fetcher }: { tmdb: TMDB; fetcher: HeroFetch
                             }}
                             className={`relative h-2.5 overflow-hidden rounded-full transition-all duration-300 ${isActive ? "w-10 bg-primary/20" : "w-2.5 bg-white/30 hover:bg-white/50"}`}
                         >
-                            {isActive && (
-                                <div
-                                    key={`${progressKey}-${index}`}
-                                    className="animate-carousel-progress absolute inset-0 origin-left rounded-full bg-primary"
-                                    // Freeze the progress ring while hovered, in step with the paused autoplay.
-                                    style={{ animationPlayState: isHovered ? "paused" : "running" }}
-                                />
-                            )}
+                            {isActive && <div key={`${progressKey}-${index}`} className="animate-carousel-progress absolute inset-0 origin-left rounded-full bg-primary" />}
                         </button>
                     )
                 })}
