@@ -57,7 +57,9 @@ export type AppSettings = {
     // `media` list) instead of browsing all of TMDB.
     libraryOnly: boolean
     showHeaderIcons: boolean
+    showHeaderLogo: boolean
     showCarouselDots: boolean
+    showFooter: boolean
 
     tmdbApiKey: string
     tmdbOptions: TMDBOptions
@@ -68,7 +70,9 @@ export type AppSettings = {
     setShowSearch: (value: boolean) => void
     setLibraryOnly: (value: boolean) => void
     setShowHeaderIcons: (value: boolean) => void
+    setShowHeaderLogo: (value: boolean) => void
     setShowCarouselDots: (value: boolean) => void
+    setShowFooter: (value: boolean) => void
 
     setTmdbApiKey: (apiKey: string) => void
     setTmdbOptions: React.Dispatch<React.SetStateAction<TMDBOptions>>

@@ -4,10 +4,14 @@ import { toast } from "sonner"
 import { Bug, Film, Github, Info, Tv } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useTranslation } from "react-i18next"
+import { useAppSettings } from "@/hooks/use-appsettings.ts"
 import Favicon from "./Favicon"
 
 export default function Footer() {
     const { t } = useTranslation(["footer", "common"])
+    const { showFooter } = useAppSettings()
+
+    if (!showFooter) return null
 
     return (
         <footer id="footer" className="z-1 mt-8 border-t border-border bg-background py-4 md:py-12">

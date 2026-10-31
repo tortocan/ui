@@ -31,7 +31,9 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     const [autoplayNext, setAutoplayNext] = usePersistentState<boolean>("app.autoplayNext", true)
     const [libraryOnly, setLibraryOnly] = usePersistentState<boolean>("app.libraryOnly", false)
     const [showHeaderIcons, setShowHeaderIcons] = usePersistentState<boolean>("app.showHeaderIcons", true)
+    const [showHeaderLogo, setShowHeaderLogo] = usePersistentState<boolean>("app.showHeaderLogo", true)
     const [showCarouselDots, setShowCarouselDots] = usePersistentState<boolean>("app.showCarouselDots", true)
+    const [showFooter, setShowFooter] = usePersistentState<boolean>("app.showFooter", true)
 
     const [tmdbApiKey, setTmdbApiKey] = usePersistentState<string>("app.tmdbApiKey", import.meta.env.VITE_TMDB_API_KEY)
 
@@ -62,7 +64,9 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
             showSearch,
             libraryOnly,
             showHeaderIcons,
+            showHeaderLogo,
             showCarouselDots,
+            showFooter,
             tmdbApiKey,
             tmdbOptions,
 
@@ -72,11 +76,13 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
             setShowSearch,
             setLibraryOnly,
             setShowHeaderIcons,
+            setShowHeaderLogo,
             setShowCarouselDots,
+            setShowFooter,
             setTmdbApiKey,
             setTmdbOptions,
         }),
-        [locale, region, autoplayNext, standalone, showSearch, libraryOnly, showHeaderIcons, showCarouselDots, tmdbApiKey, tmdbOptions, setLocale, setRegion, setAutoplayNext, setShowSearch, setLibraryOnly, setShowHeaderIcons, setShowCarouselDots, setTmdbApiKey, setTmdbOptions]
+        [locale, region, autoplayNext, standalone, showSearch, libraryOnly, showHeaderIcons, showHeaderLogo, showCarouselDots, showFooter, tmdbApiKey, tmdbOptions, setLocale, setRegion, setAutoplayNext, setShowSearch, setLibraryOnly, setShowHeaderIcons, setShowHeaderLogo, setShowCarouselDots, setShowFooter, setTmdbApiKey, setTmdbOptions]
     )
 
     return <AppSettingsContext.Provider value={value}>{children}</AppSettingsContext.Provider>

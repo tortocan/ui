@@ -61,7 +61,7 @@ export default function Settings() {
     const { theme, setTheme } = useTheme()
     const { colorTheme, setColorTheme } = useColorTheme()
 
-    const { region, locale, autoplayNext, tmdbApiKey, libraryOnly, showHeaderIcons, showCarouselDots, setLocale, setAutoplayNext, setRegion, setLibraryOnly, setShowHeaderIcons, setShowCarouselDots, standalone } = useAppSettings()
+    const { region, locale, autoplayNext, tmdbApiKey, libraryOnly, showHeaderIcons, showHeaderLogo, showCarouselDots, showFooter, setLocale, setAutoplayNext, setRegion, setLibraryOnly, setShowHeaderIcons, setShowHeaderLogo, setShowCarouselDots, setShowFooter, standalone } = useAppSettings()
     const tmdb = useTmdb()
 
     const handleLanguageChange = (value: string) => {
@@ -273,6 +273,15 @@ export default function Settings() {
                                 <Switch id="show-header-icons" checked={showHeaderIcons} onCheckedChange={setShowHeaderIcons} />
                             </div>
 
+                            {/* Header logo toggle */}
+                            <div className="flex items-center justify-between gap-4">
+                                <div>
+                                    <Label htmlFor="show-header-logo">{t("appearance.headerLogo.label", "Header Logo")}</Label>
+                                    <p className="pt-1 text-sm text-muted-foreground">{t("appearance.headerLogo.info", "Show the app logo in the header")}</p>
+                                </div>
+                                <Switch id="show-header-logo" checked={showHeaderLogo} onCheckedChange={setShowHeaderLogo} />
+                            </div>
+
                             {/* Carousel dots toggle */}
                             <div className="flex items-center justify-between gap-4">
                                 <div>
@@ -280,6 +289,15 @@ export default function Settings() {
                                     <p className="pt-1 text-sm text-muted-foreground">{t("appearance.carouselDots.info", "Show navigation dots on the hero carousel")}</p>
                                 </div>
                                 <Switch id="show-carousel-dots" checked={showCarouselDots} onCheckedChange={setShowCarouselDots} />
+                            </div>
+
+                            {/* Footer toggle */}
+                            <div className="flex items-center justify-between gap-4">
+                                <div>
+                                    <Label htmlFor="show-footer">{t("appearance.footer.label", "Page Footer")}</Label>
+                                    <p className="pt-1 text-sm text-muted-foreground">{t("appearance.footer.info", "Show the footer at the bottom of every page")}</p>
+                                </div>
+                                <Switch id="show-footer" checked={showFooter} onCheckedChange={setShowFooter} />
                             </div>
                         </CardContent>
                     </Card>

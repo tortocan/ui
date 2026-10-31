@@ -23,7 +23,7 @@ const iconButtonClass = "text-white/70 hover:bg-white/10 hover:text-white"
 
 export default function Header() {
     const { t } = useTranslation(["header", "common", "settings"])
-    const { setShowSearch, showSearch, showHeaderIcons } = useAppSettings()
+    const { setShowSearch, showSearch, showHeaderIcons, showHeaderLogo } = useAppSettings()
     const { valid } = useOmss()
     const navigate = useNavigate()
     const location = useLocation()
@@ -40,9 +40,11 @@ export default function Header() {
                     style={hasGlassSize ? { backdropFilter: `url(#${filterId}) saturate(1)` } : undefined}
                 >
                     {/* Logo */}
-                    <Link to="/" className="mr-1 flex items-center px-2">
-                        <Favicon className="h-12 w-auto text-primary" />
-                    </Link>
+                    {showHeaderLogo && (
+                        <Link to="/" className="mr-1 flex items-center px-2">
+                            <Favicon className="h-12 w-auto text-primary" />
+                        </Link>
+                    )}
 
                     {/* Nav links (hidden below sm to avoid overflowing the pill on narrow screens) */}
                     <div className="hidden items-center sm:flex">
