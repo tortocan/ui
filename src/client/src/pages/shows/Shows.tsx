@@ -6,9 +6,14 @@ import { useCallback, useEffect, useState } from "react"
 import type { Genre, TrendingParams } from "@lorenzopant/tmdb"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx"
+import { useAppSettings } from "@/hooks/use-appsettings.ts"
+import { useOmssLibrary } from "@/hooks/use-omss-library.ts"
+import { LibraryGrid } from "@/components/media/LibraryGrid.tsx"
 
 export default function Shows() {
     const tmdb = useTmdb()
+    const { libraryOnly } = useAppSettings()
+    const { library, loading: libraryLoading } = useOmssLibrary(libraryOnly)
     const [trendingRange, setTrendingRange] = useState<TrendingParams>({ time_window: "day" })
     const [genres, setGenres] = useState<Genre[]>([])
     const [selectedGenre, setSelectedGenre] = useState<Genre | null>(null)
@@ -42,6 +47,18 @@ export default function Shows() {
     const fetchByGenre = useCallback(() => tmdb.discover.tv({ with_genres: selectedGenre?.id }), [tmdb, selectedGenre])
     const fetchPopular = useCallback(() => tmdb.tv_lists.popular({}), [tmdb])
     const fetchTopRated = useCallback(() => tmdb.tv_lists.top_rated(), [tmdb])
+
+    // Library mode: show only the TV shows the OMSS server has (gatearr's /v1 media), not all of TMDB.
+    if (libraryOnly) {
+        return (
+            <div className="min-h-screen">
+                <section className="flex flex-col gap-6 bg-background p-8 pt-24">
+                    <h2 className="text-2xl font-semibold">Your TV Shows</h2>
+                    <LibraryGrid ids={library.tv} type="tv" externalLoading={libraryLoading} />
+                </section>
+            </div>
+        )
+    }
 
     return (
         <div className="min-h-screen overflow-hidden">

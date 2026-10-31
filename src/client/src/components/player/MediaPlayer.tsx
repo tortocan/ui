@@ -7,6 +7,8 @@ import { LoadingState } from "./LoadingState"
 import { useEpisodeAutoplay } from "./hooks/useEpisodeAutoplay"
 import { EpisodeAutoplayOverlay } from "./EpisodeAutoplayOverlay"
 import { useSubtitles } from "@/components/player/hooks/useSubtitles.ts"
+import { useAudioTracks } from "@/components/player/hooks/useAudioTracks.ts"
+import { useScrobble } from "@/components/player/hooks/useScrobble.ts"
 import { CustomSubtitles } from "@/components/player/CustomSubtitles"
 
 export function MediaPlayer() {
@@ -19,6 +21,10 @@ export function MediaPlayer() {
 
     const { handleEpisodeEnded } = useEpisodeAutoplay()
     const { selectedSubtitle } = useSubtitles()
+    const { audioTracks, selectedAudioTrack } = useAudioTracks()
+
+    // Resume playback from gatearr's local scrobbler, and report start/pause/stop/progress back to it.
+    useScrobble(videoRef, media)
 
     const [showControls, setShowControls] = useState(true)
     const [isFullscreen, setIsFullscreen] = useState(false)
@@ -57,7 +63,7 @@ export function MediaPlayer() {
                 hlsRef.current = hls
 
                 hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                    if (isPlaying) video.play().catch(() => setIsPlaying(false))
+                    void video.play().catch(() => {}) // autoplay when ready; onPlay syncs isPlaying
                     const levels = hls.levels.map((level, index) => ({
                         index,
                         height: level.height,
@@ -78,6 +84,9 @@ export function MediaPlayer() {
             }
         } else {
             video.src = selectedSource.url
+            // Autoplay once the source is set; onPlay syncs isPlaying. If the browser's autoplay
+            // policy blocks it (no user activation), it stays paused and the user presses play.
+            void video.play().catch(() => {})
         }
 
         return () => {
@@ -87,6 +96,38 @@ export function MediaPlayer() {
             }
         }
     }, [selectedSource, setError, setIsLoading, setIsPlaying])
+
+    // Apply the selected audio track to the <video> element (OMSS only gives the track list; the
+    // player stored the choice without applying it). For a multi-audio mp4, HTMLMediaElement exposes
+    // `video.audioTracks` (Safari) whose `.enabled` flag switches the active track. Match by language
+    // code, falling back to the OMSS list index. Skip when the target is already active (the load-time
+    // default) so we never toggle `.enabled` needlessly. No-op when the element exposes <=1 track.
+    useEffect(() => {
+        const video = videoRef.current as (HTMLVideoElement & { audioTracks?: any }) | null
+        if (!video || !selectedAudioTrack) return
+        const apply = () => {
+            const list = video.audioTracks
+            if (!list || list.length <= 1) return
+            const want = (selectedAudioTrack.language ?? "").toLowerCase()
+            let target = -1
+            if (want) {
+                for (let i = 0; i < list.length; i++) {
+                    const l = (list[i].language ?? "").toLowerCase()
+                    if (l && (l === want || l.slice(0, 2) === want.slice(0, 2))) { target = i; break }
+                }
+            }
+            if (target < 0) {
+                const idx = audioTracks.findIndex(
+                    (t) => t.language === selectedAudioTrack.language && t.label === selectedAudioTrack.label)
+                if (idx >= 0 && idx < list.length) target = idx
+            }
+            if (target < 0 || list[target].enabled) return
+            for (let i = 0; i < list.length; i++) list[i].enabled = i === target
+        }
+        apply()
+        video.addEventListener("loadedmetadata", apply)
+        return () => video.removeEventListener("loadedmetadata", apply)
+    }, [selectedAudioTrack, audioTracks, selectedSource])
 
     useEffect(() => {
         if (videoRef.current) {
@@ -157,7 +198,24 @@ export function MediaPlayer() {
         controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 3000)
     }
 
-    const togglePlay = () => setIsPlaying(!isPlaying)
+    // Drive play()/pause() DIRECTLY from the click so it runs inside the user-gesture activation.
+    // Safari blocks an unmuted play() that happens later in a useEffect (outside the gesture), which
+    // made the first play click get swallowed and require a second click. The isPlaying effect still
+    // syncs programmatic toggles (keyboard, autoplay-next).
+    const togglePlay = () => {
+        const video = videoRef.current
+        if (!video) {
+            setIsPlaying(!isPlaying)
+            return
+        }
+        if (video.paused) {
+            setIsPlaying(true)
+            void video.play().catch(() => setIsPlaying(false))
+        } else {
+            setIsPlaying(false)
+            video.pause()
+        }
+    }
 
     const handleSeek = (val: number[]) => {
         if (videoRef.current) {
@@ -235,7 +293,10 @@ export function MediaPlayer() {
                 onEnded={handleEnded}
                 onWaiting={() => setIsLoading(true)}
                 onPlaying={() => setIsLoading(false)}
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
                 onClick={togglePlay}
+                autoPlay
                 preload="auto"
                 crossOrigin="anonymous"
                 poster={media?.backdropUrl.replace("w300", "original")}

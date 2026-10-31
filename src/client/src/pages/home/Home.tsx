@@ -3,6 +3,7 @@ import { useTmdb } from "@/hooks/use-tmdb"
 import { HeroCarousel } from "@/components/media/HeroCarousel/HeroCarousel"
 import { HeroFade } from "@/components/media/HeroCarousel/HeroFade"
 import { MovieRail, TvRail } from "@/components/media/MediaRail/TypedRails.tsx"
+import { ContinueWatchingRail } from "@/components/media/MediaRail/ContinueWatchingRail.tsx"
 
 export function HomePage() {
     const tmdb = useTmdb()
@@ -22,6 +23,8 @@ export function HomePage() {
             <HeroFade />
 
             <section className="flex flex-col gap-8 bg-background p-8">
+                <ContinueWatchingRail />
+
                 <MovieRail title="Popular Movies" fetcher={fetchPopularMovies} />
 
                 <TvRail title="Trending TV Shows" fetcher={fetchTrendingTv} />

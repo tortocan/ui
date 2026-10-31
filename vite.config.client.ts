@@ -21,6 +21,13 @@ export default defineConfig({
         VitePWA({
             registerType: "autoUpdate",
 
+            // Self-destroying service worker: unregisters itself and clears all caches on the next
+            // load, then stops caching. Disabled because the cached app-shell/route chunks were
+            // serving stale code across redeploys (fixes looked like they "didn't work" until a
+            // manual SW clear). For a LAN tool that's redeployed often, immediate freshness beats
+            // offline/PWA. Re-enable (remove this) once the app is stable if PWA install is wanted.
+            selfDestroying: true,
+
             outDir: process.env.NODE_ENV !== "production" ? resolve(import.meta.dirname, "src", "client") : resolve(import.meta.dirname, "build", "client", "client"),
 
             injectRegister: "auto",

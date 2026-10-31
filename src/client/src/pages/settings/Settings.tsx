@@ -13,6 +13,8 @@ import { supportedLocales, type SupportedLocales } from "@/hooks/use-appsettings
 import { supportedRegions, useTmdb } from "@/hooks/use-tmdb.ts"
 import { useOmss } from "@/hooks/use-omss.ts"
 import { useHistory } from "@/hooks/use-history.ts"
+import { useScrobbleHistory } from "@/hooks/use-scrobble-history.ts"
+import { useMediaDrawer } from "@/components/media/drawer/hooks/useMediaDrawer.ts"
 
 import type { CountryISO3166_1 } from "@lorenzopant/tmdb"
 
@@ -40,7 +42,7 @@ export default function Settings() {
 
     const [searchParams, setSearchParams] = useSearchParams()
 
-    const validTabs = ["general", "appearance", "history", "playback", "omss", "tmdb"] as const
+    const validTabs = ["general", "appearance", "history", "scrobbler", "playback", "omss", "tmdb"] as const
 
     type Tab = (typeof validTabs)[number]
 
@@ -58,7 +60,7 @@ export default function Settings() {
     const { theme, setTheme } = useTheme()
     const { colorTheme, setColorTheme } = useColorTheme()
 
-    const { region, locale, autoplayNext, tmdbApiKey, setLocale, setAutoplayNext, setRegion, standalone } = useAppSettings()
+    const { region, locale, autoplayNext, tmdbApiKey, libraryOnly, setLocale, setAutoplayNext, setRegion, setLibraryOnly, standalone } = useAppSettings()
     const tmdb = useTmdb()
 
     const handleLanguageChange = (value: string) => {
@@ -74,6 +76,8 @@ export default function Settings() {
 
     const { valid, baseUrl, setBaseUrl } = useOmss()
     const { clear, history, remove } = useHistory()
+    const { items: scrobbleItems, loading: scrobbleLoading, clear: scrobbleClear, remove: scrobbleRemove } = useScrobbleHistory()
+    const { open: openMedia } = useMediaDrawer()
     const { cache } = useTmdb()
 
     return (
@@ -102,6 +106,7 @@ export default function Settings() {
                     <TabsTrigger value="general">{t("general.title")}</TabsTrigger>
                     <TabsTrigger value="appearance">{t("tabs.appearance")}</TabsTrigger>
                     <TabsTrigger value="history">{t("tabs.history")}</TabsTrigger>
+                    <TabsTrigger value="scrobbler">{t("tabs.scrobbler", "Scrobbler")}</TabsTrigger>
                     <TabsTrigger value="playback">{t("tabs.playback")}</TabsTrigger>
                     <TabsTrigger value="omss">{t("tabs.omss")}</TabsTrigger>
                     <TabsTrigger value="tmdb">{t("tabs.tmdb")}</TabsTrigger>
@@ -323,6 +328,96 @@ export default function Settings() {
                     </Card>
                 </TabsContent>
 
+                {/* ---------------- SCROBBLER ---------------- */}
+                <TabsContent value="scrobbler">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>{t("scrobbler.title", "Scrobbler")}</CardTitle>
+                            <CardDescription>{t("scrobbler.description", "Resume points and watched titles, tracked by your OMSS backend's scrobbler")}</CardDescription>
+
+                            <CardAction>
+                                <ConfirmDialog
+                                    title={t("scrobbler.clear.title", "Clear scrobbler data")}
+                                    description={t("scrobbler.clear.description", "This removes all resume points and watched status. This cannot be undone.")}
+                                    onConfirm={scrobbleClear}
+                                    trigger={
+                                        <Button variant="destructive" className={"max-w-min"} disabled={!scrobbleItems.length}>
+                                            <Trash2 />
+                                            <span className={"ml-1 hidden sm:inline"}>{t("scrobbler.clear.button", "Clear")}</span>
+                                        </Button>
+                                    }
+                                />
+                            </CardAction>
+                        </CardHeader>
+
+                        <CardContent className="space-y-4">
+                            {!valid ? (
+                                <Empty className="rounded-lg border py-10">
+                                    <EmptyHeader>
+                                        <EmptyMedia variant="icon">
+                                            <AlertTriangle className="size-5" />
+                                        </EmptyMedia>
+                                        <EmptyTitle>{t("scrobbler.unreachable.title", "OMSS backend unreachable")}</EmptyTitle>
+                                        <EmptyDescription>{t("scrobbler.unreachable.description", "Set up your OMSS server to track resume points.")}</EmptyDescription>
+                                    </EmptyHeader>
+                                </Empty>
+                            ) : scrobbleLoading ? (
+                                <P className="text-muted-foreground py-10 text-center text-sm">{t("common:loading", "Loading…")}</P>
+                            ) : !scrobbleItems.length ? (
+                                <Empty className="rounded-lg border py-10">
+                                    <EmptyHeader>
+                                        <EmptyMedia variant="icon">
+                                            <Trash2 className="size-5" />
+                                        </EmptyMedia>
+                                        <EmptyTitle>{t("scrobbler.empty.title", "Nothing tracked yet")}</EmptyTitle>
+                                        <EmptyDescription>{t("scrobbler.empty.description", "Play something and your progress will appear here.")}</EmptyDescription>
+                                    </EmptyHeader>
+                                </Empty>
+                            ) : (
+                                <div className="space-y-2">
+                                    {scrobbleItems.map((item) => (
+                                        <Item key={item.key} className="lenis-stopped flex items-center justify-between border-dashed border-border">
+                                            <ItemContent>
+                                                <P
+                                                    className="cursor-pointer transition-colors hover:text-primary"
+                                                    role="button"
+                                                    tabIndex={0}
+                                                    onClick={() => openMedia({ type: item.mediaType === "movie" ? "movie" : "tv", id: item.tmdbId })}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === "Enter" || e.key === " ") openMedia({ type: item.mediaType === "movie" ? "movie" : "tv", id: item.tmdbId })
+                                                    }}
+                                                >
+                                                    {item.title}
+                                                </P>
+                                            </ItemContent>
+
+                                            <div className="flex items-center gap-2">
+                                                {item.progress > 2 && item.progress < 95 ? (
+                                                    <Badge variant="outline">{Math.round(item.progress)}%</Badge>
+                                                ) : (
+                                                    <Badge variant="secondary">{t("scrobbler.item.watched", "Watched")}</Badge>
+                                                )}
+
+                                                <ConfirmDialog
+                                                    title={t("scrobbler.item.removeTitle", "Remove entry")}
+                                                    description={t("scrobbler.item.removeDescription", "Remove this title's resume point and watched status.")}
+                                                    onConfirm={() => scrobbleRemove(item.key)}
+                                                    trigger={
+                                                        <Button variant="secondary" size="sm">
+                                                            <Trash2 />
+                                                            {t("scrobbler.item.removeButton", "Remove")}
+                                                        </Button>
+                                                    }
+                                                />
+                                            </div>
+                                        </Item>
+                                    ))}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
                 {/* ---------------- PLAYBACK ---------------- */}
                 <TabsContent value="playback">
                     <Card>
@@ -374,6 +469,16 @@ export default function Settings() {
                                         </ItemContent>
                                     </Item>
                                 )}
+
+                                <div className="mt-4 flex items-center justify-between gap-4 rounded-lg border border-border p-4">
+                                    <div className="space-y-0.5">
+                                        <Label htmlFor="library-only">Only show my library</Label>
+                                        <span className="flex text-sm text-muted-foreground">
+                                            Movies and TV Shows pages list only the titles available on your OMSS server, instead of browsing all of TMDB.
+                                        </span>
+                                    </div>
+                                    <Switch id="library-only" checked={libraryOnly} onCheckedChange={setLibraryOnly} />
+                                </div>
                             </div>
                         </CardContent>
                     </Card>

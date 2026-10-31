@@ -53,6 +53,9 @@ export type AppSettings = {
     autoplayNext: boolean
     showSearch: boolean
     standalone: boolean
+    // When true, Movies/TV pages show only titles available on the OMSS server (gatearr's /v1
+    // `media` list) instead of browsing all of TMDB.
+    libraryOnly: boolean
 
     tmdbApiKey: string
     tmdbOptions: TMDBOptions
@@ -61,6 +64,7 @@ export type AppSettings = {
     setRegion: (region: CountryISO3166_1) => void
     setAutoplayNext: (value: boolean) => void
     setShowSearch: (value: boolean) => void
+    setLibraryOnly: (value: boolean) => void
 
     setTmdbApiKey: (apiKey: string) => void
     setTmdbOptions: React.Dispatch<React.SetStateAction<TMDBOptions>>

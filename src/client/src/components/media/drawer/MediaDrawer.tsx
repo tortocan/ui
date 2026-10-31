@@ -1,5 +1,7 @@
-import { ArrowLeft, Calendar, Play } from "lucide-react"
+import { ArrowLeft, Calendar, Play, RotateCcw } from "lucide-react"
+import { useEffect, useState } from "react"
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
+import { useOmss } from "@/hooks/use-omss"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useMediaDetails } from "./hooks/useMediaDetails"
@@ -27,10 +29,41 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
 
     const navigate = useNavigate()
 
+    // Turn Play into "Resume" from the scrobbler. For a movie: the stored position → "Resume · {time}".
+    // For a show: the in-progress episode, else the earliest unwatched episode → "Resume · S{s}E{e}",
+    // and Play navigates straight to that episode.
+    const { client, valid } = useOmss()
+    const [resume, setResume] = useState<{ label: string; season?: number; episode?: number } | null>(null)
+
+    useEffect(() => {
+        let cancelled = false
+        setResume(null)
+        if (!data || !valid) return
+
+        // The backend owns the continue-watching decision; the client just asks and presents it.
+        void client.getResume(data.type, Number(data.id)).then(({ data: rt }) => {
+            if (cancelled || !rt || !rt.resumable) return
+            if (rt.mediaType === "movie") {
+                setResume({ label: "Resume" })
+            } else {
+                setResume({ label: `Resume · S${rt.season}E${rt.episode}`, season: rt.season, episode: rt.episode })
+            }
+        })
+
+        return () => {
+            cancelled = true
+        }
+    }, [client, valid, data])
+
     const handlePlay = () => {
         if (!data) return
 
-        const path = payload.type === "movie" ? `/watch/movie/${data.id}` : `/watch/tv/${data.id}`
+        const path =
+            payload.type === "movie"
+                ? `/watch/movie/${data.id}`
+                : resume?.episode != null
+                  ? `/watch/tv/${data.id}/?s=${resume.season}&e=${resume.episode}`
+                  : `/watch/tv/${data.id}`
 
         closeAll()
 
@@ -119,8 +152,17 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
                             {/* ACTIONS */}
                             <div className="mb-6 flex animate-in flex-wrap items-center gap-3 delay-200 duration-700 fade-in">
                                 <Button className="rounded-full px-8 font-semibold shadow-lg transition-all hover:scale-105 hover:shadow-xl" onClick={handlePlay}>
-                                    <Play className="mr-2 h-5 w-5 fill-white" />
-                                    Play
+                                    {resume ? (
+                                        <>
+                                            <RotateCcw className="mr-2 h-5 w-5" />
+                                            {resume.label}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Play className="mr-2 h-5 w-5 fill-white" />
+                                            Play
+                                        </>
+                                    )}
                                 </Button>
 
                                 {data.trailer && <TrailerDialog trailerId={data.trailer} title={data.title} />}
