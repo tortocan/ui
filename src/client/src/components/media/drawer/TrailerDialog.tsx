@@ -1,10 +1,30 @@
 import React, { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { ChevronDown, ChevronUp, Film, Maximize, Minimize, Pause, Play, Volume2, VolumeX } from "lucide-react"
+import { Captions, Check, ChevronDown, ChevronUp, Clapperboard, Film, Maximize, Minimize, Pause, Play, Settings, Volume2, VolumeX } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { useOmss } from "@/hooks/use-omss"
 import { cn } from "@/lib/utils"
+
+// Human labels for YouTube's quality-level tokens (getAvailableQualityLevels / getPlaybackQuality).
+const QUALITY_LABELS: Record<string, string> = {
+    highres: "Highres",
+    hd2160: "2160p",
+    hd1440: "1440p",
+    hd1080: "1080p",
+    hd720: "720p",
+    large: "480p",
+    medium: "360p",
+    small: "240p",
+    tiny: "144p",
+}
+const qualityLabel = (level: string) => QUALITY_LABELS[level] ?? level
+
+/** A caption track as YouTube's captions module reports it (we only need these two fields). */
+interface CaptionTrack {
+    languageCode: string
+    displayName: string
+}
 
 // Load the YouTube IFrame Player API once (shared across every TrailerDialog instance). We need the
 // JS API (not a bare iframe) so we drive playback ourselves: our own controls + swipe gestures over a
@@ -77,6 +97,13 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
     const [cur, setCur] = useState(0)
     const [dur, setDur] = useState(0)
     const [isFs, setIsFs] = useState(false)
+    // Settings menu (quality + subtitles) — YouTube exposes no audio-track API, so there's no audio tab.
+    const [settingsOpen, setSettingsOpen] = useState(false)
+    const [settingsTab, setSettingsTab] = useState<"quality" | "subtitles">("quality")
+    const [levels, setLevels] = useState<string[]>([]) // available quality tokens (minus "auto")
+    const [quality, setQuality] = useState("auto") // current playback quality token
+    const [tracks, setTracks] = useState<CaptionTrack[]>([]) // available caption tracks
+    const [track, setTrack] = useState<string | null>(null) // selected caption languageCode, or null = off
 
     const stageRef = useRef<HTMLDivElement>(null) // the fullscreen target / full-viewport overlay
     const hostRef = useRef<HTMLDivElement>(null) // YT replaces an imperative child of this with its iframe
@@ -120,6 +147,30 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
     const toggleFs = useCallback(() => {
         if (fsElement()) exitFs()
         else if (stageRef.current) void Promise.resolve(requestFs(stageRef.current)).catch(() => {})
+    }, [])
+
+    // Pick a quality level. "auto" lets YouTube adapt ("default" token); otherwise nudge to that level
+    // (setPlaybackQuality is deprecated but still the only lever; YT may still adapt down to bandwidth).
+    const selectQuality = useCallback((level: string) => {
+        const p = playerRef.current
+        try {
+            p?.setPlaybackQuality?.(level === "auto" ? "default" : level)
+        } catch {
+            /* deprecated API — best-effort only */
+        }
+        setQuality(level)
+    }, [])
+
+    // Pick a caption track (null = off), via the captions module. The module must be loaded first
+    // (done on ready); an empty track object turns captions off.
+    const selectCaption = useCallback((code: string | null) => {
+        const p = playerRef.current
+        try {
+            p?.setOption?.("captions", "track", code ? { languageCode: code } : {})
+        } catch {
+            /* module may not be ready yet */
+        }
+        setTrack(code)
     }, [])
 
     // Follow this title for new-release notifications (gatearr /follow). Guarded against re-POST.
@@ -166,6 +217,11 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
     const onLayerClick = () => {
         if (suppressClickRef.current) {
             suppressClickRef.current = false
+            return
+        }
+        // A tap dismisses an open settings menu first; otherwise it toggles play/pause.
+        if (settingsOpen) {
+            setSettingsOpen(false)
             return
         }
         togglePlay()
@@ -229,6 +285,12 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
                     onReady: (e: any) => {
                         if (!trailerId) e.target.loadPlaylist({ listType: "search", list: `${title} trailer`, index: 0 })
                         e.target.playVideo()
+                        // Load the captions module so getOption('captions','tracklist') is populated.
+                        try {
+                            e.target.loadModule?.("captions")
+                        } catch {
+                            /* no captions for this video */
+                        }
                         // Autoplay fallback: if sound-autoplay is blocked, mute and retry so it still plays.
                         window.setTimeout(() => {
                             try {
@@ -250,6 +312,15 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
                                 setCur(p.getCurrentTime() || 0)
                                 setPlaying(p.getPlayerState?.() === 1)
                                 setMuted(!!p.isMuted?.())
+                                // Quality options (strip the trailing "auto" token — we offer our own Auto entry).
+                                const avail: string[] = p.getAvailableQualityLevels?.() ?? []
+                                setLevels(avail.filter((l) => l !== "auto"))
+                                setQuality(p.getPlaybackQuality?.() || "auto")
+                                // Caption tracks + the active one (empty track object → off).
+                                const tl = p.getOption?.("captions", "tracklist") as CaptionTrack[] | undefined
+                                if (Array.isArray(tl)) setTracks(tl)
+                                const active = p.getOption?.("captions", "track") as { languageCode?: string } | undefined
+                                setTrack(active?.languageCode ? active.languageCode : null)
                             } catch {
                                 /* ignore */
                             }
@@ -291,6 +362,11 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
             setPlaying(false)
             setCur(0)
             setDur(0)
+            setSettingsOpen(false)
+            setLevels([])
+            setTracks([])
+            setTrack(null)
+            setQuality("auto")
         }
     }, [active, trailerId, title, close])
 
@@ -348,13 +424,93 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
                             <button type="button" onClick={toggleMute} aria-label={muted ? "Unmute" : "Mute"} className="rounded p-1 transition-colors hover:bg-white/15">
                                 {muted ? <VolumeX className="size-5" /> : <Volume2 className="size-5" />}
                             </button>
+                            <button
+                                type="button"
+                                onClick={() => setSettingsOpen((v) => !v)}
+                                aria-label="Settings"
+                                aria-expanded={settingsOpen}
+                                className={cn("rounded p-1 transition-colors hover:bg-white/15", settingsOpen && "bg-white/15")}
+                            >
+                                <Settings className="size-5" />
+                            </button>
                             <button type="button" onClick={toggleFs} aria-label={isFs ? "Exit fullscreen" : "Fullscreen"} className="rounded p-1 transition-colors hover:bg-white/15">
                                 {isFs ? <Minimize className="size-5" /> : <Maximize className="size-5" />}
                             </button>
                         </div>
+
+                        {/* Settings menu (quality + subtitles). Rendered INSIDE the stage — a portaled Radix popover
+                            would be invisible while the stage is fullscreen. Sits above the gesture layer so its
+                            clicks never reach play/pause. YouTube has no audio-track API, so there's no audio tab. */}
+                        {settingsOpen && (
+                            <div className="absolute right-4 bottom-20 z-20 w-60 overflow-hidden rounded-lg border border-white/10 bg-black/80 text-white shadow-xl backdrop-blur-md">
+                                <div className="flex border-b border-white/10">
+                                    <button
+                                        type="button"
+                                        onClick={() => setSettingsTab("quality")}
+                                        className={cn(
+                                            "flex flex-1 items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors",
+                                            settingsTab === "quality" ? "bg-white/10 text-white" : "text-white/60 hover:text-white"
+                                        )}
+                                    >
+                                        <Clapperboard className="size-4" /> Quality
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSettingsTab("subtitles")}
+                                        className={cn(
+                                            "flex flex-1 items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors",
+                                            settingsTab === "subtitles" ? "bg-white/10 text-white" : "text-white/60 hover:text-white"
+                                        )}
+                                    >
+                                        <Captions className="size-4" /> Subtitles
+                                    </button>
+                                </div>
+                                <div className="max-h-64 overflow-y-auto p-1">
+                                    {settingsTab === "quality" ? (
+                                        <>
+                                            <SettingRow label="Auto" selected={quality === "auto" || !levels.includes(quality)} onClick={() => selectQuality("auto")} />
+                                            {levels.map((l) => (
+                                                <SettingRow key={l} label={qualityLabel(l)} selected={quality === l} onClick={() => selectQuality(l)} />
+                                            ))}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <SettingRow label="Off" selected={track === null} onClick={() => selectCaption(null)} />
+                                            {tracks.length === 0 ? (
+                                                <div className="px-3 py-4 text-center text-xs text-white/50">No subtitles available</div>
+                                            ) : (
+                                                tracks.map((tk) => (
+                                                    <SettingRow
+                                                        key={tk.languageCode}
+                                                        label={tk.displayName || tk.languageCode}
+                                                        selected={track === tk.languageCode}
+                                                        onClick={() => selectCaption(tk.languageCode)}
+                                                    />
+                                                ))
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>,
                     document.body
                 )}
         </>
     )
 }
+
+/** One selectable row in the settings menu (quality level or caption track). */
+const SettingRow: React.FC<{ label: string; selected: boolean; onClick: () => void }> = ({ label, selected, onClick }) => (
+    <button
+        type="button"
+        onClick={onClick}
+        className={cn(
+            "flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors",
+            selected ? "bg-primary/20 text-primary" : "text-white/80 hover:bg-white/10"
+        )}
+    >
+        <span className="truncate">{label}</span>
+        {selected && <Check className="size-4 shrink-0" />}
+    </button>
+)
