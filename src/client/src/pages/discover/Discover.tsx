@@ -260,172 +260,174 @@ export default function Discover() {
 
     return (
         <BrowseLayout tmdb={tmdb} heroFetcher={heroFetcher}>
-            <h1 className="text-2xl font-semibold">Discover</h1>
+            {/* Heading sits INLINE with the filters (like the Movies rail header); tight gap to the grid. */}
+            <div className="flex flex-col gap-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <h1 className="mr-1 text-2xl font-semibold">Discover</h1>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline">
+                                    {genreIds.length ? `Genres (${genreIds.length})` : "All Genres"}
+                                    <ChevronDownIcon className="size-4 opacity-60" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="max-h-72 overflow-y-auto">
+                                {genres.map((genre) => (
+                                    <DropdownMenuCheckboxItem key={genre.id} checked={genreIds.includes(genre.id)} onCheckedChange={() => toggleGenre(genre.id)} onSelect={(e) => e.preventDefault()}>
+                                        {genre.name}
+                                    </DropdownMenuCheckboxItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline">
-                                {genreIds.length ? `Genres (${genreIds.length})` : "All Genres"}
-                                <ChevronDownIcon className="size-4 opacity-60" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="max-h-72 overflow-y-auto">
-                            {genres.map((genre) => (
-                                <DropdownMenuCheckboxItem key={genre.id} checked={genreIds.includes(genre.id)} onCheckedChange={() => toggleGenre(genre.id)} onSelect={(e) => e.preventDefault()}>
-                                    {genre.name}
-                                </DropdownMenuCheckboxItem>
-                            ))}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline">
+                                    {providerIds.length ? `Providers (${providerIds.length})` : "All Providers"}
+                                    <ChevronDownIcon className="size-4 opacity-60" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="max-h-72 overflow-y-auto">
+                                {providers.map((provider) => (
+                                    <DropdownMenuCheckboxItem
+                                        key={provider.provider_id}
+                                        checked={providerIds.includes(provider.provider_id)}
+                                        onCheckedChange={() => toggleProvider(provider.provider_id)}
+                                        onSelect={(e) => e.preventDefault()}
+                                    >
+                                        {provider.provider_name}
+                                    </DropdownMenuCheckboxItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
 
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline">
-                                {providerIds.length ? `Providers (${providerIds.length})` : "All Providers"}
-                                <ChevronDownIcon className="size-4 opacity-60" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="max-h-72 overflow-y-auto">
-                            {providers.map((provider) => (
-                                <DropdownMenuCheckboxItem
-                                    key={provider.provider_id}
-                                    checked={providerIds.includes(provider.provider_id)}
-                                    onCheckedChange={() => toggleProvider(provider.provider_id)}
-                                    onSelect={(e) => e.preventDefault()}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline">
+                                    {sortLabel}
+                                    <ChevronDownIcon className="size-4 opacity-60" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                <DropdownMenuRadioGroup
+                                    value={sortKey}
+                                    onValueChange={(value) => {
+                                        setSortKey(value as SortKey)
+                                        setPage(1)
+                                    }}
                                 >
-                                    {provider.provider_name}
-                                </DropdownMenuCheckboxItem>
-                            ))}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                                    {SORT_OPTIONS.map((option) => (
+                                        <DropdownMenuRadioItem key={option.value} value={option.value}>
+                                            {option.label}
+                                        </DropdownMenuRadioItem>
+                                    ))}
+                                </DropdownMenuRadioGroup>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
 
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline">
-                                {sortLabel}
-                                <ChevronDownIcon className="size-4 opacity-60" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                            <DropdownMenuRadioGroup
-                                value={sortKey}
-                                onValueChange={(value) => {
-                                    setSortKey(value as SortKey)
-                                    setPage(1)
-                                }}
-                            >
-                                {SORT_OPTIONS.map((option) => (
-                                    <DropdownMenuRadioItem key={option.value} value={option.value}>
-                                        {option.label}
-                                    </DropdownMenuRadioItem>
-                                ))}
-                            </DropdownMenuRadioGroup>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline">
+                                    {fromYear ?? "From Year"}
+                                    <ChevronDownIcon className="size-4 opacity-60" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="max-h-72 overflow-y-auto">
+                                <DropdownMenuRadioGroup
+                                    value={fromYear ? String(fromYear) : "any"}
+                                    onValueChange={(value) => {
+                                        setFromYear(value === "any" ? null : Number(value))
+                                        setPage(1)
+                                    }}
+                                >
+                                    <DropdownMenuRadioItem value="any">Any</DropdownMenuRadioItem>
+                                    {YEARS.map((year) => (
+                                        <DropdownMenuRadioItem key={year} value={String(year)}>
+                                            {year}
+                                        </DropdownMenuRadioItem>
+                                    ))}
+                                </DropdownMenuRadioGroup>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
 
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline">
-                                {fromYear ?? "From Year"}
-                                <ChevronDownIcon className="size-4 opacity-60" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="max-h-72 overflow-y-auto">
-                            <DropdownMenuRadioGroup
-                                value={fromYear ? String(fromYear) : "any"}
-                                onValueChange={(value) => {
-                                    setFromYear(value === "any" ? null : Number(value))
-                                    setPage(1)
-                                }}
-                            >
-                                <DropdownMenuRadioItem value="any">Any</DropdownMenuRadioItem>
-                                {YEARS.map((year) => (
-                                    <DropdownMenuRadioItem key={year} value={String(year)}>
-                                        {year}
-                                    </DropdownMenuRadioItem>
-                                ))}
-                            </DropdownMenuRadioGroup>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline">
+                                    {toYear ?? "To Year"}
+                                    <ChevronDownIcon className="size-4 opacity-60" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="max-h-72 overflow-y-auto">
+                                <DropdownMenuRadioGroup
+                                    value={toYear ? String(toYear) : "any"}
+                                    onValueChange={(value) => {
+                                        setToYear(value === "any" ? null : Number(value))
+                                        setPage(1)
+                                    }}
+                                >
+                                    <DropdownMenuRadioItem value="any">Any</DropdownMenuRadioItem>
+                                    {YEARS.map((year) => (
+                                        <DropdownMenuRadioItem key={year} value={String(year)}>
+                                            {year}
+                                        </DropdownMenuRadioItem>
+                                    ))}
+                                </DropdownMenuRadioGroup>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
 
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline">
-                                {toYear ?? "To Year"}
-                                <ChevronDownIcon className="size-4 opacity-60" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="max-h-72 overflow-y-auto">
-                            <DropdownMenuRadioGroup
-                                value={toYear ? String(toYear) : "any"}
-                                onValueChange={(value) => {
-                                    setToYear(value === "any" ? null : Number(value))
-                                    setPage(1)
-                                }}
-                            >
-                                <DropdownMenuRadioItem value="any">Any</DropdownMenuRadioItem>
-                                {YEARS.map((year) => (
-                                    <DropdownMenuRadioItem key={year} value={String(year)}>
-                                        {year}
-                                    </DropdownMenuRadioItem>
-                                ))}
-                            </DropdownMenuRadioGroup>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    <div className="flex items-center gap-2">
+                        <Combobox
+                            items={MEDIA_KIND_OPTIONS}
+                            value={selectedMediaKindOption}
+                            onValueChange={(value) => {
+                                if (!value) return
+                                setMediaKind(value.value)
+                                setPage(1)
+                            }}
+                        >
+                            <ComboboxInput placeholder="Movies" className="w-40" />
+                            <ComboboxContent>
+                                <ComboboxEmpty>No matches</ComboboxEmpty>
+                                <ComboboxList>
+                                    {(item: (typeof MEDIA_KIND_OPTIONS)[number]) => (
+                                        <ComboboxItem key={item.value} value={item}>
+                                            {item.label}
+                                        </ComboboxItem>
+                                    )}
+                                </ComboboxList>
+                            </ComboboxContent>
+                        </Combobox>
+
+                        <Button onClick={surpriseMe} disabled={isSurprising}>
+                            <ShuffleIcon className="size-4" />
+                            Surprise me
+                        </Button>
+                    </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <Combobox
-                        items={MEDIA_KIND_OPTIONS}
-                        value={selectedMediaKindOption}
-                        onValueChange={(value) => {
-                            if (!value) return
-                            setMediaKind(value.value)
-                            setPage(1)
-                        }}
-                    >
-                        <ComboboxInput placeholder="Movies" className="w-40" />
-                        <ComboboxContent>
-                            <ComboboxEmpty>No matches</ComboboxEmpty>
-                            <ComboboxList>
-                                {(item: (typeof MEDIA_KIND_OPTIONS)[number]) => (
-                                    <ComboboxItem key={item.value} value={item}>
-                                        {item.label}
-                                    </ComboboxItem>
-                                )}
-                            </ComboboxList>
-                        </ComboboxContent>
-                    </Combobox>
-
-                    <Button onClick={surpriseMe} disabled={isSurprising}>
-                        <ShuffleIcon className="size-4" />
-                        Surprise me
-                    </Button>
-                </div>
+                {/* Results use the same MediaGrid component as the "Your Movies/TV" library view. */}
+                <MediaGrid
+                    cards={results.map((item) => {
+                        const isMovie = item.media_kind === "movie"
+                        const date = isMovie ? (item as MovieResultItem).release_date : (item as DiscoverTVResultItem).first_air_date
+                        return {
+                            id: item.id,
+                            type: item.media_kind,
+                            title: isMovie ? (item as MovieResultItem).title : (item as DiscoverTVResultItem).name,
+                            poster: item.poster_path,
+                            year: date ? new Date(date).getFullYear() : 0,
+                            rating: item.vote_average,
+                        }
+                    })}
+                    loading={isLoading}
+                    page={page}
+                    totalPages={totalPages}
+                    onPageChange={setPage}
+                    emptyDescription="Try widening your filters."
+                />
             </div>
-
-            {/* Results use the same MediaGrid component as the "Your Movies/TV" library view. */}
-            <MediaGrid
-                cards={results.map((item) => {
-                    const isMovie = item.media_kind === "movie"
-                    const date = isMovie ? (item as MovieResultItem).release_date : (item as DiscoverTVResultItem).first_air_date
-                    return {
-                        id: item.id,
-                        type: item.media_kind,
-                        title: isMovie ? (item as MovieResultItem).title : (item as DiscoverTVResultItem).name,
-                        poster: item.poster_path,
-                        year: date ? new Date(date).getFullYear() : 0,
-                        rating: item.vote_average,
-                    }
-                })}
-                loading={isLoading}
-                page={page}
-                totalPages={totalPages}
-                onPageChange={setPage}
-                emptyDescription="Try widening your filters."
-            />
         </BrowseLayout>
     )
 }
