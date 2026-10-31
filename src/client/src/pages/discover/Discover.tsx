@@ -240,8 +240,13 @@ export default function Discover() {
     const selectedMediaKindOption = MEDIA_KIND_OPTIONS.find((o) => o.value === mediaKind) ?? MEDIA_KIND_OPTIONS[0]
     const sortLabel = SORT_OPTIONS.find((o) => o.value === sortKey)?.label ?? "Most Popular"
 
-    // Hero on top, matching the browse/library pages; reflects the current media kind.
-    const heroFetcher = useCallback(() => Promise.all([effectiveType === "movie" ? tmdb.movie_lists.now_playing() : tmdb.tv_lists.popular()]), [tmdb, effectiveType])
+    // Hero reflects the CURRENT filters: it runs the same Discover query (page 1), so changing any
+    // filter (media kind, genre, provider, sort, year) updates the carousel content too.
+    const heroFetcher = useCallback(
+        () => Promise.all([fetchPage(1)]),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [tmdb, effectiveType, mediaKind, sortKey, region, fromYear, toYear, genreIds.join(","), providerIds.join(",")]
+    )
 
     return (
         <BrowseLayout tmdb={tmdb} heroFetcher={heroFetcher}>
