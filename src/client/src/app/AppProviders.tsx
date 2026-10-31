@@ -1,6 +1,7 @@
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { type ReactNode } from "react"
 import { OmssProvider } from "@/app/providers/omss-provider"
+import { ProfileProvider } from "@/app/providers/profile-provider"
 import { TMDBProvider } from "@/app/providers/tmdb-provider"
 import { ThemeProvider } from "@/app/providers/theme-provider"
 import { ColorThemeProvider } from "@/app/providers/color-theme-provider"
@@ -17,11 +18,13 @@ export default function AppProviders({ children }: { children: ReactNode }) {
                 <TooltipProvider delayDuration={150}>
                     <TMDBProvider>
                         <OmssProvider>
-                            <HistoryProvider>
-                                <BrowserRouter>
-                                    <MediaDrawerProvider>{children}</MediaDrawerProvider>
-                                </BrowserRouter>
-                            </HistoryProvider>
+                            <ProfileProvider>
+                                <HistoryProvider>
+                                    <BrowserRouter>
+                                        <MediaDrawerProvider>{children}</MediaDrawerProvider>
+                                    </BrowserRouter>
+                                </HistoryProvider>
+                            </ProfileProvider>
                         </OmssProvider>
                     </TMDBProvider>
                 </TooltipProvider>

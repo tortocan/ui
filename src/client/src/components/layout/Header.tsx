@@ -10,6 +10,7 @@ import { useOmss } from "@/hooks/use-omss"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { GlassFilter } from "@/components/ui/glass-filter"
 import { NotificationsBell } from "@/components/layout/NotificationsBell"
+import { ProfileMenu } from "@/components/layout/ProfileMenu"
 import Favicon from "./Favicon"
 
 const NAV_LINKS = [
@@ -94,6 +95,10 @@ export default function Header() {
                             </Button>
                         </div>
                     )}
+
+                    {/* Active-profile avatar + switcher, always top-right (Overseerr-style), independent
+                        of the Header Icons toggle. Renders nothing until a profile is active. */}
+                    <ProfileMenu />
                 </div>
 
                 {hasGlassSize && <GlassFilter id={filterId} width={glassWidth} height={glassHeight} radius={glassHeight / 2} />}

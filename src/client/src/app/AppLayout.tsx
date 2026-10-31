@@ -5,6 +5,8 @@ import Footer from "@/components/layout/Footer"
 import StartupOverlay from "@/components/animations/StartupOverlay.tsx"
 import { MediaDrawerRoot } from "@/components/media/drawer/MediaDrawerRoot"
 import { useMediaDrawer } from "@/components/media/drawer/hooks/useMediaDrawer.ts"
+import { useProfiles } from "@/app/providers/profile-provider"
+import WhoIsWatching from "@/pages/profiles/WhoIsWatching"
 
 const PAGE_FALLBACK = (
     <div className="flex min-h-screen w-full items-center justify-center">
@@ -14,6 +16,13 @@ const PAGE_FALLBACK = (
 
 export default function AppLayout() {
     const { isVisible } = useMediaDrawer()
+    const { status, needsSelection } = useProfiles()
+
+    // Initial-load "Who's watching?" gate: hold the shell until the profile list resolves, then show
+    // the picker until one is chosen. An unreachable/stateless backend (status "unavailable") never
+    // gates — the app renders normally.
+    if (status === "loading") return PAGE_FALLBACK
+    if (needsSelection) return <WhoIsWatching />
 
     return (
         <div className="relative min-h-screen w-full bg-background text-foreground">
