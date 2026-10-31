@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
 import { ChevronDownIcon, ShuffleIcon } from "lucide-react"
 import type {
@@ -69,10 +70,22 @@ export default function Discover() {
     const { region } = useAppSettings()
     const { open } = useMediaDrawer()
 
-    const [mediaKind, setMediaKind] = useState<MediaKind>("movie")
-    const [genreIds, setGenreIds] = useState<number[]>([])
+    // Deep-link params (e.g. a rail's "See more" → /discover?type=tv&genre=18 or ?type=movie&sort=rating).
+    // Read once for initial state; validated against the known option sets so a bad param just defaults.
+    const [searchParams] = useSearchParams()
+    const [mediaKind, setMediaKind] = useState<MediaKind>(() => {
+        const t = searchParams.get("type")
+        return MEDIA_KIND_OPTIONS.some((o) => o.value === t) ? (t as MediaKind) : "movie"
+    })
+    const [genreIds, setGenreIds] = useState<number[]>(() => {
+        const id = Number(searchParams.get("genre"))
+        return searchParams.get("genre") && Number.isFinite(id) ? [id] : []
+    })
     const [providerIds, setProviderIds] = useState<number[]>([])
-    const [sortKey, setSortKey] = useState<SortKey>("popularity")
+    const [sortKey, setSortKey] = useState<SortKey>(() => {
+        const s = searchParams.get("sort")
+        return SORT_OPTIONS.some((o) => o.value === s) ? (s as SortKey) : "popularity"
+    })
     const [fromYear, setFromYear] = useState<number | null>(null)
     const [toYear, setToYear] = useState<number | null>(null)
     const [page, setPage] = useState(1)
@@ -83,8 +96,14 @@ export default function Discover() {
     const [providers, setProviders] = useState<WatchProviderListItem[]>([])
 
     // Genre/provider id spaces differ between movie and TV, so selections reset whenever
-    // the effective TMDB type changes (Anime still maps to "tv" under the hood).
+    // the effective TMDB type changes (Anime still maps to "tv" under the hood). Skip the first run so
+    // a genre arriving via ?genre= survives mount; only reset when the user later switches media type.
+    const didResetMountRef = useRef(false)
     useEffect(() => {
+        if (!didResetMountRef.current) {
+            didResetMountRef.current = true
+            return
+        }
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setGenreIds([])
         setProviderIds([])
