@@ -20,9 +20,10 @@ export function HomePage() {
         <div className="min-h-screen overflow-hidden">
             <HeroCarousel tmdb={tmdb} fetcher={fetchHero} />
 
-            <HeroFade />
+            {/* Content floats ~10% up over the hero's bottom; HeroFade blends the overlap. */}
+            <section className="relative z-10 -mt-[8vh] flex flex-col gap-8 bg-background p-8 md:-mt-[10vh]">
+                <HeroFade />
 
-            <section className="flex flex-col gap-8 bg-background p-8">
                 <ContinueWatchingRail />
 
                 <MovieRail title="Popular Movies" fetcher={fetchPopularMovies} />

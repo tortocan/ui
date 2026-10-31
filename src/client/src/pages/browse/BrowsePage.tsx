@@ -108,9 +108,9 @@ export default function BrowsePage({ kind }: { kind: BrowseKind }) {
             <div className="min-h-screen overflow-hidden">
                 <HeroCarousel tmdb={tmdb} fetcher={fetchHero} />
 
-                <HeroFade />
+                <section className="relative z-10 -mt-[8vh] flex flex-col gap-6 bg-background p-8 md:-mt-[10vh]">
+                    <HeroFade />
 
-                <section className="flex flex-col gap-6 bg-background p-8">
                     <h2 className="text-2xl font-semibold">Your {cfg.noun}</h2>
                     <LibraryGrid ids={cfg.libraryIds(library)} type={kind} externalLoading={libraryLoading} />
                 </section>
@@ -122,9 +122,10 @@ export default function BrowsePage({ kind }: { kind: BrowseKind }) {
         <div className="min-h-screen overflow-hidden">
             <HeroCarousel tmdb={tmdb} fetcher={fetchHero} />
 
-            <HeroFade />
+            {/* Content floats ~10% up over the hero's bottom; HeroFade blends the overlap. */}
+            <section className="relative z-10 -mt-[8vh] flex flex-col gap-8 bg-background p-8 md:-mt-[10vh]">
+                <HeroFade />
 
-            <section className="flex flex-col gap-8 bg-background p-8">
                 <Rail
                     title={
                         <div className={"flex items-center justify-between"}>
