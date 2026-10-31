@@ -1,4 +1,5 @@
 import type { DetailedMedia, HeroSlide } from "./types"
+import { formatRuntime } from "@/components/media/drawer/mappers/media.mapper.ts"
 
 type WithLogo = { logo_path?: string | null }
 
@@ -34,8 +35,8 @@ export function toHeroSlides(mediaItems: DetailedMedia[]): HeroSlide[] {
                 description: media.overview || "No description available.",
                 image: media.backdrop_path ?? media.images.backdrops[0].file_path,
                 badge: index >= 6 ? "Popular" : index >= 3 ? "Trending" : "New",
-                // Movies → runtime chip; TV → the status (Returning Series / Ended).
-                runtime: isMovie ? (media.runtime ? `${media.runtime}m` : "") : (media.status ?? ""),
+                // Movies → runtime chip as "Xh Ym"; TV → the status (Returning Series / Ended).
+                runtime: isMovie ? (formatRuntime(media.runtime) ?? "") : (media.status ?? ""),
                 genres: (media.genres ?? []).slice(0, 3).map((g) => g.name),
                 logo: media.images.logos[0].file_path,
             }

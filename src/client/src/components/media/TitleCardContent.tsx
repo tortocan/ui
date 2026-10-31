@@ -5,6 +5,22 @@ import { StarRating } from "@/components/media/StarRating"
 
 const CHIP = "inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-sm font-medium text-white backdrop-blur-md"
 
+/**
+ * Release-date chip label. A full TMDB date ("YYYY-MM-DD") renders as "Jul 17, 2026" — parsed from its
+ * parts so the local timezone can't shift it a day; a bare year (or anything without a day) falls back
+ * to just the year. Returns null when there's no usable date.
+ */
+function formatReleaseDate(date?: string | null): string | null {
+    if (!date) return null
+    const full = /^(\d{4})-(\d{2})-(\d{2})/.exec(date)
+    if (full) {
+        const [, y, m, d] = full
+        return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
+    }
+    const year = new Date(date).getFullYear()
+    return Number.isNaN(year) ? null : String(year)
+}
+
 export interface TitleCardContentProps {
     logoUrl?: string | null
     title: string
@@ -47,7 +63,7 @@ export function TitleCardContent({
     actionsBelowDescription,
     logoClassName,
 }: TitleCardContentProps) {
-    const year = date ? new Date(date).getFullYear() : null
+    const releaseLabel = formatReleaseDate(date)
 
     const clamped =
         description && descriptionClampChars && description.length > descriptionClampChars ? `${description.slice(0, descriptionClampChars).split(" ").slice(0, -1).join(" ")}...` : description
@@ -57,10 +73,10 @@ export function TitleCardContent({
             <span className={CHIP}>
                 <StarRating rating={rating} className="font-semibold" />
             </span>
-            {year && (
+            {releaseLabel && (
                 <span className={CHIP}>
                     <Calendar className="size-4 opacity-80" />
-                    {year}
+                    {releaseLabel}
                 </span>
             )}
             {meta && <span className={CHIP}>{meta}</span>}

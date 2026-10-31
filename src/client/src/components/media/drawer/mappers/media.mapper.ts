@@ -81,5 +81,8 @@ export function formatRuntime(runtime?: number) {
     const hours = Math.floor(runtime / 60)
     const minutes = runtime % 60
 
-    return `${hours}h ${minutes}m`
+    // "2h 53m", but drop a zero part: 120 → "2h", 45 → "45m".
+    if (hours && minutes) return `${hours}h ${minutes}m`
+    if (hours) return `${hours}h`
+    return `${minutes}m`
 }
