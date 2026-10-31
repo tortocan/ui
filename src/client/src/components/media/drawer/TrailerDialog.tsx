@@ -172,11 +172,6 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title }
                     // overlay is portaled to body (outside the drawer), so without this every click is dead.
                     <div ref={stageRef} className={cn("pointer-events-auto fixed inset-0 z-[2147483647] bg-black", !active && "hidden")}>
                         <div ref={hostRef} className="h-full w-full" />
-                        {/* Mask YouTube's bottom chrome (share/copy-link + "More videos" + logo). These live inside
-                            the cross-origin iframe, so an opaque overlay is the only way to hide them. Kept short so
-                            the timeline / fullscreen row above stays visible and clickable. */}
-                        <div className="absolute bottom-0 left-0 z-[5] h-12 w-48 bg-black" />
-                        <div className="absolute right-0 bottom-0 z-[5] h-12 w-[28rem] max-w-[60%] bg-black" />
                         <button
                             type="button"
                             aria-label="Close trailer"
