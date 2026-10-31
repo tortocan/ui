@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react"
-import { Check, Plus, Star, Trash2 } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import { Check, ImageUp, Plus, Star, Trash2, Users } from "lucide-react"
+import { toast } from "sonner"
 import { useProfiles } from "@/app/providers/profile-provider"
-import { ProfileAvatar } from "@/components/profile/ProfileAvatar"
+import { ProfileAvatar, isImageAvatar } from "@/components/profile/ProfileAvatar"
+import { fileToSquareDataUrl } from "@/lib/image.utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,7 +13,6 @@ import { Item, ItemContent } from "@/components/ui/item"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { P } from "@/components/ui/typography"
 import ConfirmDialog from "@/components/layout/ConfirmDialog"
-import { Users } from "lucide-react"
 
 /**
  * The Profile settings tab: view the active profile, rename it + set an avatar (emoji), mark it the
@@ -26,6 +27,22 @@ export function ProfileSettings() {
     const [busy, setBusy] = useState(false)
     const [adding, setAdding] = useState(false)
     const [newName, setNewName] = useState("")
+    const fileRef = useRef<HTMLInputElement>(null)
+
+    async function onPickImage(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0]
+        e.target.value = "" // allow re-picking the same file
+        if (!file) return
+        if (!file.type.startsWith("image/")) {
+            toast.error("Please choose an image file.")
+            return
+        }
+        try {
+            setAvatar(await fileToSquareDataUrl(file))
+        } catch {
+            toast.error("Couldn't read that image.")
+        }
+    }
 
     // Seed the edit fields from the active profile (id in deps: reselect swaps them, though a switch
     // actually reloads the page).
@@ -94,8 +111,24 @@ export function ProfileSettings() {
                         </div>
                         <div className="space-y-1.5">
                             <Label htmlFor="profile-avatar">Avatar</Label>
-                            <Input id="profile-avatar" value={avatar} onChange={(e) => setAvatar(e.target.value)} placeholder="An emoji, e.g. 🦊 (optional)" maxLength={4} className="max-w-xs" />
-                            <span className="block text-sm text-muted-foreground">Leave blank to use the first letter of the name.</span>
+                            {isImageAvatar(avatar) ? (
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm text-muted-foreground">Image uploaded.</span>
+                                    <Button type="button" variant="ghost" size="sm" onClick={() => setAvatar("")}>
+                                        Remove image
+                                    </Button>
+                                </div>
+                            ) : (
+                                <Input id="profile-avatar" value={avatar} onChange={(e) => setAvatar(e.target.value)} placeholder="An emoji, e.g. 🦊 (optional)" maxLength={4} className="max-w-xs" />
+                            )}
+                            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPickImage} />
+                            <div className="flex items-center gap-2 pt-1">
+                                <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
+                                    <ImageUp className="size-4" />
+                                    Upload image
+                                </Button>
+                                <span className="text-sm text-muted-foreground">Or use an emoji / the name&apos;s first letter.</span>
+                            </div>
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2">
