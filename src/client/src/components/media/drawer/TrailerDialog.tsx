@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 
 // Load the YouTube IFrame Player API once (shared across every TrailerDialog instance). We need the
 // JS API (not a bare iframe) so we can force autoplay, fall the search case back to loadPlaylist,
-// and detect when the video ENDS to auto-close the player.
+// drive play/pause + seek from our own gestures, and detect when the video ENDS.
 let ytApiPromise: Promise<void> | null = null
 function loadYouTubeApi(): Promise<void> {
     if (typeof window === "undefined") return Promise.resolve()
@@ -51,6 +51,10 @@ function exitFs() {
     }
 }
 
+const SWIPE_CLOSE = 60 // px of upward travel that dismisses
+const SCRUB_START = 12 // px of horizontal travel before we treat it as a scrub
+const TAP_SLOP = 8 // px of total travel still counted as a tap
+
 interface TrailerDialogProps {
     trailerId: string | null
     title: string
@@ -58,13 +62,14 @@ interface TrailerDialogProps {
 
 export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title }) => {
     const [active, setActive] = useState(false)
-    const stageRef = useRef<HTMLDivElement>(null) // the fullscreen target (also the visible overlay if FS is blocked)
+    const stageRef = useRef<HTMLDivElement>(null) // the fullscreen target / full-viewport overlay
     const hostRef = useRef<HTMLDivElement>(null) // YT replaces an imperative child of this with its iframe
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const playerRef = useRef<any>(null)
+    // Active pointer gesture: start point, the playback position it began at, and whether it became a scrub.
+    const gestureRef = useRef<{ x: number; y: number; base: number; dur: number; scrub: boolean } | null>(null)
 
-    // Warm the API up front so onReady fires near-instantly on click (keeps the fullscreen/autoplay
-    // user-activation fresh).
+    // Warm the API up front so onReady fires near-instantly on click (keeps the fullscreen activation fresh).
     useEffect(() => {
         void loadYouTubeApi()
     }, [])
@@ -77,7 +82,6 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title }
     // Launch straight into fullscreen from the click gesture (the only moment the browser grants it).
     const launch = useCallback(() => {
         setActive(true)
-        // stageRef is rendered (hidden) already; reveal + request fullscreen synchronously in the gesture.
         const el = stageRef.current
         if (el) {
             el.classList.remove("hidden")
@@ -90,10 +94,6 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title }
         if (!active) return
         let killed = false
 
-        // NOTE: we deliberately do NOT auto-close on fullscreenchange. Clicking the YouTube player
-        // makes the embed grab/drop the browser's fullscreen, and there is no reliable way to tell
-        // that apart from the user leaving — which caused "any click closes the player". Close only
-        // on video end, Esc, or the X button (none of which a cross-origin iframe click can trigger).
         const onKey = (e: KeyboardEvent) => {
             if (e.key === "Escape") close()
         }
@@ -103,8 +103,7 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title }
             if (killed || !hostRef.current) return
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const YT = (window as any).YT
-            // Give YT an imperative child (NOT a React-managed node) so unmount never collides with
-            // YT's DOM surgery.
+            // Give YT an imperative child (NOT a React-managed node) so unmount never collides with YT's DOM surgery.
             const mount = document.createElement("div")
             mount.style.width = "100%"
             mount.style.height = "100%"
@@ -117,8 +116,9 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title }
                 videoId: trailerId ?? undefined,
                 playerVars: {
                     autoplay: 1,
-                    controls: 1,
+                    controls: 0, // no native chrome — our gesture layer drives play/pause + seek
                     modestbranding: 1,
+                    disablekb: 1,
                     rel: 0,
                     iv_load_policy: 3,
                     playsinline: 1,
@@ -164,6 +164,52 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title }
         }
     }, [active, trailerId, title, close])
 
+    // ---- Gesture layer: tap = play/pause, swipe up = close, swipe left/right = scrub the timeline. ----
+    const seekTarget = (g: { base: number; dur: number }, dx: number) => Math.max(0, Math.min(g.dur, g.base + (dx / window.innerWidth) * g.dur))
+
+    const onPointerDown = (e: React.PointerEvent) => {
+        e.stopPropagation() // keep the drawer's dismissable-layer from seeing this as an outside interaction
+        const p = playerRef.current
+        gestureRef.current = { x: e.clientX, y: e.clientY, base: p?.getCurrentTime?.() ?? 0, dur: p?.getDuration?.() ?? 0, scrub: false }
+        e.currentTarget.setPointerCapture?.(e.pointerId)
+    }
+
+    const onPointerMove = (e: React.PointerEvent) => {
+        const g = gestureRef.current
+        if (!g) return
+        const dx = e.clientX - g.x
+        const dy = e.clientY - g.y
+        if (!g.scrub && Math.abs(dx) > SCRUB_START && Math.abs(dx) > Math.abs(dy)) g.scrub = true
+        if (g.scrub && g.dur > 0) playerRef.current?.seekTo?.(seekTarget(g, dx), false) // live preview, no network until release
+    }
+
+    const onPointerUp = (e: React.PointerEvent) => {
+        const g = gestureRef.current
+        gestureRef.current = null
+        if (!g) return
+        const dx = e.clientX - g.x
+        const dy = e.clientY - g.y
+
+        if (g.scrub) {
+            if (g.dur > 0) {
+                playerRef.current?.seekTo?.(seekTarget(g, dx), true)
+                playerRef.current?.playVideo?.()
+            }
+            return
+        }
+        // Swipe up → close.
+        if (dy < -SWIPE_CLOSE && Math.abs(dy) > Math.abs(dx)) {
+            close()
+            return
+        }
+        // Tap → toggle play/pause.
+        if (Math.abs(dx) < TAP_SLOP && Math.abs(dy) < TAP_SLOP) {
+            const p = playerRef.current
+            if (p?.getPlayerState?.() === 1) p?.pauseVideo?.()
+            else p?.playVideo?.()
+        }
+    }
+
     return (
         <>
             <Button onClick={launch} variant={"outline"} className={"rounded-full border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"}>
@@ -176,15 +222,27 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title }
                     // z-max so it sits above the (full-screen) drawer; stays a full-viewport black panel even
                     // if the Fullscreen API is refused. Rendered hidden until launched.
                     <div ref={stageRef} className={cn("fixed inset-0 z-[2147483647] bg-black", !active && "hidden")}>
+                        <div ref={hostRef} className="h-full w-full" />
+                        {/* Transparent gesture layer on top of the player: it swallows clicks (so focus never enters
+                            the cross-origin iframe and the drawer can't be dismissed) and drives the player itself. */}
+                        <div
+                            className="absolute inset-0 z-10 touch-none"
+                            onPointerDown={onPointerDown}
+                            onPointerMove={onPointerMove}
+                            onPointerUp={onPointerUp}
+                            onPointerCancel={() => {
+                                gestureRef.current = null
+                            }}
+                        />
                         <button
                             type="button"
                             aria-label="Close trailer"
+                            onPointerDown={(e) => e.stopPropagation()}
                             onClick={close}
-                            className="absolute top-4 right-4 z-10 flex size-10 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
+                            className="absolute top-4 right-4 z-20 flex size-10 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
                         >
                             <X className="size-5" />
                         </button>
-                        <div ref={hostRef} className="h-full w-full" />
                     </div>,
                     document.body
                 )}

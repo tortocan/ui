@@ -71,6 +71,9 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
             <DrawerContent
                 className={cn("lenis-stopped lenis-disabled inset-0 mt-0 h-full max-h-none! max-w-none rounded-none! border-0! bg-black pt-0 outline-none", className)}
                 data-lenis-prevent="true"
+                // The drawer is full-screen (nothing to click "outside"); don't let an outside pointer/focus
+                // interaction (e.g. focus entering the trailer's YouTube iframe) dismiss it.
+                onInteractOutside={(e) => e.preventDefault()}
                 headerActions={
                     canGoBack && (
                         <Button variant="outline" size="icon" onClick={close}>
