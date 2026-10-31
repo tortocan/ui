@@ -21,11 +21,13 @@ export function HeroCarousel({ tmdb, fetcher }: { tmdb: TMDB; fetcher: HeroFetch
     const [heroApi, setHeroApi] = useState<CarouselApi>()
     const [activeSlide, setActiveSlide] = useState(0)
     const [progressKey, setProgressKey] = useState(0)
+    const [isHovered, setIsHovered] = useState(false)
 
     useHeroAutoplay({
         heroApi,
         enabled: true,
         slideCount: slides.length,
+        paused: isHovered,
         onSelect: (index) => {
             setActiveSlide(index)
             setProgressKey((p) => p + 1)
@@ -44,7 +46,18 @@ export function HeroCarousel({ tmdb, fetcher }: { tmdb: TMDB; fetcher: HeroFetch
     if (loading || slides.length === 0) return heroEmptyState
 
     return (
-        <Carousel setApi={setHeroApi} opts={{ loop: true }} className="h-full w-full">
+        <Carousel
+            setApi={setHeroApi}
+            opts={{ loop: true }}
+            className="h-full w-full"
+            onPointerEnter={() => setIsHovered(true)}
+            onPointerLeave={() => {
+                // Resume: unfreeze + restart the progress ring from 0 so it stays in sync with the
+                // fresh autoplay timer that useHeroAutoplay re-arms on un-pause.
+                setIsHovered(false)
+                setProgressKey((p) => p + 1)
+            }}
+        >
             <CarouselContent className="ml-0 h-full">
                 {slides.map((slide) => (
                     <CarouselItem key={`${slide.type}-${slide.id}`} className="pl-0">
@@ -115,7 +128,14 @@ export function HeroCarousel({ tmdb, fetcher }: { tmdb: TMDB; fetcher: HeroFetch
                             }}
                             className={`relative h-2.5 overflow-hidden rounded-full transition-all duration-300 ${isActive ? "w-10 bg-primary/20" : "w-2.5 bg-white/30 hover:bg-white/50"}`}
                         >
-                            {isActive && <div key={`${progressKey}-${index}`} className="animate-carousel-progress absolute inset-0 origin-left rounded-full bg-primary" />}
+                            {isActive && (
+                                <div
+                                    key={`${progressKey}-${index}`}
+                                    className="animate-carousel-progress absolute inset-0 origin-left rounded-full bg-primary"
+                                    // Freeze the progress ring while hovered, in step with the paused autoplay.
+                                    style={{ animationPlayState: isHovered ? "paused" : "running" }}
+                                />
+                            )}
                         </button>
                     )
                 })}

@@ -7,15 +7,16 @@ type Params = {
     heroApi?: CarouselApi
     enabled: boolean
     slideCount: number
+    // When true (pointer over the hero), autoplay is paused so it doesn't advance under the user.
+    paused: boolean
     onSelect: (index: number) => void
 }
 
-export function useHeroAutoplay({ heroApi, enabled, slideCount, onSelect }: Params) {
+export function useHeroAutoplay({ heroApi, enabled, slideCount, paused, onSelect }: Params) {
     const autoplayRef = useRef<number | null>(null)
-    // While the pointer is over the hero (viewing/swiping), autoplay is paused so it doesn't advance
-    // the slide underneath the user. A ref (not state) so it's readable inside the timer/select handler
-    // without re-running effects or re-binding listeners.
-    const hoveredRef = useRef(false)
+    // Read inside the timer/select handler without re-running the binding effect on every toggle.
+    const pausedRef = useRef(paused)
+    pausedRef.current = paused
 
     const clearTimer = useCallback(() => {
         if (autoplayRef.current) {
@@ -29,8 +30,8 @@ export function useHeroAutoplay({ heroApi, enabled, slideCount, onSelect }: Para
 
         clearTimer()
 
-        // Don't schedule the next advance while the user is hovering/interacting with the hero.
-        if (hoveredRef.current) return
+        // Don't schedule the next advance while paused (hovering/interacting).
+        if (pausedRef.current) return
 
         autoplayRef.current = window.setTimeout(() => {
             if (!heroApi) return
@@ -61,29 +62,19 @@ export function useHeroAutoplay({ heroApi, enabled, slideCount, onSelect }: Para
 
         restartAutoplay()
 
-        // Pause on hover, resume on leave. pointerenter/leave don't fire on touch, so autoplay keeps
-        // running on mobile (where there's no hover to signal "in scope") — the intended feel.
-        const node = typeof heroApi.rootNode === "function" ? heroApi.rootNode() : null
-        const onEnter = () => {
-            hoveredRef.current = true
-            clearTimer()
-        }
-        const onLeave = () => {
-            hoveredRef.current = false
-            restartAutoplay()
-        }
-        node?.addEventListener("pointerenter", onEnter)
-        node?.addEventListener("pointerleave", onLeave)
-
         return () => {
             heroApi.off("select", handleSelect)
             heroApi.off("reInit", handleSelect)
-            node?.removeEventListener("pointerenter", onEnter)
-            node?.removeEventListener("pointerleave", onLeave)
             clearTimer()
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [heroApi, slideCount, restartAutoplay, clearTimer])
+
+    // React to the pause toggle: clear the timer when paused, re-arm a fresh delay when resumed.
+    useEffect(() => {
+        if (paused) clearTimer()
+        else restartAutoplay()
+    }, [paused, clearTimer, restartAutoplay])
 
     // cleanup on unmount
     useEffect(() => {

@@ -107,7 +107,13 @@ function Carousel({ orientation = "horizontal", opts, setApi, plugins, wheelScro
         const node = typeof api.rootNode === "function" ? api.rootNode() : null
         if (!node) return
         const isLoop = !!opts?.loop
-        let lastStep = 0 // throttle timestamp for slide-at-a-time (loop) carousels
+        // Slide-at-a-time gating for loop carousels (the hero): a trackpad swipe fires a long burst of
+        // wheel events; we step only on the LEADING edge of a gesture (first event after an idle gap)
+        // and never more than once per floor, so one swipe = one slide instead of skipping 2-3.
+        const GESTURE_IDLE_MS = 250
+        const STEP_FLOOR_MS = 500
+        let lastWheelTs = 0
+        let lastStepTs = 0
         const onWheel = (e: WheelEvent) => {
             // Horizontal delta only — a vertical wheel falls through to the page. Normalize line-mode
             // deltas (Firefox) to pixels so the step feels the same everywhere.
@@ -115,14 +121,14 @@ function Carousel({ orientation = "horizontal", opts, setApi, plugins, wheelScro
             const delta = e.deltaX * scale
             if (!delta) return
             if (isLoop) {
-                // Loop carousels (the full-screen hero) advance one WHOLE slide per horizontal swipe —
-                // pixel free-scroll would strand a full-bleed slide half-shown. Throttle so a trackpad's
-                // momentum burst (many wheel events per swipe) counts as a single step.
                 if (Math.abs(delta) < 4) return
-                e.preventDefault()
+                e.preventDefault() // also stops a 2-finger swipe triggering browser back/forward
                 const now = Date.now()
-                if (now - lastStep < 400) return
-                lastStep = now
+                const idle = now - lastWheelTs // gap since the previous wheel event in this stream
+                lastWheelTs = now
+                // Fresh gesture (idle gap) AND past the floor since the last actual step → advance once.
+                if (idle < GESTURE_IDLE_MS || now - lastStepTs < STEP_FLOOR_MS) return
+                lastStepTs = now
                 if (delta > 0) api.scrollNext()
                 else api.scrollPrev()
                 return
