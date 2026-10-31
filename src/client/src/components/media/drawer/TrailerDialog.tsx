@@ -103,15 +103,14 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title }
                     <span className="ml-2 text-sm font-medium">Trailer</span>
                 </Button>
             </DialogTrigger>
-            <DialogContent ref={contentRef} className="h-screen w-screen max-w-none gap-0 rounded-none border-none bg-black p-0">
+            {/* flex (not the base grid) + sm:max-w-none defeats the dialog's sm:max-w-md cap so the panel fills the screen. */}
+            <DialogContent ref={contentRef} className="flex h-screen w-screen max-w-none items-center justify-center gap-0 rounded-none border-none bg-black p-0 sm:max-w-none">
                 <DialogHeader className="sr-only">
                     <DialogTitle>{title} Trailer</DialogTitle>
                 </DialogHeader>
-                {/* Center a maximal 16:9 stage on the black panel. */}
-                <div className="flex h-full w-full items-center justify-center">
-                    <div className="aspect-video max-h-full w-full max-w-[calc(100vh*16/9)]">
-                        <div ref={hostRef} className="h-full w-full" />
-                    </div>
+                {/* Maximal centered 16:9 stage: width = min(100vw, 100vh*16/9) so it never exceeds the viewport. */}
+                <div className="aspect-video max-h-screen w-full max-w-[calc(100vh*16/9)]">
+                    <div ref={hostRef} className="h-full w-full" />
                 </div>
             </DialogContent>
         </Dialog>
