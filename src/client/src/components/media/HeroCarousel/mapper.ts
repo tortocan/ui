@@ -1,5 +1,14 @@
 import type { DetailedMedia, HeroSlide } from "./types"
 
+type WithLogo = { logo_path?: string | null }
+
+// The TMDB client resolves known image file_path fields to full URLs, but company/network logo_path
+// may come through raw — handle both (pass a full URL through, otherwise prepend the image base).
+function logoUrl(path?: string | null): string | null {
+    if (!path) return null
+    return path.startsWith("http") ? path : `https://image.tmdb.org/t/p/w500${path}`
+}
+
 export function toHeroSlides(mediaItems: DetailedMedia[]): HeroSlide[] {
     return mediaItems
         .filter((media) => media.images?.backdrops?.length || media.images?.posters?.length)
@@ -11,7 +20,12 @@ export function toHeroSlides(mediaItems: DetailedMedia[]): HeroSlide[] {
 
             const year = isMovie ? media.release_date : media.first_air_date
 
+            const companies = (media.production_companies ?? []) as WithLogo[]
+            const networks = isMovie ? [] : ((media.networks ?? []) as WithLogo[])
+
             return {
+                networkLogo: logoUrl(networks.find((n) => n.logo_path)?.logo_path),
+                studioLogo: logoUrl(companies.find((c) => c.logo_path)?.logo_path),
                 id: media.id,
                 type: isMovie ? "movie" : "tv",
                 title,

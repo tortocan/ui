@@ -11,6 +11,9 @@ export type HeroSlide = {
     badge: string
     runtime: string
     logo: string
+    /** First network logo (TV only) and first production-company logo, if available. */
+    networkLogo: string | null
+    studioLogo: string | null
 }
 
 export type DetailedMedia = MovieDetailsWithAppends<"images"[]> | TVDetailsWithAppends<"images"[]>

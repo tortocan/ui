@@ -63,6 +63,23 @@ export function HeroCarousel({ tmdb, fetcher }: { tmdb: TMDB; fetcher: HeroFetch
                                 <img src={slide.image} alt={slide.title} className="h-full w-full object-cover object-center" />
                             </div>
                             <div className="absolute inset-0 bg-[linear-gradient(110deg,rgba(0,0,0,0.92)_10%,rgba(0,0,0,0.45)_45%,rgba(0,0,0,0.82)_100%)]" />
+
+                            {/* Network logo top-right, studio logo bottom-right. */}
+                            {slide.networkLogo && (
+                                <img
+                                    src={slide.networkLogo}
+                                    alt=""
+                                    className="pointer-events-none absolute top-20 right-6 z-10 h-8 max-w-[160px] object-contain opacity-90 drop-shadow-[0_0_10px_rgba(0,0,0,0.6)] sm:right-8 lg:right-12"
+                                />
+                            )}
+                            {slide.studioLogo && (
+                                <img
+                                    src={slide.studioLogo}
+                                    alt=""
+                                    // Lift above the bottom-10% float band (mirrors the hero text) so it isn't covered.
+                                    className="pointer-events-none absolute right-6 bottom-[calc(2rem+8vh)] z-10 h-10 max-w-[180px] object-contain opacity-90 drop-shadow-[0_0_10px_rgba(0,0,0,0.6)] sm:right-8 md:bottom-[calc(2rem+10vh)] lg:right-12"
+                                />
+                            )}
                             {/* pb-[…vh] lifts the hero text/buttons up ~10% so they clear the content that floats over the hero's bottom. */}
                             <div className="relative z-10 flex h-full items-end pb-[8vh] md:pb-[10vh]">
                                 {/* Flush-left (no mx-auto/max-w centering) so the hero text hugs the left edge. */}
