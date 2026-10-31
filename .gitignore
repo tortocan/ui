@@ -144,3 +144,6 @@ vite.config.ts.timestamp-*
 
 *.ignore
 build/
+
+# Claude Code memory and dev cycle tracking
+.remember/
