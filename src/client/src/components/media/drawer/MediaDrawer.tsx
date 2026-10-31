@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react"
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
 import { useOmss } from "@/hooks/use-omss"
 import { Button } from "@/components/ui/button"
-import { TitleCardContent } from "@/components/media/TitleCardContent.tsx"
+import { MediaHeroCard } from "@/components/media/MediaHeroCard.tsx"
 import { useMediaDetails } from "./hooks/useMediaDetails"
 import { MediaCast } from "./MediaCast"
 import { MediaEpisodes } from "./MediaEpisodes"
@@ -114,50 +114,38 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
                     <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Failed to load media details.</div>
                 ) : (
                     <div className="relative h-full overflow-y-auto" onWheel={onBodyWheel} onTouchStart={onBodyTouchStart} onTouchEnd={onBodyTouchEnd}>
-                        {/* STICKY HERO */}
-                        <div className="sticky top-0 h-screen w-full">
-                            {data.backdropUrl ? (
-                                <img src={data.backdropUrl} alt={`${data.title} backdrop`} draggable={false} className="h-full w-full object-cover object-top" />
-                            ) : (
-                                <div className="flex h-full items-center justify-center bg-muted text-sm text-muted-foreground">No backdrop available</div>
-                            )}
+                        {/* HERO — the same card the home carousel renders per slide (logo + chips +
+                            Play/Trailer + description over the backdrop), so the two stay identical. */}
+                        <MediaHeroCard
+                            image={data.backdropUrl}
+                            logoUrl={data.logoUrl}
+                            title={data.title}
+                            rating={data.rating}
+                            date={data.releaseDate}
+                            meta={data.runtime ? formatRuntime(data.runtime) : null}
+                            genres={data.genres}
+                            description={data.overview}
+                            heightClassName="h-screen"
+                            className="animate-in duration-700 fade-in"
+                            onPlay={handlePlay}
+                            playLabel={
+                                resume ? (
+                                    <>
+                                        <RotateCcw className="size-5" />
+                                        {resume.label}
+                                    </>
+                                ) : (
+                                    <>
+                                        <Play className="size-5 fill-white" />
+                                        Play
+                                    </>
+                                )
+                            }
+                            secondary={<TrailerDialog trailerId={data.trailer} title={data.title} mediaType={data.type} tmdbId={Number(data.id)} />}
+                        />
 
-                            {/* MULTI-LAYER OVERLAY */}
-                            <div className="absolute inset-0 bg-[linear-gradient(110deg,rgba(0,0,0,0.85)_0%,rgba(0,0,0,0.45)_35%,rgba(0,0,0,0.75)_100%)]" />
-                            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_20%_80%,rgba(0,0,0,0)_0%,rgba(0,0,0,0.4)_100%)]" />
-                        </div>
-
-                        {/* CONTENT */}
-                        <div className="relative z-20 -mt-[45vh] px-4 pb-10 text-white md:px-8">
-                            {/* Shared title header (logo + chips + Play/Trailer + description) — same as the hero card. */}
-                            <div className="mb-8 animate-in duration-700 fade-in">
-                                <TitleCardContent
-                                    logoUrl={data.logoUrl}
-                                    title={data.title}
-                                    rating={data.rating}
-                                    date={data.releaseDate}
-                                    meta={data.runtime ? formatRuntime(data.runtime) : null}
-                                    genres={data.genres}
-                                    description={data.overview}
-                                    logoClassName="mb-1 h-auto w-full max-w-[70%] object-contain drop-shadow-2xl md:max-w-[40%]"
-                                    onPlay={handlePlay}
-                                    playLabel={
-                                        resume ? (
-                                            <>
-                                                <RotateCcw className="size-5" />
-                                                {resume.label}
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Play className="size-5 fill-white" />
-                                                Play
-                                            </>
-                                        )
-                                    }
-                                    secondary={<TrailerDialog trailerId={data.trailer} title={data.title} mediaType={data.type} tmdbId={Number(data.id)} />}
-                                />
-                            </div>
-
+                        {/* DETAIL SECTIONS — scroll in below the hero card. */}
+                        <div className="relative z-20 px-4 pt-8 pb-10 text-white md:px-8">
                             {/* TV EPISODES */}
                             {data.type === "tv" && data.seasons && (
                                 <div className="mb-8">
