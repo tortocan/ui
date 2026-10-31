@@ -107,20 +107,27 @@ function Carousel({ orientation = "horizontal", opts, setApi, plugins, wheelScro
         const node = typeof api.rootNode === "function" ? api.rootNode() : null
         if (!node) return
         const isLoop = !!opts?.loop
+        let lastStep = 0 // throttle timestamp for slide-at-a-time (loop) carousels
         const onWheel = (e: WheelEvent) => {
             // Horizontal delta only — a vertical wheel falls through to the page. Normalize line-mode
             // deltas (Firefox) to pixels so the step feels the same everywhere.
             const scale = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? node.clientWidth : 1
             const delta = e.deltaX * scale
             if (!delta) return
-            const engine = api.internalEngine()
             if (isLoop) {
-                // Loop carousels scroll infinitely — there's no pixel limit to clamp against.
+                // Loop carousels (the full-screen hero) advance one WHOLE slide per horizontal swipe —
+                // pixel free-scroll would strand a full-bleed slide half-shown. Throttle so a trackpad's
+                // momentum burst (many wheel events per swipe) counts as a single step.
+                if (Math.abs(delta) < 4) return
                 e.preventDefault()
-                engine.scrollBody.useDuration(0)
-                engine.scrollTo.distance(-delta, false)
+                const now = Date.now()
+                if (now - lastStep < 400) return
+                lastStep = now
+                if (delta > 0) api.scrollNext()
+                else api.scrollPrev()
                 return
             }
+            const engine = api.internalEngine()
             // Clamp the step to the TRUE pixel limit (engine.limit), NOT the snap index. Embla's
             // canScrollNext()/canScrollPrev() are snap-index based and flip false once you're inside the
             // last/first snap, which used to strand the final sub-snap pixels and clip the last card
