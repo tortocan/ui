@@ -69,7 +69,7 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
     return (
         <Drawer open={isOpen} onOpenChange={(open) => !open && closeAll()}>
             <DrawerContent
-                className={cn("lenis-stopped lenis-disabled mx-auto mt-0 h-[98vh] max-w-6xl bg-black pt-0 outline-none", className)}
+                className={cn("lenis-stopped lenis-disabled inset-0 mt-0 h-full max-h-none! max-w-none rounded-none! border-0! bg-black pt-0 outline-none", className)}
                 data-lenis-prevent="true"
                 headerActions={
                     canGoBack && (
@@ -94,7 +94,7 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
                         {/* STICKY HERO */}
                         <div className="sticky top-0 h-screen w-full">
                             {data.backdropUrl ? (
-                                <img src={data.backdropUrl} alt={`${data.title} backdrop`} draggable={false} className="h-full w-full rounded-t-2xl object-cover object-top" />
+                                <img src={data.backdropUrl} alt={`${data.title} backdrop`} draggable={false} className="h-full w-full object-cover object-top" />
                             ) : (
                                 <div className="flex h-full items-center justify-center bg-muted text-sm text-muted-foreground">No backdrop available</div>
                             )}
