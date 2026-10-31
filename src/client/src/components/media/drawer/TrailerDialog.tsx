@@ -168,7 +168,9 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title }
                 createPortal(
                     // z-max so it sits above the (full-screen) drawer; stays a full-viewport black panel even
                     // if the Fullscreen API is refused. Rendered hidden until launched.
-                    <div ref={stageRef} className={cn("fixed inset-0 z-[2147483647] bg-black", !active && "hidden")}>
+                    // pointer-events-auto: the modal drawer sets body { pointer-events: none }, and this
+                    // overlay is portaled to body (outside the drawer), so without this every click is dead.
+                    <div ref={stageRef} className={cn("pointer-events-auto fixed inset-0 z-[2147483647] bg-black", !active && "hidden")}>
                         <button
                             type="button"
                             aria-label="Close trailer"
