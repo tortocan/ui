@@ -30,6 +30,8 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     const [showSearch, setShowSearch] = usePersistentState<boolean>("app.showSearch", false)
     const [autoplayNext, setAutoplayNext] = usePersistentState<boolean>("app.autoplayNext", true)
     const [libraryOnly, setLibraryOnly] = usePersistentState<boolean>("app.libraryOnly", false)
+    const [showHeaderIcons, setShowHeaderIcons] = usePersistentState<boolean>("app.showHeaderIcons", true)
+    const [showCarouselDots, setShowCarouselDots] = usePersistentState<boolean>("app.showCarouselDots", true)
 
     const [tmdbApiKey, setTmdbApiKey] = usePersistentState<string>("app.tmdbApiKey", import.meta.env.VITE_TMDB_API_KEY)
 
@@ -59,6 +61,8 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
             standalone,
             showSearch,
             libraryOnly,
+            showHeaderIcons,
+            showCarouselDots,
             tmdbApiKey,
             tmdbOptions,
 
@@ -67,10 +71,12 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
             setAutoplayNext,
             setShowSearch,
             setLibraryOnly,
+            setShowHeaderIcons,
+            setShowCarouselDots,
             setTmdbApiKey,
             setTmdbOptions,
         }),
-        [locale, region, autoplayNext, standalone, showSearch, libraryOnly, tmdbApiKey, tmdbOptions, setLocale, setRegion, setAutoplayNext, setShowSearch, setLibraryOnly, setTmdbApiKey, setTmdbOptions]
+        [locale, region, autoplayNext, standalone, showSearch, libraryOnly, showHeaderIcons, showCarouselDots, tmdbApiKey, tmdbOptions, setLocale, setRegion, setAutoplayNext, setShowSearch, setLibraryOnly, setShowHeaderIcons, setShowCarouselDots, setTmdbApiKey, setTmdbOptions]
     )
 
     return <AppSettingsContext.Provider value={value}>{children}</AppSettingsContext.Provider>

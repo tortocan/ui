@@ -22,7 +22,7 @@ const iconButtonClass = "text-white/70 hover:bg-white/10 hover:text-white"
 
 export default function Header() {
     const { t } = useTranslation(["header", "common", "settings"])
-    const { setShowSearch, showSearch } = useAppSettings()
+    const { setShowSearch, showSearch, showHeaderIcons } = useAppSettings()
     const { valid } = useOmss()
     const navigate = useNavigate()
     const location = useLocation()
@@ -57,36 +57,38 @@ export default function Header() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-1 px-1">
-                        <Button variant="ghost" size="icon" className={iconButtonClass} onClick={() => setShowSearch(!showSearch)} aria-label={t("header:searchPlaceholder")}>
-                            <LucideSearch className="size-5" />
-                        </Button>
+                    {showHeaderIcons && (
+                        <div className="flex items-center gap-1 px-1">
+                            <Button variant="ghost" size="icon" className={iconButtonClass} onClick={() => setShowSearch(!showSearch)} aria-label={t("header:searchPlaceholder")}>
+                                <LucideSearch className="size-5" />
+                            </Button>
 
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className={`${iconButtonClass} ${valid ? "hover:cursor-default" : ""}`} onClick={() => navigate("/settings?tab=omss")}>
-                                    {valid ? <LucideGlobeLock className="size-5" /> : <LucideGlobeX className="size-5" />}
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent className="text-center">
-                                {valid ? (
-                                    "You are connected to your OMSS Server!"
-                                ) : (
-                                    <>
-                                        You are not connected to any OMSS Server!
-                                        <br />
-                                        Click me to connect to one.
-                                    </>
-                                )}
-                            </TooltipContent>
-                        </Tooltip>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className={`${iconButtonClass} ${valid ? "hover:cursor-default" : ""}`} onClick={() => navigate("/settings?tab=omss")}>
+                                        {valid ? <LucideGlobeLock className="size-5" /> : <LucideGlobeX className="size-5" />}
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent className="text-center">
+                                    {valid ? (
+                                        "You are connected to your OMSS Server!"
+                                    ) : (
+                                        <>
+                                            You are not connected to any OMSS Server!
+                                            <br />
+                                            Click me to connect to one.
+                                        </>
+                                    )}
+                                </TooltipContent>
+                            </Tooltip>
 
-                        <Button asChild variant="ghost" size="icon" className={iconButtonClass}>
-                            <Link to="/settings" aria-label={t("settings:title")}>
-                                <Settings2 className="size-5" />
-                            </Link>
-                        </Button>
-                    </div>
+                            <Button asChild variant="ghost" size="icon" className={iconButtonClass}>
+                                <Link to="/settings" aria-label={t("settings:title")}>
+                                    <Settings2 className="size-5" />
+                                </Link>
+                            </Button>
+                        </div>
+                    )}
                 </div>
 
                 {hasGlassSize && <GlassFilter id={filterId} width={glassWidth} height={glassHeight} radius={glassHeight / 2} />}

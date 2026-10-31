@@ -60,7 +60,7 @@ export default function Settings() {
     const { theme, setTheme } = useTheme()
     const { colorTheme, setColorTheme } = useColorTheme()
 
-    const { region, locale, autoplayNext, tmdbApiKey, libraryOnly, setLocale, setAutoplayNext, setRegion, setLibraryOnly, standalone } = useAppSettings()
+    const { region, locale, autoplayNext, tmdbApiKey, libraryOnly, showHeaderIcons, showCarouselDots, setLocale, setAutoplayNext, setRegion, setLibraryOnly, setShowHeaderIcons, setShowCarouselDots, standalone } = useAppSettings()
     const tmdb = useTmdb()
 
     const handleLanguageChange = (value: string) => {
@@ -259,6 +259,24 @@ export default function Settings() {
                                         </button>
                                     ))}
                                 </div>
+                            </div>
+
+                            {/* Header icons toggle */}
+                            <div className="flex items-center justify-between gap-4">
+                                <div>
+                                    <Label htmlFor="show-header-icons">{t("appearance.headerIcons.label", "Header Icons")}</Label>
+                                    <p className="pt-1 text-sm text-muted-foreground">{t("appearance.headerIcons.info", "Show search, connection status, and settings icons in the header")}</p>
+                                </div>
+                                <Switch id="show-header-icons" checked={showHeaderIcons} onCheckedChange={setShowHeaderIcons} />
+                            </div>
+
+                            {/* Carousel dots toggle */}
+                            <div className="flex items-center justify-between gap-4">
+                                <div>
+                                    <Label htmlFor="show-carousel-dots">{t("appearance.carouselDots.label", "Carousel Dots")}</Label>
+                                    <p className="pt-1 text-sm text-muted-foreground">{t("appearance.carouselDots.info", "Show navigation dots on the hero carousel")}</p>
+                                </div>
+                                <Switch id="show-carousel-dots" checked={showCarouselDots} onCheckedChange={setShowCarouselDots} />
                             </div>
                         </CardContent>
                     </Card>

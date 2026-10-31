@@ -11,12 +11,14 @@ import "@/styles/animation.css"
 import { useMediaDrawer } from "@/components/media/drawer/hooks/useMediaDrawer"
 import { useIsMobile } from "@/hooks/use-mobile.ts"
 import { useNavigate } from "react-router-dom"
+import { useAppSettings } from "@/hooks/use-appsettings.ts"
 
 export function HeroCarousel({ tmdb, fetcher }: { tmdb: TMDB; fetcher: HeroFetcherResult }) {
     const { open } = useMediaDrawer()
     const { slides, loading } = useHeroSlides(tmdb, fetcher)
     const isMobile = useIsMobile()
     const navigate = useNavigate()
+    const { showCarouselDots } = useAppSettings()
 
     const [heroApi, setHeroApi] = useState<CarouselApi>()
     const [activeSlide, setActiveSlide] = useState(0)
@@ -123,24 +125,26 @@ export function HeroCarousel({ tmdb, fetcher }: { tmdb: TMDB; fetcher: HeroFetch
             </CarouselContent>
 
             {/* Carousel controls at the TOP-center, just below the fixed nav pill. */}
-            <div className="absolute top-24 left-1/2 z-10 flex -translate-x-1/2 gap-3">
-                {slides.map((slide, index) => {
-                    const isActive = activeSlide === index
+            {showCarouselDots && (
+                <div className="absolute top-24 left-1/2 z-10 flex -translate-x-1/2 gap-3">
+                    {slides.map((slide, index) => {
+                        const isActive = activeSlide === index
 
-                    return (
-                        <button
-                            key={`dot-${slide.title}-${slide.year}`}
-                            onClick={() => {
-                                heroApi?.scrollTo(index)
-                                setProgressKey((p) => p + 1)
-                            }}
-                            className={`relative h-2.5 overflow-hidden rounded-full transition-all duration-300 ${isActive ? "w-10 bg-primary/20" : "w-2.5 bg-white/30 hover:bg-white/50"}`}
-                        >
-                            {isActive && <div key={`${progressKey}-${index}`} className="animate-carousel-progress absolute inset-0 origin-left rounded-full bg-primary" />}
-                        </button>
-                    )
-                })}
-            </div>
+                        return (
+                            <button
+                                key={`dot-${slide.title}-${slide.year}`}
+                                onClick={() => {
+                                    heroApi?.scrollTo(index)
+                                    setProgressKey((p) => p + 1)
+                                }}
+                                className={`relative h-2.5 overflow-hidden rounded-full transition-all duration-300 ${isActive ? "w-10 bg-primary/20" : "w-2.5 bg-white/30 hover:bg-white/50"}`}
+                            >
+                                {isActive && <div key={`${progressKey}-${index}`} className="animate-carousel-progress absolute inset-0 origin-left rounded-full bg-primary" />}
+                            </button>
+                        )
+                    })}
+                </div>
+            )}
         </Carousel>
     )
 }
