@@ -89,35 +89,14 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title }
     useEffect(() => {
         if (!active) return
         let killed = false
-        let enteredOurFs = false
-        let exitTimer = 0
 
-        const onFsChange = () => {
-            const fe = fsElement()
-            // Our container is fullscreen → remember it.
-            if (fe === stageRef.current) {
-                enteredOurFs = true
-                window.clearTimeout(exitTimer)
-                return
-            }
-            // Clicking the player hands fullscreen to the YouTube IFRAME — that is NOT a close.
-            if (fe) {
-                window.clearTimeout(exitTimer)
-                return
-            }
-            // Fullscreen fully gone. Ignore if we never entered our own FS (request was refused),
-            // and debounce so a FS hand-off (element → iframe) that momentarily reads null doesn't close us.
-            if (!enteredOurFs) return
-            window.clearTimeout(exitTimer)
-            exitTimer = window.setTimeout(() => {
-                if (!fsElement()) close()
-            }, 400)
-        }
+        // NOTE: we deliberately do NOT auto-close on fullscreenchange. Clicking the YouTube player
+        // makes the embed grab/drop the browser's fullscreen, and there is no reliable way to tell
+        // that apart from the user leaving — which caused "any click closes the player". Close only
+        // on video end, Esc, or the X button (none of which a cross-origin iframe click can trigger).
         const onKey = (e: KeyboardEvent) => {
             if (e.key === "Escape") close()
         }
-        document.addEventListener("fullscreenchange", onFsChange)
-        document.addEventListener("webkitfullscreenchange", onFsChange)
         document.addEventListener("keydown", onKey)
 
         void loadYouTubeApi().then(() => {
@@ -174,9 +153,6 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title }
 
         return () => {
             killed = true
-            window.clearTimeout(exitTimer)
-            document.removeEventListener("fullscreenchange", onFsChange)
-            document.removeEventListener("webkitfullscreenchange", onFsChange)
             document.removeEventListener("keydown", onKey)
             try {
                 playerRef.current?.destroy?.()
