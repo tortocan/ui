@@ -145,8 +145,9 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
                             secondary={<TrailerDialog trailerId={data.trailer} title={data.title} mediaType={data.type} tmdbId={Number(data.id)} />}
                         />
 
-                        {/* DETAIL SECTIONS — scroll in below the hero card. */}
-                        <div className="relative z-20 px-4 pt-8 pb-10 text-white md:px-8">
+                        {/* DETAIL SECTIONS — float ~10% up over the hero card's bottom, exactly like the
+                            BrowseLayout content float, so the hero shows through the overlap (no black gap). */}
+                        <div className="relative z-20 -mt-[8vh] px-4 pb-10 text-white md:-mt-[10vh] md:px-8">
                             {/* TV EPISODES */}
                             {data.type === "tv" && data.seasons && (
                                 <div className="mb-8">
