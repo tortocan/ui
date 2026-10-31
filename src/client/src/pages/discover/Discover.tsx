@@ -130,17 +130,20 @@ export default function Discover() {
     useEffect(() => {
         let mounted = true
 
+        // Page 1 = a filter change (full reload → skeletons + replace). page>1 = infinite-scroll
+        // load-more (append to the existing results).
         // eslint-disable-next-line react-hooks/set-state-in-effect
-        setIsLoading(true)
+        if (page === 1) setIsLoading(true)
         fetchPage()
             .then((data) => {
                 if (!mounted) return
-                setResults(data.results.map((item) => ({ ...item, media_kind: effectiveType }) as ResultItem))
+                const items = data.results.map((item) => ({ ...item, media_kind: effectiveType }) as ResultItem)
+                setResults((prev) => (page === 1 ? items : [...prev, ...items]))
                 setTotalPages(Math.max(1, Math.min(data.total_pages, 500)))
             })
             .catch((e) => {
                 console.error(e)
-                if (mounted) {
+                if (mounted && page === 1) {
                     setResults([])
                     setTotalPages(1)
                 }
@@ -283,9 +286,8 @@ export default function Discover() {
                         }
                     })}
                     loading={isLoading}
-                    page={page}
-                    totalPages={totalPages}
-                    onPageChange={setPage}
+                    hasMore={page < totalPages}
+                    onLoadMore={() => setPage((p) => p + 1)}
                     emptyDescription="Try widening your filters."
                 />
             </div>

@@ -35,12 +35,12 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
     const [sortKey, setSortKey] = useState<SortKey>("popularity")
     const [fromYear, setFromYear] = useState<number | null>(null)
     const [toYear, setToYear] = useState<number | null>(null)
-    const [page, setPage] = useState(1)
+    const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
     // Reset everything when the library (ids/type) changes.
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect
-        setPage(1)
+        setVisibleCount(PAGE_SIZE)
         setGenreIds([])
         setNetworkIds([])
         setStudioIds([])
@@ -114,13 +114,12 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
         return [...list].sort(cmp[sortKey])
     }, [titles, genreIds, networkIds, studioIds, fromYear, toYear, sortKey])
 
-    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-    const pageCards = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+    const pageCards = filtered.slice(0, visibleCount)
     const busy = titles === null || externalLoading
 
     const toggle = (setter: (fn: (p: number[]) => number[]) => void) => (id: number) => {
         setter((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
-        setPage(1)
+        setVisibleCount(PAGE_SIZE)
     }
 
     const anyFilter = genreIds.length > 0 || networkIds.length > 0 || studioIds.length > 0 || fromYear != null || toYear != null
@@ -142,17 +141,17 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
                     sortKey={sortKey}
                     onSortChange={(k) => {
                         setSortKey(k)
-                        setPage(1)
+                        setVisibleCount(PAGE_SIZE)
                     }}
                     fromYear={fromYear}
                     onFromYear={(y) => {
                         setFromYear(y)
-                        setPage(1)
+                        setVisibleCount(PAGE_SIZE)
                     }}
                     toYear={toYear}
                     onToYear={(y) => {
                         setToYear(y)
-                        setPage(1)
+                        setVisibleCount(PAGE_SIZE)
                     }}
                 />
             </div>
@@ -161,9 +160,8 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
                 cards={pageCards}
                 loading={busy}
                 skeletonCount={PAGE_SIZE}
-                page={page}
-                totalPages={totalPages}
-                onPageChange={setPage}
+                hasMore={visibleCount < filtered.length}
+                onLoadMore={() => setVisibleCount((c) => c + PAGE_SIZE)}
                 emptyTitle={noLibrary ? "Nothing in your library yet" : "Nothing matches"}
                 emptyDescription={
                     noLibrary
