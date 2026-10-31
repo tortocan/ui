@@ -73,6 +73,22 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title }
         setActive(false)
     }, [])
 
+    // Scroll-up / swipe-up to dismiss. Wheel & touch over the cross-origin iframe never reach us, so
+    // these fire from the capture strip that covers the player above its control bar.
+    const touchStartY = useRef<number | null>(null)
+    const onWheel = (e: React.WheelEvent) => {
+        if (e.deltaY < -24) close()
+    }
+    const onTouchStart = (e: React.TouchEvent) => {
+        touchStartY.current = e.touches[0]?.clientY ?? null
+    }
+    const onTouchEnd = (e: React.TouchEvent) => {
+        const start = touchStartY.current
+        touchStartY.current = null
+        const end = e.changedTouches[0]?.clientY
+        if (start != null && end != null && start - end > 60) close()
+    }
+
     // Launch straight into fullscreen from the click gesture (the only moment the browser grants it).
     const launch = useCallback(() => {
         setActive(true)
@@ -172,11 +188,15 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title }
                     // overlay is portaled to body (outside the drawer), so without this every click is dead.
                     <div ref={stageRef} className={cn("pointer-events-auto fixed inset-0 z-[2147483647] bg-black", !active && "hidden")}>
                         <div ref={hostRef} className="h-full w-full" />
+                        {/* Scroll/swipe-up capture strip: covers the player ABOVE its control bar (bottom ~80px
+                            left free) so the native controls stay usable while scroll-up dismisses. */}
+                        <div className="absolute inset-x-0 top-0 bottom-20 z-[5] touch-pan-x" onWheel={onWheel} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} />
+                        {/* Close sits just above the YouTube fullscreen button, bottom-right. */}
                         <button
                             type="button"
                             aria-label="Close trailer"
                             onClick={close}
-                            className="absolute top-4 right-4 z-10 flex size-10 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
+                            className="absolute right-4 bottom-16 z-20 flex size-10 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
                         >
                             <X className="size-5" />
                         </button>
