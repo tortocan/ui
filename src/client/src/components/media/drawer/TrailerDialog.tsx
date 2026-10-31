@@ -52,6 +52,7 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title }
             hostRef.current.appendChild(mount)
 
             playerRef.current = new YT.Player(mount, {
+                host: "https://www.youtube-nocookie.com",
                 width: "100%",
                 height: "100%",
                 videoId: trailerId ?? undefined,

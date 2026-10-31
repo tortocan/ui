@@ -11,8 +11,9 @@ export async function registerHelmetPlugin(app: FastifyInstance) {
 
                 imgSrc: ["'self'", "data:", "https://image.tmdb.org"],
 
-                scriptSrc: ["'self'", "'unsafe-inline'"],
-                scriptSrcElem: ["'self'", "'unsafe-inline'"],
+                // YouTube IFrame Player API loader + the www-widgetapi.js it injects (trailer player).
+                scriptSrc: ["'self'", "'unsafe-inline'", "https://www.youtube.com", "https://s.ytimg.com"],
+                scriptSrcElem: ["'self'", "'unsafe-inline'", "https://www.youtube.com", "https://s.ytimg.com"],
 
                 styleSrc: ["'self'", "'unsafe-inline'"],
 
@@ -26,9 +27,9 @@ export async function registerHelmetPlugin(app: FastifyInstance) {
 
                 frameAncestors: ["'self'"],
 
-                frameSrc: ["'self'", "https://www.youtube-nocookie.com"],
+                frameSrc: ["'self'", "https://www.youtube-nocookie.com", "https://www.youtube.com"],
 
-                childSrc: ["'self'", "https://www.youtube-nocookie.com"],
+                childSrc: ["'self'", "https://www.youtube-nocookie.com", "https://www.youtube.com"],
             },
         },
 
