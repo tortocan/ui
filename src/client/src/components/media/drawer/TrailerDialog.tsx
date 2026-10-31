@@ -89,10 +89,29 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title }
     useEffect(() => {
         if (!active) return
         let killed = false
+        let enteredOurFs = false
+        let exitTimer = 0
 
         const onFsChange = () => {
-            // User pressed Esc / exited fullscreen → close everything.
-            if (!fsElement()) close()
+            const fe = fsElement()
+            // Our container is fullscreen → remember it.
+            if (fe === stageRef.current) {
+                enteredOurFs = true
+                window.clearTimeout(exitTimer)
+                return
+            }
+            // Clicking the player hands fullscreen to the YouTube IFRAME — that is NOT a close.
+            if (fe) {
+                window.clearTimeout(exitTimer)
+                return
+            }
+            // Fullscreen fully gone. Ignore if we never entered our own FS (request was refused),
+            // and debounce so a FS hand-off (element → iframe) that momentarily reads null doesn't close us.
+            if (!enteredOurFs) return
+            window.clearTimeout(exitTimer)
+            exitTimer = window.setTimeout(() => {
+                if (!fsElement()) close()
+            }, 400)
         }
         const onKey = (e: KeyboardEvent) => {
             if (e.key === "Escape") close()
@@ -155,6 +174,7 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title }
 
         return () => {
             killed = true
+            window.clearTimeout(exitTimer)
             document.removeEventListener("fullscreenchange", onFsChange)
             document.removeEventListener("webkitfullscreenchange", onFsChange)
             document.removeEventListener("keydown", onKey)
