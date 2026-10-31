@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from "react"
 import type { TMDB } from "@lorenzopant/tmdb"
 import Autoplay from "embla-carousel-autoplay"
-import { ArrowRight, PlayCircle } from "lucide-react"
+import { Calendar, Play, Star } from "lucide-react"
 import { Carousel, type CarouselApi, CarouselContent, CarouselItem } from "@/components/ui/carousel"
 import { useHeroSlides } from "./use-heroslides"
 import type { HeroFetcherResult } from "./types"
 import { Button } from "@/components/ui/button.tsx"
-import { StarRating } from "@/components/media/StarRating"
 import "@/styles/animation.css"
 import { useMediaDrawer } from "@/components/media/drawer/hooks/useMediaDrawer"
 import { useIsMobile } from "@/hooks/use-mobile.ts"
@@ -86,10 +85,24 @@ export function HeroCarousel({ tmdb, fetcher }: { tmdb: TMDB; fetcher: HeroFetch
                                 <div className="w-full px-6 sm:px-8 lg:px-12">
                                     <div className="max-w-2xl space-y-5">
                                         <img className="max-h-34 max-w-[50vw] sm:max-w-140" src={slide.logo} alt={slide.title} />
-                                        <div className="flex flex-wrap items-center gap-4 text-sm text-white/70 sm:text-base">
-                                            <StarRating rating={slide.rating} className="font-semibold" />
-                                            <span>{new Date(slide.year).toLocaleDateString()}</span>
-                                            <span>{slide.runtime}</span>
+                                        {/* Metadata as chips: rating, year, status (Returning Series/Ended) + genres. */}
+                                        <div className="flex flex-wrap items-center gap-2 text-sm">
+                                            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/40 px-3 py-1 font-semibold text-white backdrop-blur-sm">
+                                                <Star className="size-4 fill-primary text-primary" />
+                                                {slide.rating}
+                                            </span>
+                                            {slide.year && (
+                                                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/40 px-3 py-1 font-medium text-white/90 backdrop-blur-sm">
+                                                    <Calendar className="size-4 opacity-70" />
+                                                    {new Date(slide.year).getFullYear()}
+                                                </span>
+                                            )}
+                                            {slide.runtime && <span className="rounded-full border border-white/15 bg-black/40 px-3 py-1 font-medium text-white/90 backdrop-blur-sm">{slide.runtime}</span>}
+                                            {slide.genres.map((g) => (
+                                                <span key={g} className="rounded-full border border-white/15 bg-black/40 px-3 py-1 font-medium text-white/90 backdrop-blur-sm">
+                                                    {g}
+                                                </span>
+                                            ))}
                                         </div>
 
                                         <p className="max-w-xl text-sm leading-relaxed text-white/70 sm:text-base">
@@ -112,6 +125,7 @@ export function HeroCarousel({ tmdb, fetcher }: { tmdb: TMDB; fetcher: HeroFetch
                                                     }
                                                 }}
                                             >
+                                                <Play className="size-4 fill-current" />
                                                 Play
                                             </Button>
 

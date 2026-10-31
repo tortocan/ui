@@ -34,7 +34,9 @@ export function toHeroSlides(mediaItems: DetailedMedia[]): HeroSlide[] {
                 description: media.overview || "No description available.",
                 image: media.backdrop_path ?? media.images.backdrops[0].file_path,
                 badge: index >= 6 ? "Popular" : index >= 3 ? "Trending" : "New",
-                runtime: isMovie ? (media.runtime ? `${media.runtime}m` : "") : media.episode_run_time?.[0] ? `${media.episode_run_time[0]}m` : (media.status ?? ""),
+                // Movies → runtime chip; TV → the status (Returning Series / Ended).
+                runtime: isMovie ? (media.runtime ? `${media.runtime}m` : "") : (media.status ?? ""),
+                genres: (media.genres ?? []).slice(0, 3).map((g) => g.name),
                 logo: media.images.logos[0].file_path,
             }
         })

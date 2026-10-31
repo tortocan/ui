@@ -10,6 +10,7 @@ export type HeroSlide = {
     image: string
     badge: string
     runtime: string
+    genres: string[]
     logo: string
     /** First network logo (TV only) and first production-company logo, if available. */
     networkLogo: string | null
