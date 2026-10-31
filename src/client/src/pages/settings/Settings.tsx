@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 
 import ConfirmDialog from "@/components/layout/ConfirmDialog.tsx"
+import { ProfileSettings } from "@/pages/settings/ProfileSettings.tsx"
 
 import { AlertTriangle, Monitor, Moon, RefreshCcw, Star, Sun, Trash2 } from "lucide-react"
 import { useEffect } from "react"
@@ -43,7 +44,7 @@ export default function Settings() {
 
     const [searchParams, setSearchParams] = useSearchParams()
 
-    const validTabs = ["general", "appearance", "history", "scrobbler", "following", "playback", "omss", "tmdb"] as const
+    const validTabs = ["general", "profile", "appearance", "history", "scrobbler", "following", "playback", "omss", "tmdb"] as const
 
     type Tab = (typeof validTabs)[number]
 
@@ -106,6 +107,7 @@ export default function Settings() {
                 {/* Tabs header */}
                 <TabsList variant="line">
                     <TabsTrigger value="general">{t("general.title")}</TabsTrigger>
+                    <TabsTrigger value="profile">{t("tabs.profile", "Profile")}</TabsTrigger>
                     <TabsTrigger value="appearance">{t("tabs.appearance")}</TabsTrigger>
                     <TabsTrigger value="history">{t("tabs.history")}</TabsTrigger>
                     <TabsTrigger value="scrobbler">{t("tabs.scrobbler", "Scrobbler")}</TabsTrigger>
@@ -188,6 +190,11 @@ export default function Settings() {
                             </div>
                         </CardContent>
                     </Card>
+                </TabsContent>
+
+                {/* ---------------- PROFILE ---------------- */}
+                <TabsContent value="profile">
+                    <ProfileSettings />
                 </TabsContent>
 
                 {/* ---------------- APPEARANCE ---------------- */}

@@ -1,6 +1,6 @@
 import React, { useEffect } from "react"
 import { ColorThemeContext, type ColorThemeId } from "@/hooks/use-color-theme"
-import { usePersistentState } from "@/hooks/use-localstorage"
+import { useProfileState } from "@/hooks/use-localstorage"
 
 function applyColorTheme(theme: ColorThemeId) {
     if (theme === "red") {
@@ -11,7 +11,7 @@ function applyColorTheme(theme: ColorThemeId) {
 }
 
 export function ColorThemeProvider({ children }: { children: React.ReactNode }) {
-    const [colorTheme, setColorTheme] = usePersistentState<ColorThemeId>("app.colorTheme", "red")
+    const [colorTheme, setColorTheme] = useProfileState<ColorThemeId>("app.colorTheme", "red")
 
     useEffect(() => {
         applyColorTheme(colorTheme)

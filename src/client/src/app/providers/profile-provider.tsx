@@ -22,6 +22,8 @@ type ProfileContextType = {
     selectProfile: (id: number) => void
     clearSelection: () => void
     createProfile: (name: string, avatar?: string) => Promise<Profile | null>
+    updateProfile: (id: number, patch: { name?: string; avatar?: string | null }) => Promise<Profile | null>
+    setDefaultProfile: (id: number) => Promise<void>
     deleteProfile: (id: number) => Promise<void>
     refresh: () => void
 }
@@ -47,7 +49,9 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     const { baseUrl } = useOmss()
     const [profiles, setProfiles] = useState<Profile[]>([])
     const [status, setStatus] = useState<ProfileStatus>("loading")
-    const [activeProfileId, setActiveProfileId] = usePersistentState<number | null>("app.activeProfileId", null)
+    // Read-only here: switching is a synchronous write + reload (see persistActive), so we never use the
+    // setter — reading the persisted value is enough to resolve the active profile on boot.
+    const [activeProfileId] = usePersistentState<number | null>("app.activeProfileId", null)
     const [refreshKey, setRefreshKey] = useState(0)
 
     useEffect(() => {
@@ -78,8 +82,25 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     const activeProfile = useMemo(() => profiles.find((p) => p.id === activeProfileId) ?? null, [profiles, activeProfileId])
     const needsSelection = status === "ready" && profiles.length > 0 && activeProfile == null
 
-    const selectProfile = useCallback((id: number) => setActiveProfileId(id), [setActiveProfileId])
-    const clearSelection = useCallback(() => setActiveProfileId(null), [setActiveProfileId])
+    // Switching the active profile reloads the app: profile-scoped settings (Appearance / General /
+    // Playback, via useProfileState) re-initialise from the new profile's localStorage namespace on a
+    // fresh boot. The id is written SYNCHRONOUSLY before reload so it can't lose the usePersistentState
+    // effect race. (A full reload is how Netflix/SkyShowtime switch profiles too.)
+    const persistActive = (id: number | null) => {
+        try {
+            localStorage.setItem("app.activeProfileId", JSON.stringify(id))
+        } catch {
+            // ignore
+        }
+    }
+    const selectProfile = useCallback((id: number) => {
+        persistActive(id)
+        window.location.reload()
+    }, [])
+    const clearSelection = useCallback(() => {
+        persistActive(null)
+        window.location.reload()
+    }, [])
 
     const createProfile = useCallback(
         async (name: string, avatar?: string) => {
@@ -101,23 +122,60 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         [baseUrl]
     )
 
-    const deleteProfile = useCallback(
+    const updateProfile = useCallback(
+        async (id: number, patch: { name?: string; avatar?: string | null }) => {
+            if (!baseUrl) return null
+            try {
+                const r = await fetch(`${profilesUrl(baseUrl)}/${id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(patch),
+                })
+                if (!r.ok) return null
+                const updated = (await r.json()) as Profile
+                setProfiles((prev) => prev.map((p) => (p.id === id ? updated : p)))
+                return updated
+            } catch {
+                return null
+            }
+        },
+        [baseUrl]
+    )
+
+    const setDefaultProfile = useCallback(
         async (id: number) => {
             if (!baseUrl) return
             try {
-                await fetch(`${profilesUrl(baseUrl)}/${id}`, { method: "DELETE" })
-                setProfiles((prev) => prev.filter((p) => p.id !== id))
-                if (activeProfileId === id) setActiveProfileId(null)
+                const r = await fetch(`${profilesUrl(baseUrl)}/${id}/default`, { method: "POST" })
+                if (!r.ok) return
+                setProfiles((prev) => prev.map((p) => ({ ...p, isDefault: p.id === id })))
             } catch {
                 // best-effort
             }
         },
-        [baseUrl, activeProfileId, setActiveProfileId]
+        [baseUrl]
+    )
+
+    const deleteProfile = useCallback(
+        async (id: number) => {
+            if (!baseUrl) return
+            try {
+                const r = await fetch(`${profilesUrl(baseUrl)}/${id}`, { method: "DELETE" })
+                // 409 = refused (last profile); leave the list intact.
+                if (!r.ok) return
+                setProfiles((prev) => prev.filter((p) => p.id !== id))
+                // Deleting the active profile drops us back to the "Who's watching?" gate (reload).
+                if (activeProfileId === id) clearSelection()
+            } catch {
+                // best-effort
+            }
+        },
+        [baseUrl, activeProfileId, clearSelection]
     )
 
     const value = useMemo<ProfileContextType>(
-        () => ({ status, profiles, activeProfile, needsSelection, selectProfile, clearSelection, createProfile, deleteProfile, refresh }),
-        [status, profiles, activeProfile, needsSelection, selectProfile, clearSelection, createProfile, deleteProfile, refresh]
+        () => ({ status, profiles, activeProfile, needsSelection, selectProfile, clearSelection, createProfile, updateProfile, setDefaultProfile, deleteProfile, refresh }),
+        [status, profiles, activeProfile, needsSelection, selectProfile, clearSelection, createProfile, updateProfile, setDefaultProfile, deleteProfile, refresh]
     )
 
     return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>

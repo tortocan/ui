@@ -1,5 +1,5 @@
 import React, { useMemo } from "react"
-import { usePersistentState } from "@/hooks/use-localstorage"
+import { usePersistentState, useProfileState } from "@/hooks/use-localstorage"
 import { AppSettingsContext, type SupportedLocales } from "@/hooks/use-appsettings"
 import type { CountryISO3166_1, Timezone, TMDBOptions } from "@lorenzopant/tmdb"
 import { getCountry } from "@/lib/tmdb.utils"
@@ -24,16 +24,19 @@ const DEFAULT_TMDB_OPTIONS: TMDBOptions = {
 export function AppSettingsProvider({ children }: { children: React.ReactNode }) {
     const standalone = import.meta.env.VITE_STANDALONE === "true"
 
-    const [locale, setLocale] = usePersistentState<SupportedLocales>("app.locale", "en")
-    const [region, setRegion] = usePersistentState<CountryISO3166_1 | undefined>("app.region", getCountry())
+    // Per-profile (General / Playback / Appearance): scoped to the active profile, seeded from the
+    // legacy global value so an existing user keeps their settings on first run.
+    const [locale, setLocale] = useProfileState<SupportedLocales>("app.locale", "en")
+    const [region, setRegion] = useProfileState<CountryISO3166_1 | undefined>("app.region", getCountry())
+    const [autoplayNext, setAutoplayNext] = useProfileState<boolean>("app.autoplayNext", true)
+    const [showHeaderIcons, setShowHeaderIcons] = useProfileState<boolean>("app.showHeaderIcons", true)
+    const [showHeaderLogo, setShowHeaderLogo] = useProfileState<boolean>("app.showHeaderLogo", true)
+    const [showCarouselDots, setShowCarouselDots] = useProfileState<boolean>("app.showCarouselDots", true)
+    const [showFooter, setShowFooter] = useProfileState<boolean>("app.showFooter", true)
 
+    // Global (not per-profile): transient UI state and the OMSS-library scope.
     const [showSearch, setShowSearch] = usePersistentState<boolean>("app.showSearch", false)
-    const [autoplayNext, setAutoplayNext] = usePersistentState<boolean>("app.autoplayNext", true)
     const [libraryOnly, setLibraryOnly] = usePersistentState<boolean>("app.libraryOnly", false)
-    const [showHeaderIcons, setShowHeaderIcons] = usePersistentState<boolean>("app.showHeaderIcons", true)
-    const [showHeaderLogo, setShowHeaderLogo] = usePersistentState<boolean>("app.showHeaderLogo", true)
-    const [showCarouselDots, setShowCarouselDots] = usePersistentState<boolean>("app.showCarouselDots", true)
-    const [showFooter, setShowFooter] = usePersistentState<boolean>("app.showFooter", true)
 
     const [tmdbApiKey, setTmdbApiKey] = usePersistentState<string>("app.tmdbApiKey", import.meta.env.VITE_TMDB_API_KEY)
 
