@@ -12,7 +12,11 @@ export function HomePage() {
     // drawer, search dialog state, etc).
     const fetchHero = useCallback(() => Promise.all([tmdb.movie_lists.now_playing(), tmdb.tv_lists.popular()]), [tmdb])
     const fetchPopularMovies = useCallback(() => tmdb.movie_lists.popular({}), [tmdb])
+    const fetchUpcomingMovies = useCallback(() => tmdb.movie_lists.upcoming(), [tmdb])
     const fetchTrendingTv = useCallback(() => tmdb.tv_lists.popular({}), [tmdb])
+    // TMDB has no native "upcoming TV" list; on_the_air (airing in the next ~7 days) is the
+    // closest, and matches what Overseerr surfaces as "Upcoming Series".
+    const fetchUpcomingTv = useCallback(() => tmdb.tv_lists.on_the_air(), [tmdb])
     const fetchTopRatedMovies = useCallback(() => tmdb.movie_lists.top_rated(), [tmdb])
 
     return (
@@ -21,7 +25,11 @@ export function HomePage() {
 
             <MovieRail title="Popular Movies" fetcher={fetchPopularMovies} seeMoreHref="/discover?type=movie&sort=popularity" />
 
+            <MovieRail title="Upcoming Movies" fetcher={fetchUpcomingMovies} seeMoreHref="/discover?type=movie&sort=newest" />
+
             <TvRail title="Trending TV Shows" fetcher={fetchTrendingTv} seeMoreHref="/discover?type=tv&sort=popularity" />
+
+            <TvRail title="Upcoming Series" fetcher={fetchUpcomingTv} seeMoreHref="/discover?type=tv&sort=newest" />
 
             <MovieRail title="Top Rated Movies" fetcher={fetchTopRatedMovies} seeMoreHref="/discover?type=movie&sort=rating" />
         </BrowseLayout>
