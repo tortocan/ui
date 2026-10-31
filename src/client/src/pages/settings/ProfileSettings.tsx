@@ -40,7 +40,7 @@ export function ProfileSettings() {
         try {
             setAvatar(await fileToSquareDataUrl(file))
         } catch {
-            toast.error("Couldn't read that image.")
+            toast.error("Couldn't read that image. Try a JPG, PNG, or WebP.")
         }
     }
 
