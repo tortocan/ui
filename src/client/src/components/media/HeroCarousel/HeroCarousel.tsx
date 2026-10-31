@@ -44,7 +44,7 @@ export function HeroCarousel({ tmdb, fetcher }: { tmdb: TMDB; fetcher: HeroFetch
     if (loading || slides.length === 0) return heroEmptyState
 
     return (
-        <Carousel setApi={setHeroApi} opts={{ loop: true }} className="h-full w-full">
+        <Carousel setApi={setHeroApi} opts={{ loop: true }} wheelScroll={false} className="h-full w-full">
             <CarouselContent className="ml-0 h-full">
                 {slides.map((slide) => (
                     <CarouselItem key={`${slide.type}-${slide.id}`} className="pl-0">

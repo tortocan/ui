@@ -1,5 +1,6 @@
 import * as React from "react"
 import useEmblaCarousel, { type UseEmblaCarouselType } from "embla-carousel-react"
+import { WheelGesturesPlugin } from "embla-carousel-wheel-gestures"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -15,6 +16,10 @@ type CarouselProps = {
     plugins?: CarouselPlugin
     orientation?: "horizontal" | "vertical"
     setApi?: (api: CarouselApi) => void
+    // Mouse-wheel horizontal scroll. On by default for horizontal carousels (so a vertical mouse
+    // wheel scrolls the rail sideways via forceWheelAxis "y"); pass false where it would hijack page
+    // scroll (e.g. the full-bleed hero at the top of the page).
+    wheelScroll?: boolean
 }
 
 type CarouselContextProps = {
@@ -38,13 +43,19 @@ function useCarousel() {
     return context
 }
 
-function Carousel({ orientation = "horizontal", opts, setApi, plugins, className, children, ...props }: React.ComponentProps<"div"> & CarouselProps) {
+function Carousel({ orientation = "horizontal", opts, setApi, plugins, wheelScroll = true, className, children, ...props }: React.ComponentProps<"div"> & CarouselProps) {
+    // Add wheel-to-horizontal scroll by default on horizontal carousels, merged with any caller
+    // plugins (e.g. the hero's autoplay). forceWheelAxis "y" maps a vertical mouse wheel to the rail.
+    const resolvedPlugins = React.useMemo(
+        () => [...(plugins ?? []), ...(wheelScroll && orientation === "horizontal" ? [WheelGesturesPlugin({ forceWheelAxis: "y" })] : [])],
+        [plugins, wheelScroll, orientation]
+    )
     const [carouselRef, api] = useEmblaCarousel(
         {
             ...opts,
             axis: orientation === "horizontal" ? "x" : "y",
         },
-        plugins
+        resolvedPlugins
     )
     const [canScrollPrev, setCanScrollPrev] = React.useState(false)
     const [canScrollNext, setCanScrollNext] = React.useState(false)
@@ -91,6 +102,26 @@ function Carousel({ orientation = "horizontal", opts, setApi, plugins, className
             api?.off("select", onSelect)
         }
     }, [api, onSelect])
+
+    // Stop the native vertical page scroll while the wheel is driving a horizontal rail. The
+    // wheel-gestures plugin moves the rail sideways but doesn't reliably cancel the page's own
+    // scroll, so a mouse wheel scrolled the page up/down AND nudged the rail. Here we preventDefault
+    // only while the rail can still scroll in the wheel's direction, releasing at the ends so the
+    // page scrolls past a maxed-out rail (non-passive listener required for preventDefault to apply).
+    React.useEffect(() => {
+        if (!api || !wheelScroll || orientation !== "horizontal") return
+        const node = typeof api.rootNode === "function" ? api.rootNode() : null
+        if (!node) return
+        const onWheel = (e: WheelEvent) => {
+            const delta = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX
+            if (!delta) return
+            if ((delta > 0 && api.canScrollNext()) || (delta < 0 && api.canScrollPrev())) {
+                e.preventDefault()
+            }
+        }
+        node.addEventListener("wheel", onWheel, { passive: false })
+        return () => node.removeEventListener("wheel", onWheel)
+    }, [api, wheelScroll, orientation])
 
     return (
         <CarouselContext.Provider
