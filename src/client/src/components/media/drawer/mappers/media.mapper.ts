@@ -7,7 +7,16 @@ export const mapMedia = (data: MovieDetailsWithAppends<typeof MOVIE_APPENDS> | T
     const movieData = isMovie ? (data as MovieDetailsWithAppends<typeof MOVIE_APPENDS>) : null
     const tvData = !isMovie ? (data as TVDetailsWithAppends<typeof TV_APPENDS>) : null
 
-    const trailer = data.videos?.results.find((v) => v.type === "Trailer" && v.site === "YouTube")?.key || null
+    // Prefer an official YouTube Trailer, then any Trailer/Teaser/Clip, then any YouTube video —
+    // long-running shows frequently expose only teasers/clips (or nothing) under "Trailer".
+    const yt = (data.videos?.results ?? []).filter((v) => v.site === "YouTube")
+    const trailer =
+        yt.find((v) => v.type === "Trailer" && v.official)?.key ??
+        yt.find((v) => v.type === "Trailer")?.key ??
+        yt.find((v) => v.type === "Teaser")?.key ??
+        yt.find((v) => v.type === "Clip")?.key ??
+        yt[0]?.key ??
+        null
 
     const cast: MediaCast[] =
         data.credits?.cast.slice(0, 10).map((c) => ({

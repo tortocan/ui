@@ -131,7 +131,7 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
                                             </>
                                         )
                                     }
-                                    secondary={data.trailer ? <TrailerDialog trailerId={data.trailer} title={data.title} /> : undefined}
+                                    secondary={<TrailerDialog trailerId={data.trailer} title={data.title} />}
                                 />
                             </div>
 

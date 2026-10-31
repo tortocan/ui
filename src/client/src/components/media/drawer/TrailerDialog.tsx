@@ -9,7 +9,9 @@ interface TrailerDialogProps {
 }
 
 export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title }) => {
-    if (!trailerId) return null
+    // When TMDB has a video key, embed that clip. Otherwise (e.g. long-running shows TMDB has no
+    // video for) fall back to an in-app YouTube search so the Trailer button still works.
+    const src = trailerId ? `https://www.youtube-nocookie.com/embed/${trailerId}?autoplay=1` : `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(`${title} trailer`)}&autoplay=1`
 
     return (
         <Dialog>
@@ -27,7 +29,7 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title }
                     <iframe
                         width="100%"
                         height="100%"
-                        src={`https://www.youtube-nocookie.com/embed/${trailerId}?autoplay=1`}
+                        src={src}
                         title={`${title} Trailer`}
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowFullScreen
