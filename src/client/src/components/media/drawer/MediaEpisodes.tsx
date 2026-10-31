@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel"
+import { Rail } from "@/components/media/MediaRail/Rail.tsx"
 import { Button } from "@/components/ui/button"
 import { useMediaDrawer } from "@/components/media/drawer/hooks/useMediaDrawer.ts"
 import { useNavigate } from "react-router-dom"
@@ -112,43 +112,31 @@ export const MediaEpisodes: React.FC<MediaEpisodesProps> = ({ tvId, seasons }) =
                     <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                 </div>
             ) : view === "carousel" ? (
-                <Carousel
-                    className="w-full"
-                    opts={{
-                        align: "start",
-                        dragFree: true,
-                    }}
-                >
-                    <CarouselContent className="-ml-4">
-                        {orderedEpisodes.map((episode) => (
-                            <CarouselItem
-                                key={episode.id}
-                                className="basis-full pl-4 transition-transform duration-300 ease-in-out hover:scale-[1.02] hover:cursor-pointer md:basis-1/3 lg:basis-1/4"
-                                onClick={() => handleEpisodeSelect(episode)}
-                            >
-                                <div className="space-y-2">
-                                    <div className="relative aspect-video overflow-hidden rounded-lg bg-muted">
-                                        {episode.stillUrl ? (
-                                            <img src={episode.stillUrl} alt={episode.name} className="h-full w-full object-cover" />
-                                        ) : (
-                                            <div className="flex h-full w-full items-center justify-center bg-muted text-xs text-muted-foreground">No Preview</div>
-                                        )}
+                <Rail
+                    items={orderedEpisodes}
+                    getKey={(episode) => episode.id}
+                    itemClassName="basis-full pl-4 transition-transform duration-300 ease-in-out hover:scale-[1.02] hover:cursor-pointer md:basis-1/3 lg:basis-1/4"
+                    contentClassName="-ml-4"
+                    renderItem={(episode) => (
+                        <div className="space-y-2" onClick={() => handleEpisodeSelect(episode)}>
+                            <div className="relative aspect-video overflow-hidden rounded-lg bg-muted">
+                                {episode.stillUrl ? (
+                                    <img src={episode.stillUrl} alt={episode.name} className="h-full w-full object-cover" />
+                                ) : (
+                                    <div className="flex h-full w-full items-center justify-center bg-muted text-xs text-muted-foreground">No Preview</div>
+                                )}
 
-                                        <div className="absolute bottom-2 left-2 rounded bg-black/60 px-1.5 py-0.5 text-xs text-white backdrop-blur-sm">Ep {episode.episodeNumber}</div>
-                                    </div>
+                                <div className="absolute bottom-2 left-2 rounded bg-black/60 px-1.5 py-0.5 text-xs text-white backdrop-blur-sm">Ep {episode.episodeNumber}</div>
+                            </div>
 
-                                    <div className="space-y-1">
-                                        <p className="leading-none font-medium">{episode.name}</p>
+                            <div className="space-y-1">
+                                <p className="leading-none font-medium">{episode.name}</p>
 
-                                        <p className="line-clamp-2 text-xs text-muted-foreground">{episode.overview || "No overview available."}</p>
-                                    </div>
-                                </div>
-                            </CarouselItem>
-                        ))}
-                    </CarouselContent>
-                    <CarouselPrevious className="hidden md:flex" />
-                    <CarouselNext className="hidden md:flex" />
-                </Carousel>
+                                <p className="line-clamp-2 text-xs text-muted-foreground">{episode.overview || "No overview available."}</p>
+                            </div>
+                        </div>
+                    )}
+                />
             ) : (
                 <div className="h-100 overflow-x-scroll pr-4">
                     <div className="space-y-4">

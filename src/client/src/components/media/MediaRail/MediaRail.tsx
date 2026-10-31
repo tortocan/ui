@@ -1,8 +1,5 @@
 import * as React from "react"
-import { useLocation } from "react-router-dom"
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel.tsx"
-import { Skeleton } from "@/components/ui/skeleton.tsx"
-import { SeeMoreCard } from "./SeeMoreCard.tsx"
+import { Rail } from "./Rail.tsx"
 import { cn } from "@/lib/utils.ts"
 
 // Shared slide sizing for every rail item (incl. skeletons and the trailing See-more card).
@@ -55,57 +52,25 @@ export function useMediaRail<T>(fetcher: () => Promise<{ results: T[] } | T[]>) 
 
 export function MediaRail<T>({ title, fetcher, getKey, renderItem, className, itemClassName, skeletonCount = 6, renderSkeleton, seeMoreHref }: MediaRailProps<T>) {
     const { items, isLoading, error } = useMediaRail(fetcher)
-    const { pathname } = useLocation()
-    // Only append the trailing "See more" card when it leads somewhere other than the current page
-    // (the Movies / TV Shows pages reuse these rails and would otherwise self-link).
-    const showSeeMore = !!seeMoreHref && pathname !== seeMoreHref
 
     if (error) {
         return null
     }
 
-    const defaultRenderSkeleton = (index: number) => (
-        <div key={`skeleton-${index}`} className="space-y-3">
-            <Skeleton className="aspect-2/3 w-full" />
-        </div>
-    )
-
     return (
         <div className={cn("space-y-4", className)}>
             {typeof title === "string" ? <h2 className="text-2xl font-semibold">{title}</h2> : title}
-            <Carousel
-                opts={{
-                    align: "start",
-                    loop: false,
-                    dragFree: true,
-                }}
-                className="w-full"
-            >
-                <CarouselContent className="-ml-2 md:-ml-4">
-                    {isLoading
-                        ? Array.from({ length: skeletonCount }).map((_, i) => (
-                              <CarouselItem key={`skeleton-${i}`} className={cn(RAIL_ITEM_CLASS, itemClassName)}>
-                                  {renderSkeleton ? renderSkeleton(i) : defaultRenderSkeleton(i)}
-                              </CarouselItem>
-                          ))
-                        : items.map((item) => (
-                              <CarouselItem key={getKey(item)} className={cn(RAIL_ITEM_CLASS, itemClassName)}>
-                                  <div>{renderItem(item)}</div>
-                              </CarouselItem>
-                          ))}
-                    {!isLoading && items.length > 0 && showSeeMore && (
-                        <CarouselItem className={cn(RAIL_ITEM_CLASS, itemClassName)}>
-                            <SeeMoreCard href={seeMoreHref!} />
-                        </CarouselItem>
-                    )}
-                </CarouselContent>
-                {!isLoading && items.length > 0 && (
-                    <>
-                        <CarouselPrevious className="hidden md:flex" />
-                        <CarouselNext className="hidden md:flex" />
-                    </>
-                )}
-            </Carousel>
+            <Rail
+                items={items}
+                loading={isLoading}
+                getKey={getKey}
+                renderItem={(item) => <div>{renderItem(item)}</div>}
+                itemClassName={cn(RAIL_ITEM_CLASS, itemClassName)}
+                contentClassName="-ml-2 md:-ml-4"
+                seeMoreHref={seeMoreHref}
+                skeletonCount={skeletonCount}
+                renderSkeleton={renderSkeleton}
+            />
         </div>
     )
 }

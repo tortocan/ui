@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel.tsx"
+import { Rail } from "./Rail.tsx"
 import { MediaCard } from "./MediaCard.tsx"
 import { useOmss } from "@/hooks/use-omss"
 import { useTmdb } from "@/hooks/use-tmdb"
@@ -62,23 +62,21 @@ export function ContinueWatchingRail() {
     return (
         <div className="space-y-4">
             <h2 className="text-2xl font-semibold">Continue Watching</h2>
-            <Carousel opts={{ align: "start", loop: false, dragFree: true }} className="w-full">
-                <CarouselContent className="-ml-2 md:-ml-4">
-                    {items.map((it) => (
-                        <CarouselItem key={it.key} className="basis-1/2 pl-2 sm:basis-1/3 md:basis-1/4 md:pl-4 lg:basis-1/5 xl:basis-1/7 last:mr-4 md:last:mr-6">
-                            <div className="relative">
-                                <MediaCard title={it.title} imagePath={it.poster} imageAlt={it.title} id={it.id} type={it.type} year={it.year} rating={it.rating} />
-                                {/* Resume progress bar */}
-                                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1 overflow-hidden rounded-b-md bg-white/25">
-                                    <div className="h-full bg-primary" style={{ width: `${Math.max(2, Math.min(100, it.progress))}%` }} />
-                                </div>
-                            </div>
-                        </CarouselItem>
-                    ))}
-                </CarouselContent>
-                <CarouselPrevious className="hidden md:flex" />
-                <CarouselNext className="hidden md:flex" />
-            </Carousel>
+            <Rail
+                items={items}
+                getKey={(it) => it.key}
+                itemClassName="basis-1/2 pl-2 sm:basis-1/3 md:basis-1/4 md:pl-4 lg:basis-1/5 xl:basis-1/7 last:mr-4 md:last:mr-6"
+                contentClassName="-ml-2 md:-ml-4"
+                renderItem={(it) => (
+                    <div className="relative">
+                        <MediaCard title={it.title} imagePath={it.poster} imageAlt={it.title} id={it.id} type={it.type} year={it.year} rating={it.rating} />
+                        {/* Resume progress bar */}
+                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1 overflow-hidden rounded-b-md bg-white/25">
+                            <div className="h-full bg-primary" style={{ width: `${Math.max(2, Math.min(100, it.progress))}%` }} />
+                        </div>
+                    </div>
+                )}
+            />
         </div>
     )
 }
