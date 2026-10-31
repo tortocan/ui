@@ -1,9 +1,9 @@
-import { ArrowLeft, Calendar, Play, RotateCcw } from "lucide-react"
+import { ArrowLeft, Play, RotateCcw } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
 import { useOmss } from "@/hooks/use-omss"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { TitleCardContent } from "@/components/media/TitleCardContent.tsx"
 import { useMediaDetails } from "./hooks/useMediaDetails"
 import { MediaCast } from "./MediaCast"
 import { MediaEpisodes } from "./MediaEpisodes"
@@ -12,7 +12,6 @@ import { TrailerDialog } from "./TrailerDialog"
 import type { MediaDrawerPayload } from "./types/drawer.types"
 import { formatRuntime } from "@/components/media/drawer/mappers/media.mapper.ts"
 import { cn } from "@/lib/utils.ts"
-import { StarRating } from "@/components/media/StarRating"
 import { useNavigate } from "react-router-dom"
 import { useMediaDrawer } from "@/components/media/drawer/hooks/useMediaDrawer.ts"
 
@@ -58,12 +57,7 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
     const handlePlay = () => {
         if (!data) return
 
-        const path =
-            payload.type === "movie"
-                ? `/watch/movie/${data.id}`
-                : resume?.episode != null
-                  ? `/watch/tv/${data.id}/?s=${resume.season}&e=${resume.episode}`
-                  : `/watch/tv/${data.id}`
+        const path = payload.type === "movie" ? `/watch/movie/${data.id}` : resume?.episode != null ? `/watch/tv/${data.id}/?s=${resume.season}&e=${resume.episode}` : `/watch/tv/${data.id}`
 
         closeAll()
 
@@ -112,64 +106,34 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
 
                         {/* CONTENT */}
                         <div className="relative z-20 -mt-[45vh] px-4 pb-10 text-white md:px-8">
-                            {/* LOGO / TITLE */}
-                            <div className="mb-6 max-w-[70%] animate-in duration-700 fade-in md:max-w-[40%]">
-                                {data.logoUrl ? (
-                                    <img src={data.logoUrl} alt={data.title} draggable={false} className="h-auto w-full object-contain drop-shadow-2xl" />
-                                ) : (
-                                    <h1 className="text-2xl font-black tracking-tight text-white drop-shadow-2xl md:text-4xl lg:text-6xl">{data.title}</h1>
-                                )}
+                            {/* Shared title header (logo + chips + Play/Trailer + description) — same as the hero card. */}
+                            <div className="mb-8 animate-in duration-700 fade-in">
+                                <TitleCardContent
+                                    logoUrl={data.logoUrl}
+                                    title={data.title}
+                                    rating={data.rating}
+                                    date={data.releaseDate}
+                                    meta={data.runtime ? formatRuntime(data.runtime) : null}
+                                    genres={data.genres}
+                                    description={data.overview}
+                                    logoClassName="mb-1 h-auto w-full max-w-[70%] object-contain drop-shadow-2xl md:max-w-[40%]"
+                                    onPlay={handlePlay}
+                                    playLabel={
+                                        resume ? (
+                                            <>
+                                                <RotateCcw className="size-5" />
+                                                {resume.label}
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Play className="size-5 fill-white" />
+                                                Play
+                                            </>
+                                        )
+                                    }
+                                    secondary={data.trailer ? <TrailerDialog trailerId={data.trailer} title={data.title} /> : undefined}
+                                />
                             </div>
-
-                            {/* META */}
-                            <div className="mb-5 flex animate-in flex-wrap items-center gap-3 delay-100 duration-700 fade-in">
-                                <div className="flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 backdrop-blur-md transition-all hover:border-white/30 hover:bg-white/15">
-                                    <StarRating rating={data.rating} className="text-sm font-semibold text-white" />
-                                </div>
-
-                                <div className="flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 backdrop-blur-md transition-all hover:border-white/30 hover:bg-white/15">
-                                    <Calendar className="h-4 w-4 text-white" />
-                                    <span className="text-sm font-medium text-white">{new Date(data.releaseDate).getFullYear()}</span>
-                                </div>
-
-                                {data.runtime && (
-                                    <div className="rounded-full border border-white/20 bg-white/10 px-4 py-1.5 backdrop-blur-md transition-all hover:border-white/30 hover:bg-white/15">
-                                        <span className="text-sm font-medium text-white">{formatRuntime(data.runtime)}</span>
-                                    </div>
-                                )}
-
-                                {data.genres.slice(0, 3).map((genre) => (
-                                    <Badge
-                                        key={genre}
-                                        variant="outline"
-                                        className="rounded-full border-white/20 bg-white/10 px-3 py-1.5 font-medium text-white backdrop-blur-md transition-all hover:border-white/30 hover:bg-white/15"
-                                    >
-                                        {genre}
-                                    </Badge>
-                                ))}
-                            </div>
-
-                            {/* ACTIONS */}
-                            <div className="mb-6 flex animate-in flex-wrap items-center gap-3 delay-200 duration-700 fade-in">
-                                <Button className="rounded-full px-8 font-semibold shadow-lg transition-all hover:scale-105 hover:shadow-xl" onClick={handlePlay}>
-                                    {resume ? (
-                                        <>
-                                            <RotateCcw className="mr-2 h-5 w-5" />
-                                            {resume.label}
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Play className="mr-2 h-5 w-5 fill-white" />
-                                            Play
-                                        </>
-                                    )}
-                                </Button>
-
-                                {data.trailer && <TrailerDialog trailerId={data.trailer} title={data.title} />}
-                            </div>
-
-                            {/* OVERVIEW */}
-                            <div className="mb-8 max-w-2xl animate-in text-left text-sm leading-relaxed text-white/80 delay-300 duration-700 fade-in">{data.overview}</div>
 
                             {/* TV EPISODES */}
                             {data.type === "tv" && data.seasons && (

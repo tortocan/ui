@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react"
 import type { TMDB } from "@lorenzopant/tmdb"
 import Autoplay from "embla-carousel-autoplay"
-import { Calendar, Info, Play, Star } from "lucide-react"
+import { Info, Play } from "lucide-react"
 import { Carousel, type CarouselApi, CarouselContent, CarouselItem } from "@/components/ui/carousel"
+import { TitleCardContent } from "@/components/media/TitleCardContent.tsx"
 import { useHeroSlides } from "./use-heroslides"
 import type { HeroFetcherResult } from "./types"
 import { Button } from "@/components/ui/button.tsx"
@@ -83,61 +84,36 @@ export function HeroCarousel({ tmdb, fetcher }: { tmdb: TMDB; fetcher: HeroFetch
                             <div className="relative z-10 flex h-full items-end pb-[8vh] md:pb-[10vh]">
                                 {/* Flush-left (no mx-auto/max-w centering) so the hero text hugs the left edge. */}
                                 <div className="w-full px-6 sm:px-8 lg:px-12">
-                                    <div className="max-w-2xl space-y-5">
-                                        <img className="max-h-34 max-w-[50vw] sm:max-w-140" src={slide.logo} alt={slide.title} />
-                                        {/* Metadata as chips: rating, year, status (Returning Series/Ended) + genres. */}
-                                        <div className="flex flex-wrap items-center gap-2 text-sm">
-                                            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/40 px-3 py-1 font-semibold text-white backdrop-blur-sm">
-                                                <Star className="size-4 fill-primary text-primary" />
-                                                {slide.rating}
-                                            </span>
-                                            {slide.year && (
-                                                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/40 px-3 py-1 font-medium text-white/90 backdrop-blur-sm">
-                                                    <Calendar className="size-4 opacity-70" />
-                                                    {new Date(slide.year).getFullYear()}
-                                                </span>
-                                            )}
-                                            {slide.runtime && <span className="rounded-full border border-white/15 bg-black/40 px-3 py-1 font-medium text-white/90 backdrop-blur-sm">{slide.runtime}</span>}
-                                            {slide.genres.map((g) => (
-                                                <span key={g} className="rounded-full border border-white/15 bg-black/40 px-3 py-1 font-medium text-white/90 backdrop-blur-sm">
-                                                    {g}
-                                                </span>
-                                            ))}
-                                        </div>
-
-                                        <p className="max-w-2xl text-base leading-relaxed text-white/80 sm:text-lg">
-                                            {slide.description.length > (isMobile ? 160 : 420)
-                                                ? `${slide.description
-                                                      .slice(0, isMobile ? 160 : 420)
-                                                      .split(" ")
-                                                      .slice(0, -1)
-                                                      .join(" ")}...`
-                                                : slide.description}
-                                        </p>
-                                        <div className="flex flex-wrap items-center gap-3 pt-4">
-                                            <Button
-                                                className="rounded-full px-7"
-                                                onClick={() => {
-                                                    if (slide.type === "movie") {
-                                                        navigate("/watch/movie/" + slide.id)
-                                                    } else if (slide.type === "tv") {
-                                                        navigate("/watch/tv/" + slide.id + "?s=1&e=1")
-                                                    }
-                                                }}
-                                            >
-                                                <Play className="size-4 fill-current" />
-                                                Play
-                                            </Button>
-
-                                            <Button
-                                                variant="outline"
-                                                className="rounded-full border-white/30 bg-white/10 px-7 text-white backdrop-blur-md hover:bg-white/20 hover:text-white"
-                                                onClick={() => open({ type: slide.type, id: slide.id })}
-                                            >
-                                                <Info className="size-4" />
-                                                Learn more
-                                            </Button>
-                                        </div>
+                                    <div className="max-w-2xl">
+                                        <TitleCardContent
+                                            logoUrl={slide.logo}
+                                            title={slide.title}
+                                            rating={slide.rating}
+                                            date={slide.year}
+                                            meta={slide.runtime}
+                                            genres={slide.genres}
+                                            description={slide.description}
+                                            descriptionClampChars={isMobile ? 160 : 420}
+                                            actionsBelowDescription
+                                            logoClassName="max-h-34 max-w-[50vw] object-contain sm:max-w-140"
+                                            onPlay={() => navigate(slide.type === "movie" ? "/watch/movie/" + slide.id : "/watch/tv/" + slide.id + "?s=1&e=1")}
+                                            playLabel={
+                                                <>
+                                                    <Play className="size-4 fill-current" />
+                                                    Play
+                                                </>
+                                            }
+                                            secondary={
+                                                <Button
+                                                    variant="outline"
+                                                    className="rounded-full border-white/30 bg-white/10 px-7 text-white backdrop-blur-md hover:bg-white/20 hover:text-white"
+                                                    onClick={() => open({ type: slide.type, id: slide.id })}
+                                                >
+                                                    <Info className="size-4" />
+                                                    Learn more
+                                                </Button>
+                                            }
+                                        />
                                     </div>
                                 </div>
                             </div>
