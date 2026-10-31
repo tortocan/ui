@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
 import { ChevronDownIcon, ShuffleIcon } from "lucide-react"
@@ -16,6 +16,7 @@ import type {
 import { useTmdb } from "@/hooks/use-tmdb"
 import { useAppSettings } from "@/hooks/use-appsettings.ts"
 import { useMediaDrawer } from "@/components/media/drawer/hooks/useMediaDrawer"
+import { BrowseLayout } from "@/components/media/BrowseLayout.tsx"
 import { MediaGrid } from "@/components/media/MediaGrid.tsx"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx"
@@ -239,8 +240,11 @@ export default function Discover() {
     const selectedMediaKindOption = MEDIA_KIND_OPTIONS.find((o) => o.value === mediaKind) ?? MEDIA_KIND_OPTIONS[0]
     const sortLabel = SORT_OPTIONS.find((o) => o.value === sortKey)?.label ?? "Most Popular"
 
+    // Hero on top, matching the browse/library pages; reflects the current media kind.
+    const heroFetcher = useCallback(() => Promise.all([effectiveType === "movie" ? tmdb.movie_lists.now_playing() : tmdb.tv_lists.popular()]), [tmdb, effectiveType])
+
     return (
-        <div className="mx-auto w-full max-w-7xl space-y-6 p-8">
+        <BrowseLayout tmdb={tmdb} heroFetcher={heroFetcher}>
             <h1 className="text-2xl font-semibold">Discover</h1>
 
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -407,6 +411,6 @@ export default function Discover() {
                 onPageChange={setPage}
                 emptyDescription="Try widening your filters."
             />
-        </div>
+        </BrowseLayout>
     )
 }

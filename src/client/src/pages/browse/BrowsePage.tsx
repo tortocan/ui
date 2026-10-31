@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
 import type { Genre, TMDB, TrendingParams } from "@lorenzopant/tmdb"
 import { useTmdb } from "@/hooks/use-tmdb"
-import { HeroCarousel } from "@/components/media/HeroCarousel/HeroCarousel"
+import { BrowseLayout } from "@/components/media/BrowseLayout.tsx"
 import { MovieRail, TvRail } from "@/components/media/MediaRail/TypedRails.tsx"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx"
@@ -104,77 +104,68 @@ export default function BrowsePage({ kind }: { kind: BrowseKind }) {
     // Same hero carousel on top as the full view (autoplay unchanged); just the grid below instead of rails.
     if (libraryOnly) {
         return (
-            <div className="min-h-screen overflow-hidden">
-                <HeroCarousel tmdb={tmdb} fetcher={fetchHero} />
-
-                <section className="relative z-10 -mt-[8vh] flex flex-col gap-6 p-8 md:-mt-[10vh]">
-                    <h2 className="text-2xl font-semibold">Your {cfg.noun}</h2>
-                    <LibraryGrid ids={cfg.libraryIds(library)} type={kind} externalLoading={libraryLoading} />
-                </section>
-            </div>
+            <BrowseLayout tmdb={tmdb} heroFetcher={fetchHero}>
+                <h2 className="text-2xl font-semibold">Your {cfg.noun}</h2>
+                <LibraryGrid ids={cfg.libraryIds(library)} type={kind} externalLoading={libraryLoading} />
+            </BrowseLayout>
         )
     }
 
     return (
-        <div className="min-h-screen overflow-hidden">
-            <HeroCarousel tmdb={tmdb} fetcher={fetchHero} />
-
-            {/* Content floats ~10% up over the hero's bottom; transparent bg so the hero shows through. */}
-            <section className="relative z-10 -mt-[8vh] flex flex-col gap-8 p-8 md:-mt-[10vh]">
-                <Rail
-                    title={
-                        <div className={"flex items-center justify-between"}>
-                            <h2 className="text-2xl font-semibold">Trending {cfg.noun}</h2>
-                            <div className="ml-4 flex items-center gap-2">
-                                <Button onClick={() => setTrendingRange({ time_window: "day" })} variant={trendingRange.time_window === "day" ? "default" : "secondary"}>
-                                    Today
-                                </Button>
-                                <Button onClick={() => setTrendingRange({ time_window: "week" })} variant={trendingRange.time_window === "week" ? "default" : "secondary"}>
-                                    This Week
-                                </Button>
-                            </div>
+        <BrowseLayout tmdb={tmdb} heroFetcher={fetchHero}>
+            <Rail
+                title={
+                    <div className={"flex items-center justify-between"}>
+                        <h2 className="text-2xl font-semibold">Trending {cfg.noun}</h2>
+                        <div className="ml-4 flex items-center gap-2">
+                            <Button onClick={() => setTrendingRange({ time_window: "day" })} variant={trendingRange.time_window === "day" ? "default" : "secondary"}>
+                                Today
+                            </Button>
+                            <Button onClick={() => setTrendingRange({ time_window: "week" })} variant={trendingRange.time_window === "week" ? "default" : "secondary"}>
+                                This Week
+                            </Button>
                         </div>
-                    }
-                    fetcher={fetchTrending}
-                    seeMoreHref={discover("sort=popularity")}
-                />
+                    </div>
+                }
+                fetcher={fetchTrending}
+                seeMoreHref={discover("sort=popularity")}
+            />
 
-                <Rail
-                    title={
-                        <div className="flex items-center justify-between">
-                            <h2 className="text-2xl font-semibold">{selectedGenre ? `${selectedGenre.name} ${cfg.genreSuffix}` : "Select Genre"}</h2>
+            <Rail
+                title={
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-2xl font-semibold">{selectedGenre ? `${selectedGenre.name} ${cfg.genreSuffix}` : "Select Genre"}</h2>
 
-                            <Select
-                                value={selectedGenre?.id?.toString()}
-                                onValueChange={(value) => {
-                                    const genre = genres.find((g) => g.id.toString() === value)
-                                    if (genre) setSelectedGenre(genre)
-                                }}
-                            >
-                                <SelectTrigger className="w-55">
-                                    <SelectValue placeholder="Select Genre" />
-                                </SelectTrigger>
+                        <Select
+                            value={selectedGenre?.id?.toString()}
+                            onValueChange={(value) => {
+                                const genre = genres.find((g) => g.id.toString() === value)
+                                if (genre) setSelectedGenre(genre)
+                            }}
+                        >
+                            <SelectTrigger className="w-55">
+                                <SelectValue placeholder="Select Genre" />
+                            </SelectTrigger>
 
-                                <SelectContent>
-                                    <SelectGroup>
-                                        {genres.map((genre) => (
-                                            <SelectItem key={genre.id} value={genre.id.toString()}>
-                                                {genre.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    }
-                    fetcher={fetchByGenre}
-                    seeMoreHref={discover(selectedGenre ? `genre=${selectedGenre.id}` : "sort=popularity")}
-                />
+                            <SelectContent>
+                                <SelectGroup>
+                                    {genres.map((genre) => (
+                                        <SelectItem key={genre.id} value={genre.id.toString()}>
+                                            {genre.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                }
+                fetcher={fetchByGenre}
+                seeMoreHref={discover(selectedGenre ? `genre=${selectedGenre.id}` : "sort=popularity")}
+            />
 
-                <Rail title={`Popular ${cfg.noun}`} fetcher={fetchPopular} seeMoreHref={discover("sort=popularity")} />
+            <Rail title={`Popular ${cfg.noun}`} fetcher={fetchPopular} seeMoreHref={discover("sort=popularity")} />
 
-                <Rail title={`Top Rated ${cfg.noun}`} fetcher={fetchTopRated} seeMoreHref={discover("sort=rating")} />
-            </section>
-        </div>
+            <Rail title={`Top Rated ${cfg.noun}`} fetcher={fetchTopRated} seeMoreHref={discover("sort=rating")} />
+        </BrowseLayout>
     )
 }

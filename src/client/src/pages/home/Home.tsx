@@ -1,6 +1,6 @@
 import { useCallback } from "react"
 import { useTmdb } from "@/hooks/use-tmdb"
-import { HeroCarousel } from "@/components/media/HeroCarousel/HeroCarousel"
+import { BrowseLayout } from "@/components/media/BrowseLayout.tsx"
 import { MovieRail, TvRail } from "@/components/media/MediaRail/TypedRails.tsx"
 import { ContinueWatchingRail } from "@/components/media/MediaRail/ContinueWatchingRail.tsx"
 
@@ -16,20 +16,15 @@ export function HomePage() {
     const fetchTopRatedMovies = useCallback(() => tmdb.movie_lists.top_rated(), [tmdb])
 
     return (
-        <div className="min-h-screen overflow-hidden">
-            <HeroCarousel tmdb={tmdb} fetcher={fetchHero} />
+        <BrowseLayout tmdb={tmdb} heroFetcher={fetchHero}>
+            <ContinueWatchingRail />
 
-            {/* Content floats ~10% up over the hero's bottom; transparent bg so the hero shows through. */}
-            <section className="relative z-10 -mt-[8vh] flex flex-col gap-8 p-8 md:-mt-[10vh]">
-                <ContinueWatchingRail />
+            <MovieRail title="Popular Movies" fetcher={fetchPopularMovies} seeMoreHref="/discover?type=movie&sort=popularity" />
 
-                <MovieRail title="Popular Movies" fetcher={fetchPopularMovies} seeMoreHref="/discover?type=movie&sort=popularity" />
+            <TvRail title="Trending TV Shows" fetcher={fetchTrendingTv} seeMoreHref="/discover?type=tv&sort=popularity" />
 
-                <TvRail title="Trending TV Shows" fetcher={fetchTrendingTv} seeMoreHref="/discover?type=tv&sort=popularity" />
-
-                <MovieRail title="Top Rated Movies" fetcher={fetchTopRatedMovies} seeMoreHref="/discover?type=movie&sort=rating" />
-            </section>
-        </div>
+            <MovieRail title="Top Rated Movies" fetcher={fetchTopRatedMovies} seeMoreHref="/discover?type=movie&sort=rating" />
+        </BrowseLayout>
     )
 }
 
