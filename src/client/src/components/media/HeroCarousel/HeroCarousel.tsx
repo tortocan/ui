@@ -69,7 +69,7 @@ export function HeroCarousel({ tmdb, fetcher }: { tmdb: TMDB; fetcher: HeroFetch
                                 <img
                                     src={slide.networkLogo}
                                     alt=""
-                                    className="pointer-events-none absolute top-20 right-6 z-10 h-8 max-w-[160px] object-contain opacity-90 drop-shadow-[0_0_10px_rgba(0,0,0,0.6)] sm:right-8 lg:right-12"
+                                    className="pointer-events-none absolute top-20 right-6 z-10 h-14 max-w-[240px] object-contain opacity-90 sm:right-8 lg:right-12"
                                 />
                             )}
                             {slide.studioLogo && (
@@ -77,13 +77,13 @@ export function HeroCarousel({ tmdb, fetcher }: { tmdb: TMDB; fetcher: HeroFetch
                                     src={slide.studioLogo}
                                     alt=""
                                     // Lift above the bottom-10% float band (mirrors the hero text) so it isn't covered.
-                                    className="pointer-events-none absolute right-6 bottom-[calc(2rem+8vh)] z-10 h-10 max-w-[180px] object-contain opacity-90 drop-shadow-[0_0_10px_rgba(0,0,0,0.6)] sm:right-8 md:bottom-[calc(2rem+10vh)] lg:right-12"
+                                    className="pointer-events-none absolute right-6 bottom-[calc(2rem+8vh)] z-10 h-16 max-w-[260px] object-contain opacity-90 sm:right-8 md:bottom-[calc(2rem+10vh)] lg:right-12"
                                 />
                             )}
                             {/* pb-[…vh] lifts the hero text/buttons up ~10% so they clear the content that floats over the hero's bottom. */}
                             <div className="relative z-10 flex h-full items-end pb-[8vh] md:pb-[10vh]">
                                 {/* Flush-left (no mx-auto/max-w centering) so the hero text hugs the left edge. */}
-                                <div className="w-full px-6 pb-18 sm:px-8 lg:px-12 lg:pb-23">
+                                <div className="w-full px-6 sm:px-8 lg:px-12">
                                     <div className="max-w-2xl space-y-5">
                                         <img className="max-h-34 max-w-[50vw] sm:max-w-140" src={slide.logo} alt={slide.title} />
                                         <div className="flex flex-wrap items-center gap-4 text-sm text-white/70 sm:text-base">
