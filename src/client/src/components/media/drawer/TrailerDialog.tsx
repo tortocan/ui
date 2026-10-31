@@ -1,14 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { ChevronDown, ChevronUp, Film } from "lucide-react"
+import { ChevronDown, ChevronUp, Film, Maximize, Minimize, Pause, Play, Volume2, VolumeX } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { useOmss } from "@/hooks/use-omss"
 import { cn } from "@/lib/utils"
 
 // Load the YouTube IFrame Player API once (shared across every TrailerDialog instance). We need the
-// JS API (not a bare iframe) so we can force autoplay, fall the search case back to loadPlaylist,
-// and detect when the video ENDS to auto-close the player.
+// JS API (not a bare iframe) so we drive playback ourselves: our own controls + swipe gestures over a
+// full-area layer (YouTube's native controls are hidden), autoplay with a muted fallback, auto-close.
 let ytApiPromise: Promise<void> | null = null
 function loadYouTubeApi(): Promise<void> {
     if (typeof window === "undefined") return Promise.resolve()
@@ -53,10 +53,17 @@ function exitFs() {
     }
 }
 
+function fmtTime(s: number): string {
+    if (!Number.isFinite(s) || s < 0) s = 0
+    const m = Math.floor(s / 60)
+    const sec = Math.floor(s % 60)
+    return `${m}:${String(sec).padStart(2, "0")}`
+}
+
 interface TrailerDialogProps {
     trailerId: string | null
     title: string
-    /** Passed from the drawer so swipe-down can follow this title for release notifications. */
+    /** Passed from the drawer so swipe-up can follow this title for release notifications. */
     mediaType?: "movie" | "tv"
     tmdbId?: number
 }
@@ -64,13 +71,19 @@ interface TrailerDialogProps {
 export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, mediaType, tmdbId }) => {
     const [active, setActive] = useState(false)
     const [followed, setFollowed] = useState(false)
+    // Custom-control state, polled from the player.
+    const [playing, setPlaying] = useState(false)
+    const [muted, setMuted] = useState(false)
+    const [cur, setCur] = useState(0)
+    const [dur, setDur] = useState(0)
+    const [isFs, setIsFs] = useState(false)
+
     const stageRef = useRef<HTMLDivElement>(null) // the fullscreen target / full-viewport overlay
     const hostRef = useRef<HTMLDivElement>(null) // YT replaces an imperative child of this with its iframe
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const playerRef = useRef<any>(null)
     const { client, valid } = useOmss()
 
-    // Warm the API up front so onReady fires near-instantly on click (keeps the fullscreen activation fresh).
     useEffect(() => {
         void loadYouTubeApi()
     }, [])
@@ -80,8 +93,35 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
         setActive(false)
     }, [])
 
-    // Swipe-down → follow this title for new-release notifications (gatearr /follow). Guarded so a
-    // second swipe doesn't re-POST, and gated on a reachable OMSS backend + a known tmdbId.
+    // ---- Player controls (driven via the YT API, since native controls are hidden) ----
+    const togglePlay = useCallback(() => {
+        const p = playerRef.current
+        if (!p?.getPlayerState) return
+        if (p.getPlayerState() === 1) p.pauseVideo?.()
+        else p.playVideo?.()
+    }, [])
+    const toggleMute = useCallback(() => {
+        const p = playerRef.current
+        if (!p?.isMuted) return
+        if (p.isMuted()) {
+            p.unMute?.()
+            setMuted(false)
+        } else {
+            p.mute?.()
+            setMuted(true)
+        }
+    }, [])
+    const onSeek = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        const v = Number(e.target.value)
+        playerRef.current?.seekTo?.(v, true)
+        setCur(v)
+    }, [])
+    const toggleFs = useCallback(() => {
+        if (fsElement()) exitFs()
+        else if (stageRef.current) void Promise.resolve(requestFs(stageRef.current)).catch(() => {})
+    }, [])
+
+    // Follow this title for new-release notifications (gatearr /follow). Guarded against re-POST.
     const doFollow = useCallback(async () => {
         if (!valid || !mediaType || !tmdbId || followed) return
         setFollowed(true)
@@ -94,10 +134,14 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
         }
     }, [client, valid, mediaType, tmdbId, title, followed])
 
-    // Vertical gestures on the capture strip (wheel & touch over the cross-origin iframe never reach
-    // us, so they fire from the strip): swipe DOWN dismisses, swipe UP follows. (Mac natural scrolling:
-    // a physical down-swipe is deltaY<0, an up-swipe is deltaY>0.)
+    // ---- Full-area gesture + tap layer. Swipe UP follows, swipe DOWN closes; a tap toggles play/pause.
+    // A swipe suppresses the trailing (ghost) click so it doesn't also toggle play.
     const touchStartY = useRef<number | null>(null)
+    const suppressClickRef = useRef(false)
+    const markSwipe = () => {
+        suppressClickRef.current = true
+        window.setTimeout(() => (suppressClickRef.current = false), 500)
+    }
     const onWheel = (e: React.WheelEvent) => {
         if (e.deltaY < -24) close()
         else if (e.deltaY > 24) void doFollow()
@@ -110,13 +154,26 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
         touchStartY.current = null
         const end = e.changedTouches[0]?.clientY
         if (start == null || end == null) return
-        if (end - start > 60) close()
-        else if (start - end > 60) void doFollow()
+        if (end - start > 60) {
+            markSwipe()
+            close()
+        } else if (start - end > 60) {
+            markSwipe()
+            void doFollow()
+        }
+    }
+    const onLayerClick = () => {
+        if (suppressClickRef.current) {
+            suppressClickRef.current = false
+            return
+        }
+        togglePlay()
     }
 
     // Launch straight into fullscreen from the click gesture (the only moment the browser grants it).
     const launch = useCallback(() => {
         setActive(true)
+        setFollowed(false)
         const el = stageRef.current
         if (el) {
             el.classList.remove("hidden")
@@ -124,7 +181,7 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
         }
     }, [])
 
-    // Build the player whenever we go active; tear it down when we close.
+    // Build the player whenever we go active; poll its state for the custom controls; tear it down on close.
     useEffect(() => {
         if (!active) return
         let killed = false
@@ -132,8 +189,12 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
         const onKey = (e: KeyboardEvent) => {
             if (e.key === "Escape") close()
         }
+        const onFsChange = () => setIsFs(!!fsElement())
         document.addEventListener("keydown", onKey)
+        document.addEventListener("fullscreenchange", onFsChange)
+        document.addEventListener("webkitfullscreenchange", onFsChange)
 
+        let poll = 0
         void loadYouTubeApi().then(() => {
             if (killed || !hostRef.current) return
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -151,12 +212,13 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
                 videoId: trailerId ?? undefined,
                 playerVars: {
                     autoplay: 1,
-                    controls: 1,
+                    controls: 0, // hidden — we render our own control bar + full-area gesture/tap layer
+                    disablekb: 1,
                     modestbranding: 1,
                     rel: 0,
                     iv_load_policy: 3,
                     playsinline: 1,
-                    fs: 1,
+                    fs: 0,
                     origin: window.location.origin,
                 },
                 events: {
@@ -176,9 +238,23 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
                                 /* ignore */
                             }
                         }, 1200)
+                        // Poll playback state for the custom controls.
+                        poll = window.setInterval(() => {
+                            const p = playerRef.current
+                            if (!p?.getDuration) return
+                            try {
+                                setDur(p.getDuration() || 0)
+                                setCur(p.getCurrentTime() || 0)
+                                setPlaying(p.getPlayerState?.() === 1)
+                                setMuted(!!p.isMuted?.())
+                            } catch {
+                                /* ignore */
+                            }
+                        }, 250)
                     },
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     onStateChange: (e: any) => {
+                        setPlaying(e.data === 1)
                         if (e.data === YT.PlayerState.ENDED) close()
                     },
                 },
@@ -187,7 +263,10 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
 
         return () => {
             killed = true
+            if (poll) window.clearInterval(poll)
             document.removeEventListener("keydown", onKey)
+            document.removeEventListener("fullscreenchange", onFsChange)
+            document.removeEventListener("webkitfullscreenchange", onFsChange)
             try {
                 playerRef.current?.destroy?.()
             } catch {
@@ -195,6 +274,9 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
             }
             playerRef.current = null
             if (hostRef.current) hostRef.current.innerHTML = ""
+            setPlaying(false)
+            setCur(0)
+            setDur(0)
         }
     }, [active, trailerId, title, close])
 
@@ -207,26 +289,54 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
 
             {typeof document !== "undefined" &&
                 createPortal(
-                    // z-max so it sits above the (full-screen) drawer; stays a full-viewport black panel even
-                    // if the Fullscreen API is refused. Rendered hidden until launched.
-                    // pointer-events-auto: the modal drawer sets body { pointer-events: none }, and this
-                    // overlay is portaled to body (outside the drawer), so without this every click is dead.
-                    <div ref={stageRef} className={cn("pointer-events-auto fixed inset-0 z-[2147483647] bg-black", !active && "hidden")}>
+                    // pointer-events-auto: the modal drawer sets body { pointer-events: none }, and this overlay is
+                    // portaled to body (outside the drawer), so without it every click is dead.
+                    <div ref={stageRef} className={cn("pointer-events-auto fixed inset-0 z-[2147483647] bg-black select-none", !active && "hidden")}>
                         <div ref={hostRef} className="h-full w-full" />
-                        {/* Gesture capture bands — TOP + BOTTOM only (where the hints are), NOT the center.
-                            This leaves the player's centre (click-to-play / the big play button) and the whole
-                            YouTube control bar directly clickable, while swipes over the hint bands still
-                            follow (up) / close (down). A full-cover strip blocked the player's controls. */}
-                        <div className="absolute inset-x-0 top-0 h-28 z-[5] touch-pan-x" onWheel={onWheel} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} />
-                        <div className="absolute inset-x-0 bottom-20 h-28 z-[5] touch-pan-x" onWheel={onWheel} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} />
+
+                        {/* Full-area gesture + tap layer (over the whole player). Swipe up = follow, down = close,
+                            tap = play/pause. It sits BELOW the custom control bar (z-10), so the bar stays clickable. */}
+                        <div
+                            className="absolute inset-0 z-[5] touch-pan-x"
+                            onWheel={onWheel}
+                            onTouchStart={onTouchStart}
+                            onTouchEnd={onTouchEnd}
+                            onClick={onLayerClick}
+                        />
+
                         {/* Gesture hints (non-interactive). Up = follow, down = close. */}
                         <div className="pointer-events-none absolute inset-x-0 top-5 z-10 flex flex-col items-center gap-0.5 text-white/70">
                             <ChevronUp className="size-5" />
                             <span className="text-xs font-medium tracking-wide">{followed ? "Following — you'll be notified" : "Swipe up to follow"}</span>
                         </div>
-                        <div className="pointer-events-none absolute inset-x-0 bottom-24 z-10 flex flex-col items-center gap-0.5 text-white/70">
+                        <div className="pointer-events-none absolute inset-x-0 bottom-20 z-10 flex flex-col items-center gap-0.5 text-white/70">
                             <span className="text-xs font-medium tracking-wide">Swipe down to close</span>
                             <ChevronDown className="size-5" />
+                        </div>
+
+                        {/* Our own control bar (native YouTube controls are hidden). */}
+                        <div className="absolute inset-x-0 bottom-0 z-10 flex items-center gap-3 bg-gradient-to-t from-black/90 via-black/50 to-transparent px-4 pt-10 pb-4 text-white">
+                            <button type="button" onClick={togglePlay} aria-label={playing ? "Pause" : "Play"} className="rounded p-1 transition-colors hover:bg-white/15">
+                                {playing ? <Pause className="size-5" /> : <Play className="size-5 fill-current" />}
+                            </button>
+                            <span className="w-10 text-right text-xs tabular-nums text-white/80">{fmtTime(cur)}</span>
+                            <input
+                                type="range"
+                                min={0}
+                                max={dur || 0}
+                                step="any"
+                                value={Math.min(cur, dur || 0)}
+                                onChange={onSeek}
+                                aria-label="Seek"
+                                className="h-1 flex-1 cursor-pointer accent-primary"
+                            />
+                            <span className="w-10 text-xs tabular-nums text-white/80">{fmtTime(dur)}</span>
+                            <button type="button" onClick={toggleMute} aria-label={muted ? "Unmute" : "Mute"} className="rounded p-1 transition-colors hover:bg-white/15">
+                                {muted ? <VolumeX className="size-5" /> : <Volume2 className="size-5" />}
+                            </button>
+                            <button type="button" onClick={toggleFs} aria-label={isFs ? "Exit fullscreen" : "Fullscreen"} className="rounded p-1 transition-colors hover:bg-white/15">
+                                {isFs ? <Minimize className="size-5" /> : <Maximize className="size-5" />}
+                            </button>
                         </div>
                     </div>,
                     document.body
