@@ -2,8 +2,20 @@ import type { ReactNode } from "react"
 import { Calendar } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { StarRating } from "@/components/media/StarRating"
+import { cn } from "@/lib/utils"
 
 const CHIP = "inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-sm font-medium text-white backdrop-blur-md"
+// An unreleased title's date chip takes the primary accent (same color as the Play button) so an
+// upcoming release reads at a glance.
+const CHIP_UNRELEASED = "border-primary bg-primary text-primary-foreground"
+
+/** True when the release date is in the future (title not yet released). */
+function isUnreleased(date?: string | null): boolean {
+    if (!date) return false
+    const full = /^(\d{4})-(\d{2})-(\d{2})/.exec(date)
+    const d = full ? new Date(Number(full[1]), Number(full[2]) - 1, Number(full[3])) : new Date(date)
+    return !Number.isNaN(d.getTime()) && d.getTime() > Date.now()
+}
 
 /**
  * Release-date chip label. A full TMDB date ("YYYY-MM-DD") renders as "Jul 17, 2026" — parsed from its
@@ -64,6 +76,7 @@ export function TitleCardContent({
     logoClassName,
 }: TitleCardContentProps) {
     const releaseLabel = formatReleaseDate(date)
+    const unreleased = isUnreleased(date)
 
     const clamped =
         description && descriptionClampChars && description.length > descriptionClampChars ? `${description.slice(0, descriptionClampChars).split(" ").slice(0, -1).join(" ")}...` : description
@@ -74,7 +87,7 @@ export function TitleCardContent({
                 <StarRating rating={rating} className="font-semibold" />
             </span>
             {releaseLabel && (
-                <span className={CHIP}>
+                <span className={cn(CHIP, unreleased && CHIP_UNRELEASED)}>
                     <Calendar className="size-4 opacity-80" />
                     {releaseLabel}
                 </span>
