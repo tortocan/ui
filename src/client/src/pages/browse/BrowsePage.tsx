@@ -102,10 +102,15 @@ export default function BrowsePage({ kind }: { kind: BrowseKind }) {
     const Rail = cfg.Rail
 
     // Library mode: show only the titles the OMSS server has (gatearr's /v1 media), not all of TMDB.
+    // Same hero carousel on top as the full view (autoplay unchanged); just the grid below instead of rails.
     if (libraryOnly) {
         return (
-            <div className="min-h-screen">
-                <section className="flex flex-col gap-6 bg-background p-8 pt-24">
+            <div className="min-h-screen overflow-hidden">
+                <HeroCarousel tmdb={tmdb} fetcher={fetchHero} />
+
+                <HeroFade />
+
+                <section className="flex flex-col gap-6 bg-background p-8">
                     <h2 className="text-2xl font-semibold">Your {cfg.noun}</h2>
                     <LibraryGrid ids={cfg.libraryIds(library)} type={kind} externalLoading={libraryLoading} />
                 </section>
