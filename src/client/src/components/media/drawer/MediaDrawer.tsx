@@ -32,8 +32,9 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
     // normal downward scrolling through the episodes/cast/recommendations. Wheel covers a trackpad
     // two-finger swipe; touch covers a finger flick.
     const swipeRef = useRef<{ y: number; atTop: boolean } | null>(null)
-    // Same gesture sign/thresholds as the trailer modal (wheel deltaY < -24, touch swipe-up > 60),
-    // gated to scrollTop <= 0 so it reads as an overscroll dismiss instead of fighting scroll-up.
+    // Swipe DOWN to close (same as the trailer modal). Gated to scrollTop <= 0 so it's a pull-down
+    // overscroll dismiss, never fighting normal scrolling. Wheel: deltaY < -24 (a physical down-swipe
+    // under Mac natural scrolling, the overscroll-at-top direction). Touch: finger moved down.
     const onBodyWheel = (e: React.WheelEvent<HTMLDivElement>) => {
         if (e.currentTarget.scrollTop <= 0 && e.deltaY < -24) closeAll()
     }
@@ -45,7 +46,7 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
         swipeRef.current = null
         if (!start || !start.atTop) return
         const end = e.changedTouches[0]?.clientY
-        if (end != null && start.y - end > 60) closeAll()
+        if (end != null && end - start.y > 60) closeAll()
     }
 
     // Turn Play into "Resume" from the scrobbler. For a movie: the stored position → "Resume · {time}".

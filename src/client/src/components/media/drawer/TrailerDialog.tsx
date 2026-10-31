@@ -95,7 +95,8 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
     }, [client, valid, mediaType, tmdbId, title, followed])
 
     // Vertical gestures on the capture strip (wheel & touch over the cross-origin iframe never reach
-    // us, so they fire from the strip): swipe UP dismisses, swipe DOWN follows.
+    // us, so they fire from the strip): swipe DOWN dismisses, swipe UP follows. (Mac natural scrolling:
+    // a physical down-swipe is deltaY<0, an up-swipe is deltaY>0.)
     const touchStartY = useRef<number | null>(null)
     const onWheel = (e: React.WheelEvent) => {
         if (e.deltaY < -24) close()
@@ -109,8 +110,8 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
         touchStartY.current = null
         const end = e.changedTouches[0]?.clientY
         if (start == null || end == null) return
-        if (start - end > 60) close()
-        else if (end - start > 60) void doFollow()
+        if (end - start > 60) close()
+        else if (start - end > 60) void doFollow()
     }
 
     // Launch straight into fullscreen from the click gesture (the only moment the browser grants it).
@@ -213,15 +214,15 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
                     <div ref={stageRef} className={cn("pointer-events-auto fixed inset-0 z-[2147483647] bg-black", !active && "hidden")}>
                         <div ref={hostRef} className="h-full w-full" />
                         {/* Gesture capture strip: covers the player ABOVE its control bar (bottom ~80px left
-                            free) so the native controls stay usable while swipe-up dismisses / swipe-down follows. */}
+                            free) so the native controls stay usable while swipe-up follows / swipe-down dismisses. */}
                         <div className="absolute inset-x-0 top-0 bottom-20 z-[5] touch-pan-x" onWheel={onWheel} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} />
-                        {/* Gesture hints (non-interactive). */}
+                        {/* Gesture hints (non-interactive). Up = follow, down = close. */}
                         <div className="pointer-events-none absolute inset-x-0 top-5 z-10 flex flex-col items-center gap-0.5 text-white/70">
                             <ChevronUp className="size-5" />
-                            <span className="text-xs font-medium tracking-wide">Swipe up to close</span>
+                            <span className="text-xs font-medium tracking-wide">{followed ? "Following — you'll be notified" : "Swipe up to follow"}</span>
                         </div>
                         <div className="pointer-events-none absolute inset-x-0 bottom-24 z-10 flex flex-col items-center gap-0.5 text-white/70">
-                            <span className="text-xs font-medium tracking-wide">{followed ? "Following — you'll be notified" : "Swipe down to follow"}</span>
+                            <span className="text-xs font-medium tracking-wide">Swipe down to close</span>
                             <ChevronDown className="size-5" />
                         </div>
                     </div>,
