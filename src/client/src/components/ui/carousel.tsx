@@ -96,12 +96,12 @@ function Carousel({ orientation = "horizontal", opts, setApi, plugins, wheelScro
         }
     }, [api, onSelect])
 
-    // Mouse-wheel → horizontal scroll, HORIZONTAL GESTURES ONLY. We drive Embla's engine ourselves
-    // from the wheel's horizontal delta (deltaX — a trackpad/Magic Mouse sideways swipe or shift+wheel).
-    // A vertical wheel (deltaY) is deliberately ignored so it scrolls the PAGE, not the rail. If the
-    // rail can still move, preventDefault and scroll the track by that pixel distance via the engine's
-    // scrollTo.distance; when maxed out we DON'T preventDefault so the page scrolls past it. iOS
-    // touch-drag is untouched (this only binds `wheel`).
+    // Mouse-wheel → horizontal scroll, HORIZONTAL-DOMINANT GESTURES ONLY. We drive Embla's engine from
+    // the wheel's horizontal delta (deltaX — a trackpad/Magic Mouse sideways swipe or shift+wheel). A
+    // vertical (or vertical-dominant) wheel is ignored so it scrolls the PAGE, not the rail. Any
+    // horizontal gesture over the carousel is preventDefault'd — even at the rail's end — so a sideways
+    // swipe never triggers the browser's back/forward navigation. iOS touch-drag is untouched (this
+    // only binds `wheel`).
     React.useEffect(() => {
         if (!api || orientation !== "horizontal" || !wheelScroll) return
         const node = typeof api.rootNode === "function" ? api.rootNode() : null
@@ -115,14 +115,18 @@ function Carousel({ orientation = "horizontal", opts, setApi, plugins, wheelScro
         let lastWheelTs = 0
         let lastStepTs = 0
         const onWheel = (e: WheelEvent) => {
-            // Horizontal delta only — a vertical wheel falls through to the page. Normalize line-mode
-            // deltas (Firefox) to pixels so the step feels the same everywhere.
+            // Act only on a HORIZONTAL-dominant gesture. A vertical (or vertical-dominant) wheel — even
+            // with tiny deltaX jitter — falls through so the page scrolls normally.
+            if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return
+            // Over a carousel a horizontal swipe should drive the rail, never the browser's back/forward
+            // navigation gesture — so preventDefault for the whole horizontal gesture, including when the
+            // rail is already at its end (there's no useful horizontal page action to fall back to).
+            e.preventDefault()
+            // Normalize line-mode deltas (Firefox) to pixels so the step feels the same everywhere.
             const scale = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? node.clientWidth : 1
             const delta = e.deltaX * scale
-            if (!delta) return
             if (isLoop) {
                 if (Math.abs(delta) < 4) return
-                e.preventDefault() // also stops a 2-finger swipe triggering browser back/forward
                 const now = Date.now()
                 const idle = now - lastWheelTs // gap since the previous wheel event in this stream
                 lastWheelTs = now
@@ -138,12 +142,10 @@ function Carousel({ orientation = "horizontal", opts, setApi, plugins, wheelScro
             // canScrollNext()/canScrollPrev() are snap-index based and flip false once you're inside the
             // last/first snap, which used to strand the final sub-snap pixels and clip the last card
             // (the "can't scroll more" bug). We base the room on engine.target — the committed
-            // destination, stable across instant ticks — constrain the next position to the limit, and
-            // only skip preventDefault when genuinely pinned at a boundary so the page scrolls past.
+            // destination, stable across instant ticks — and constrain the next position to the limit.
             const cur = engine.target.get()
             const applied = engine.limit.constrain(cur - delta) - cur // -delta: wheel-down moves toward the end
-            if (Math.abs(applied) < 0.5) return
-            e.preventDefault()
+            if (Math.abs(applied) < 0.5) return // already at the end — nav is already blocked above
             engine.scrollBody.useDuration(0)
             engine.scrollTo.distance(applied, false)
         }
