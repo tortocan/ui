@@ -1,6 +1,6 @@
 import type { Genre } from "@lorenzopant/tmdb"
 import { MultiSelectFilter, SingleSelectFilter } from "./FilterDropdowns.tsx"
-import { NETWORKS, STUDIOS } from "./catalog.ts"
+import { STUDIOS, type CatalogEntry } from "./catalog.ts"
 
 export type SortKey = "popularity" | "rating" | "newest" | "oldest" | "az"
 
@@ -20,7 +20,8 @@ export interface MediaFiltersProps {
     genres: Genre[]
     genreIds: number[]
     onToggleGenre: (id: number) => void
-    // Networks are TMDB TV networks (TV only); hidden when showNetworks is false (e.g. on movies).
+    // Networks list to show: TMDB TV networks on TV, streaming providers on movies (caller decides).
+    networkItems: CatalogEntry[]
     networkIds: number[]
     onToggleNetwork: (id: number) => void
     showNetworks?: boolean
@@ -46,6 +47,7 @@ export function MediaFilters({
     genres,
     genreIds,
     onToggleGenre,
+    networkItems,
     networkIds,
     onToggleNetwork,
     showNetworks = true,
@@ -63,7 +65,7 @@ export function MediaFilters({
     return (
         <>
             <MultiSelectFilter allLabel="All Genres" nounLabel="Genres" items={genres} selected={genreIds} onToggle={onToggleGenre} />
-            {showNetworks && <MultiSelectFilter allLabel="All Networks" nounLabel="Networks" items={NETWORKS} selected={networkIds} onToggle={onToggleNetwork} />}
+            {showNetworks && <MultiSelectFilter allLabel="All Networks" nounLabel="Networks" items={networkItems} selected={networkIds} onToggle={onToggleNetwork} />}
             <MultiSelectFilter allLabel="All Studios" nounLabel="Studios" items={STUDIOS} selected={studioIds} onToggle={onToggleStudio} />
             <SingleSelectFilter triggerLabel={sortLabel} value={sortKey} options={SORT_OPTIONS} onChange={(v) => onSortChange(v as SortKey)} />
             <SingleSelectFilter

@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react"
+import type { CountryISO3166_1 } from "@lorenzopant/tmdb"
 import { useTmdb } from "@/hooks/use-tmdb"
+import { useAppSettings } from "@/hooks/use-appsettings.ts"
 import { MediaGrid, type GridCard } from "@/components/media/MediaGrid.tsx"
 import { MediaFilters, type SortKey } from "@/components/media/filters/MediaFilters.tsx"
+import { NETWORKS, STREAMING } from "@/components/media/filters/catalog.ts"
 import { useFilterOptions } from "@/components/media/filters/useFilterOptions.ts"
 
 const PAGE_SIZE = 35
@@ -26,6 +29,7 @@ async function inChunks<T, R>(items: T[], size: number, fn: (item: T) => Promise
  */
 export function LibraryBrowser({ ids, type, externalLoading = false, heading }: { ids: number[]; type: "movie" | "tv"; externalLoading?: boolean; heading?: string }) {
     const tmdb = useTmdb()
+    const { region } = useAppSettings()
     const { genres } = useFilterOptions(tmdb, type)
 
     const [titles, setTitles] = useState<LibTitle[] | null>(null)
@@ -36,6 +40,10 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
     const [fromYear, setFromYear] = useState<number | null>(null)
     const [toYear, setToYear] = useState<number | null>(null)
     const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+    // Movie "Networks" = streaming availability: per-title watch-provider ids, fetched lazily (region)
+    // only while that filter is active (TV filters by networks from details — no extra calls).
+    const [providerSets, setProviderSets] = useState<Record<number, Set<number>>>({})
+    const [providerLoading, setProviderLoading] = useState(false)
 
     // Reset everything when the library (ids/type) changes.
     useEffect(() => {
@@ -47,6 +55,7 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
         setSortKey("popularity")
         setFromYear(null)
         setToYear(null)
+        setProviderSets({})
     }, [ids, type])
 
     // Resolve details for every owned id (chunked, cached).
@@ -96,11 +105,50 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
         }
     }, [ids, type, tmdb])
 
+    // Lazily resolve per-title watch-provider ids for the MOVIE "Networks" (streaming) filter.
+    useEffect(() => {
+        if (type !== "movie" || !networkIds.length || !titles) return
+        const missing = titles.filter((t) => providerSets[t.id] == null)
+        if (!missing.length) return
+        let cancelled = false
+        const watchRegion = (region ?? "US") as CountryISO3166_1
+        setProviderLoading(true)
+        void (async () => {
+            const entries = await inChunks(missing, CHUNK, async (t): Promise<[number, Set<number>]> => {
+                try {
+                    const res = await tmdb.movies.watch_providers({ movie_id: t.id })
+                    const rd = res.results?.[watchRegion]
+                    const set = new Set<number>()
+                    for (const k of ["flatrate", "rent", "buy"] as const) {
+                        for (const pr of rd?.[k] ?? []) set.add(pr.provider_id)
+                    }
+                    return [t.id, set]
+                } catch {
+                    return [t.id, new Set<number>()]
+                }
+            })
+            if (cancelled) return
+            setProviderSets((prev) => {
+                const next = { ...prev }
+                for (const [id, s] of entries) next[id] = s
+                return next
+            })
+            setProviderLoading(false)
+        })()
+        return () => {
+            cancelled = true
+        }
+    }, [type, networkIds, titles, tmdb, region, providerSets])
+
     const filtered = useMemo(() => {
         if (!titles) return []
         let list = titles
         if (genreIds.length) list = list.filter((t) => t.genreIds.some((g) => genreIds.includes(g)))
-        if (networkIds.length) list = list.filter((t) => t.networkIds.some((n) => networkIds.includes(n)))
+        if (networkIds.length) {
+            // TV → filter by the title's networks; movies → by fetched watch-provider availability.
+            if (type === "tv") list = list.filter((t) => t.networkIds.some((n) => networkIds.includes(n)))
+            else list = list.filter((t) => providerSets[t.id] && networkIds.some((p) => providerSets[t.id].has(p)))
+        }
         if (studioIds.length) list = list.filter((t) => t.companyIds.some((c) => studioIds.includes(c)))
         if (fromYear) list = list.filter((t) => t.year && t.year >= fromYear)
         if (toYear) list = list.filter((t) => t.year && t.year <= toYear)
@@ -112,10 +160,10 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
             az: (a, b) => a.title.localeCompare(b.title),
         }
         return [...list].sort(cmp[sortKey])
-    }, [titles, genreIds, networkIds, studioIds, fromYear, toYear, sortKey])
+    }, [titles, genreIds, networkIds, studioIds, fromYear, toYear, sortKey, type, providerSets])
 
     const pageCards = filtered.slice(0, visibleCount)
-    const busy = titles === null || externalLoading
+    const busy = titles === null || externalLoading || (type === "movie" && networkIds.length > 0 && providerLoading)
 
     const toggle = (setter: (fn: (p: number[]) => number[]) => void) => (id: number) => {
         setter((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
@@ -133,9 +181,9 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
                     genres={genres}
                     genreIds={genreIds}
                     onToggleGenre={toggle(setGenreIds)}
+                    networkItems={type === "movie" ? STREAMING : NETWORKS}
                     networkIds={networkIds}
                     onToggleNetwork={toggle(setNetworkIds)}
-                    showNetworks={type === "tv"}
                     studioIds={studioIds}
                     onToggleStudio={toggle(setStudioIds)}
                     sortKey={sortKey}

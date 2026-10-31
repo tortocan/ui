@@ -1,10 +1,27 @@
 /**
- * Curated filter catalogs. Networks are TMDB TV networks (discover `with_networks`, TV only); Studios
- * are TMDB production companies (discover `with_companies`, movies & TV). Ids verified against the
- * TMDB /network/{id} and /company/{id} endpoints. Note company id 174 (Warner Bros. Pictures) and
- * network id 174 (AMC) collide across the two namespaces — that's expected, they're separate filters.
+ * Curated filter catalogs. The "Networks" filter uses `NETWORKS` (TMDB TV networks, discover
+ * `with_networks`) for TV, and `STREAMING` (TMDB watch-provider ids, US; discover
+ * `with_watch_providers`) for movies — movies have no TV networks, so there it means "streaming
+ * availability". Studios are TMDB production companies (`with_companies`, movies & TV). Ids verified
+ * against TMDB /network/{id}, /company/{id} and /watch/providers/movie. (company 174 Warner Bros. ==
+ * network 174 AMC is fine — separate namespaces.)
  */
 export type CatalogEntry = { id: number; name: string }
+
+// Movie "Networks" = streaming availability via TMDB watch-provider ids (US region).
+export const STREAMING: CatalogEntry[] = [
+    { id: 8, name: "Netflix" },
+    { id: 337, name: "Disney+" },
+    { id: 9, name: "Prime Video" },
+    { id: 350, name: "Apple TV+" },
+    { id: 15, name: "Hulu" },
+    { id: 1899, name: "HBO Max" },
+    { id: 386, name: "Peacock" },
+    { id: 2303, name: "Paramount+" },
+    { id: 520, name: "discovery+" },
+    { id: 43, name: "Starz" },
+    { id: 526, name: "AMC+" },
+]
 
 export const NETWORKS: CatalogEntry[] = [
     { id: 213, name: "Netflix" },

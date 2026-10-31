@@ -4,10 +4,12 @@ import { toast } from "sonner"
 import { ShuffleIcon } from "lucide-react"
 import type { CountryISO3166_1, DiscoverMovieParams, DiscoverMovieSortBy, DiscoverTVParams, DiscoverTVSortBy, MovieResultItem, DiscoverTVResultItem } from "@lorenzopant/tmdb"
 import { useTmdb } from "@/hooks/use-tmdb"
+import { useAppSettings } from "@/hooks/use-appsettings.ts"
 import { useMediaDrawer } from "@/components/media/drawer/hooks/useMediaDrawer"
 import { BrowseLayout } from "@/components/media/BrowseLayout.tsx"
 import { MediaGrid } from "@/components/media/MediaGrid.tsx"
 import { MediaFilters, SORT_OPTIONS, type SortKey } from "@/components/media/filters/MediaFilters.tsx"
+import { NETWORKS, STREAMING } from "@/components/media/filters/catalog.ts"
 import { useFilterOptions } from "@/components/media/filters/useFilterOptions.ts"
 import { Button } from "@/components/ui/button"
 import { Combobox, ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList } from "@/components/ui/combobox"
@@ -44,6 +46,7 @@ const ANIME_ORIGIN_COUNTRY = "JP" as CountryISO3166_1
 
 export default function Discover() {
     const tmdb = useTmdb()
+    const { region } = useAppSettings()
     const { open } = useMediaDrawer()
 
     // Deep-link params (e.g. a rail's "See more" → /discover?type=tv&genre=18 or ?type=movie&sort=rating).
@@ -97,6 +100,7 @@ export default function Discover() {
             sort_by: MOVIE_SORT_MAP[sortKey],
             ...(genrePart.length ? { with_genres: genrePart.join("|") } : {}),
             ...(studioIds.length ? { with_companies: studioIds.join("|") } : {}),
+            ...(networkIds.length ? { with_watch_providers: networkIds.join("|"), watch_region: (region ?? "US") as CountryISO3166_1 } : {}),
             ...(sortKey === "rating" ? { "vote_count.gte": 50 } : {}),
             ...(fromYear ? { "primary_release_date.gte": `${fromYear}-01-01` } : {}),
             ...(toYear ? { "primary_release_date.lte": `${toYear}-12-31` } : {}),
@@ -156,7 +160,7 @@ export default function Discover() {
             mounted = false
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [tmdb, effectiveType, mediaKind, sortKey, fromYear, toYear, page, genreIds.join(","), networkIds.join(","), studioIds.join(",")])
+    }, [tmdb, effectiveType, mediaKind, sortKey, region, fromYear, toYear, page, genreIds.join(","), networkIds.join(","), studioIds.join(",")])
 
     const [isSurprising, setIsSurprising] = useState(false)
 
@@ -204,7 +208,7 @@ export default function Discover() {
     const heroFetcher = useCallback(
         () => Promise.all([fetchPage(1)]),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [tmdb, effectiveType, mediaKind, sortKey, fromYear, toYear, genreIds.join(","), networkIds.join(","), studioIds.join(",")]
+        [tmdb, effectiveType, mediaKind, sortKey, region, fromYear, toYear, genreIds.join(","), networkIds.join(","), studioIds.join(",")]
     )
 
     return (
@@ -218,9 +222,9 @@ export default function Discover() {
                             genres={genres}
                             genreIds={genreIds}
                             onToggleGenre={toggleGenre}
+                            networkItems={effectiveType === "movie" ? STREAMING : NETWORKS}
                             networkIds={networkIds}
                             onToggleNetwork={toggleNetwork}
-                            showNetworks={effectiveType === "tv"}
                             studioIds={studioIds}
                             onToggleStudio={toggleStudio}
                             sortKey={sortKey}
