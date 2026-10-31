@@ -123,15 +123,25 @@ export default function Discover() {
 
     useEffect(() => {
         let mounted = true
+        const watchRegion = (region ?? "US") as CountryISO3166_1
         ;(effectiveType === "movie" ? tmdb.watch_providers.movie_providers() : tmdb.watch_providers.tv_providers())
             .then((data) => {
-                if (mounted) setProviders(data.results)
+                if (!mounted) return
+                // The list endpoint returns ~700 global providers unordered — including broad buy/rent
+                // stores (e.g. Apple TV Store) that barely narrow results, which made the filter feel
+                // broken. Keep only providers available in the user's region and order them by that
+                // region's display priority, so the prominent streaming services surface first.
+                const inRegion = data.results.filter((pr) => pr.display_priorities?.[watchRegion] != null)
+                const list = (inRegion.length ? inRegion : data.results).sort(
+                    (a, b) => (a.display_priorities?.[watchRegion] ?? a.display_priority) - (b.display_priorities?.[watchRegion] ?? b.display_priority)
+                )
+                setProviders(list)
             })
             .catch((e) => console.error(e))
         return () => {
             mounted = false
         }
-    }, [tmdb, effectiveType])
+    }, [tmdb, effectiveType, region])
 
     function buildMovieParams(pageOverride?: number): DiscoverMovieParams {
         // Checking multiple genres/providers is meant to broaden results ("any of these"),
