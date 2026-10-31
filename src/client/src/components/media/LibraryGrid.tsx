@@ -1,9 +1,6 @@
 import { useEffect, useState } from "react"
 import { useTmdb } from "@/hooks/use-tmdb"
-import { MediaCard } from "@/components/media/MediaRail/MediaCard.tsx"
-import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton.tsx"
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
+import { MediaGrid } from "@/components/media/MediaGrid.tsx"
 
 const PAGE_SIZE = 35
 
@@ -58,42 +55,16 @@ export function LibraryGrid({ ids, type, externalLoading = false }: { ids: numbe
         }
     }, [ids, page, type, tmdb])
 
-    if (!busy && ids.length === 0) {
-        return (
-            <Empty>
-                <EmptyHeader>
-                    <EmptyTitle>Nothing in your library yet</EmptyTitle>
-                    <EmptyDescription>
-                        Your OMSS server reports no {type === "movie" ? "movies" : "TV shows"}. Add some to Radarr/Sonarr, or turn off "only show my library" in Settings.
-                    </EmptyDescription>
-                </EmptyHeader>
-            </Empty>
-        )
-    }
-
     return (
-        <>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7">
-                {busy
-                    ? Array.from({ length: PAGE_SIZE }).map((_, i) => <Skeleton key={i} className="aspect-2/3 rounded-md" />)
-                    : cards.map((c) => (
-                          <MediaCard key={c.id} id={c.id} type={type} title={c.title} imagePath={c.poster} imageAlt={c.title} year={c.year} rating={c.rating} />
-                      ))}
-            </div>
-
-            {totalPages > 1 && (
-                <div className="mt-6 flex items-center justify-center gap-3">
-                    <Button variant="outline" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
-                        Previous
-                    </Button>
-                    <span className="text-sm text-muted-foreground">
-                        Page {page} / {totalPages}
-                    </span>
-                    <Button variant="outline" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
-                        Next
-                    </Button>
-                </div>
-            )}
-        </>
+        <MediaGrid
+            cards={cards.map((c) => ({ ...c, type }))}
+            loading={busy}
+            skeletonCount={PAGE_SIZE}
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            emptyTitle="Nothing in your library yet"
+            emptyDescription={`Your OMSS server reports no ${type === "movie" ? "movies" : "TV shows"}. Add some to Radarr/Sonarr, or turn off "only show my library" in Settings.`}
+        />
     )
 }

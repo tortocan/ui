@@ -16,10 +16,8 @@ import type {
 import { useTmdb } from "@/hooks/use-tmdb"
 import { useAppSettings } from "@/hooks/use-appsettings.ts"
 import { useMediaDrawer } from "@/components/media/drawer/hooks/useMediaDrawer"
-import { MediaCard } from "@/components/media/MediaRail/MediaCard.tsx"
+import { MediaGrid } from "@/components/media/MediaGrid.tsx"
 import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton.tsx"
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx"
 import { Combobox, ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList } from "@/components/ui/combobox"
 
@@ -389,55 +387,26 @@ export default function Discover() {
                 </div>
             </div>
 
-            {isLoading ? (
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7">
-                    {Array.from({ length: 21 }).map((_, i) => (
-                        <Skeleton key={i} className="aspect-2/3 w-full" />
-                    ))}
-                </div>
-            ) : results.length === 0 ? (
-                <Empty>
-                    <EmptyHeader>
-                        <EmptyTitle>No results</EmptyTitle>
-                        <EmptyDescription>Try widening your filters.</EmptyDescription>
-                    </EmptyHeader>
-                </Empty>
-            ) : (
-                <>
-                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7">
-                        {results.map((item) => {
-                            const isMovie = item.media_kind === "movie"
-                            const title = isMovie ? (item as MovieResultItem).title : (item as DiscoverTVResultItem).name
-                            const date = isMovie ? (item as MovieResultItem).release_date : (item as DiscoverTVResultItem).first_air_date
-
-                            return (
-                                <MediaCard
-                                    key={item.id}
-                                    title={title}
-                                    imagePath={item.poster_path}
-                                    imageAlt={title}
-                                    id={item.id}
-                                    type={item.media_kind}
-                                    year={date ? new Date(date).getFullYear() : 0}
-                                    rating={item.vote_average}
-                                />
-                            )
-                        })}
-                    </div>
-
-                    <div className="flex items-center justify-center gap-4 pt-4">
-                        <Button variant="outline" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
-                            Previous
-                        </Button>
-                        <span className="text-sm text-muted-foreground">
-                            Page {page} of {totalPages}
-                        </span>
-                        <Button variant="outline" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
-                            Next
-                        </Button>
-                    </div>
-                </>
-            )}
+            {/* Results use the same MediaGrid component as the "Your Movies/TV" library view. */}
+            <MediaGrid
+                cards={results.map((item) => {
+                    const isMovie = item.media_kind === "movie"
+                    const date = isMovie ? (item as MovieResultItem).release_date : (item as DiscoverTVResultItem).first_air_date
+                    return {
+                        id: item.id,
+                        type: item.media_kind,
+                        title: isMovie ? (item as MovieResultItem).title : (item as DiscoverTVResultItem).name,
+                        poster: item.poster_path,
+                        year: date ? new Date(date).getFullYear() : 0,
+                        rating: item.vote_average,
+                    }
+                })}
+                loading={isLoading}
+                page={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+                emptyDescription="Try widening your filters."
+            />
         </div>
     )
 }
