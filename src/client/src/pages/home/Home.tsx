@@ -23,11 +23,11 @@ export function HomePage() {
             <section className="relative z-10 -mt-[8vh] flex flex-col gap-8 p-8 md:-mt-[10vh]">
                 <ContinueWatchingRail />
 
-                <MovieRail title="Popular Movies" fetcher={fetchPopularMovies} />
+                <MovieRail title="Popular Movies" fetcher={fetchPopularMovies} seeMoreHref="/discover?type=movie&sort=popularity" />
 
-                <TvRail title="Trending TV Shows" fetcher={fetchTrendingTv} />
+                <TvRail title="Trending TV Shows" fetcher={fetchTrendingTv} seeMoreHref="/discover?type=tv&sort=popularity" />
 
-                <MovieRail title="Top Rated Movies" fetcher={fetchTopRatedMovies} />
+                <MovieRail title="Top Rated Movies" fetcher={fetchTopRatedMovies} seeMoreHref="/discover?type=movie&sort=rating" />
             </section>
         </div>
     )
