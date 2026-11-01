@@ -11,6 +11,7 @@ import { useSubtitles } from "@/components/player/hooks/useSubtitles.ts"
 import { useAudioTracks } from "@/components/player/hooks/useAudioTracks.ts"
 import { useScrobble } from "@/components/player/hooks/useScrobble.ts"
 import { CustomSubtitles } from "@/components/player/CustomSubtitles"
+import { useSeekPreviewVideo } from "./hooks/useSeekPreviewVideo"
 
 export function MediaPlayer() {
     const videoRef = useRef<HTMLVideoElement>(null)
@@ -60,10 +61,15 @@ export function MediaPlayer() {
     >([])
 
     const [currentQuality, setCurrentQuality] = useState(-1)
+    const [buffered, setBuffered] = useState(0)
+    const scrubbingRef = useRef(false) // a scrub is in flight — freeze the controls-autohide timer
 
     const controlsTimeoutRef = useRef<number | null>(null)
 
     const selectedSource = media?.playback.selectedSource
+
+    // Seek-preview frame engine (a 2nd hidden <video> seeked to the scrub time; shown in the tile).
+    const { attach: previewAttach, seekTo: previewSeekTo, status: previewStatus } = useSeekPreviewVideo(selectedSource)
 
     // Initialize HLS or Native Video
     useEffect(() => {
@@ -193,8 +199,11 @@ export function MediaPlayer() {
     }, [])
 
     const handleTimeUpdate = () => {
-        if (videoRef.current) {
-            setCurrentTime(videoRef.current.currentTime)
+        const video = videoRef.current
+        if (video) {
+            setCurrentTime(video.currentTime)
+            const b = video.buffered
+            if (b.length) setBuffered(b.end(b.length - 1))
         }
     }
 
@@ -215,7 +224,20 @@ export function MediaPlayer() {
     const handleMouseMove = () => {
         setShowControls(true)
         if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current)
+        if (scrubbingRef.current) return // don't re-arm the autohide while a scrub is in flight
         controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 3000)
+    }
+
+    // A scrub pauses the controls-autohide (touch drags emit no mousemove, so the timer must be frozen).
+    const handleScrubbingChange = (active: boolean) => {
+        scrubbingRef.current = active
+        if (active) {
+            setShowControls(true)
+            if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current)
+        } else {
+            if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current)
+            controlsTimeoutRef.current = window.setTimeout(() => setShowControls(false), 3000)
+        }
     }
 
     // Drive play()/pause() DIRECTLY from the click so it runs inside the user-gesture activation.
@@ -345,11 +367,16 @@ export function MediaPlayer() {
                 currentTime={currentTime}
                 onDivClick={togglePlay}
                 duration={duration}
+                buffered={buffered}
                 volume={volume}
                 isMuted={isMuted}
                 isFullscreen={isFullscreen}
                 onTogglePlay={togglePlay}
                 onSeek={handleSeek}
+                previewAttach={previewAttach}
+                onPreviewTime={previewSeekTo}
+                previewStatus={previewStatus}
+                onScrubbingChange={handleScrubbingChange}
                 onToggleMute={toggleMute}
                 onVolumeChange={handleVolumeChange}
                 onToggleFullscreen={toggleFullscreen}

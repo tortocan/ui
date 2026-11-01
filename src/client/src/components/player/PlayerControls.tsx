@@ -6,16 +6,24 @@ import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { formatTime } from "./utils/time"
 import { PlayerSettings } from "./PlayerSettings"
+import { SeekBar } from "./SeekBar"
+import type { PreviewStatus } from "./hooks/useSeekPreviewVideo"
 
 interface PlayerControlsProps {
     isPlaying: boolean
     currentTime: number
     duration: number
+    buffered?: number
     volume: number
     isMuted: boolean
     isFullscreen: boolean
     onTogglePlay: () => void
     onSeek: (time: number[]) => void
+    // Seek-preview tile (frame + pull-up precise seeking) on the scrubber.
+    previewAttach: (el: HTMLDivElement | null) => void
+    onPreviewTime: (time: number) => void
+    previewStatus: PreviewStatus
+    onScrubbingChange?: (active: boolean) => void
     onToggleMute: () => void
     onVolumeChange: (volume: number[]) => void
     onToggleFullscreen: () => void
@@ -43,11 +51,16 @@ export function PlayerControls({
     isPlaying,
     currentTime,
     duration,
+    buffered,
     volume,
     isMuted,
     isFullscreen,
     onTogglePlay,
     onSeek,
+    previewAttach,
+    onPreviewTime,
+    previewStatus,
+    onScrubbingChange,
     onToggleMute,
     onVolumeChange,
     onToggleFullscreen,
@@ -120,10 +133,17 @@ export function PlayerControls({
             onWheel={onWheel}
         >
             <div className="mx-auto w-full space-y-2" onClick={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
-                {/* Progress Bar */}
-                <div className="group relative py-2">
-                    <Slider value={[currentTime]} max={duration} step={1} onValueChange={onSeek} className="cursor-pointer" />
-                </div>
+                {/* Progress Bar — custom SeekBar with a frame-preview tile + pull-up precise seeking. */}
+                <SeekBar
+                    currentTime={currentTime}
+                    duration={duration}
+                    buffered={buffered}
+                    onSeek={onSeek}
+                    previewAttach={previewAttach}
+                    onPreviewTime={onPreviewTime}
+                    previewStatus={previewStatus}
+                    onScrubbingChange={onScrubbingChange}
+                />
 
                 <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-2">
