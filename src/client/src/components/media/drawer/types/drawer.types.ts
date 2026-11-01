@@ -1,5 +1,5 @@
 export interface MediaDrawerPayload {
-    type: "movie" | "tv"
+    type: "movie" | "tv" | "collection"
     id: number
 }
 

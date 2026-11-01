@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react"
 import type { CountryISO3166_1 } from "@lorenzopant/tmdb"
 import { useTmdb } from "@/hooks/use-tmdb"
 import { useAppSettings } from "@/hooks/use-appsettings.ts"
-import { useOmss } from "@/hooks/use-omss"
 import { useMediaDrawer } from "@/components/media/drawer/hooks/useMediaDrawer"
 import { MediaGrid, type GridCard } from "@/components/media/MediaGrid.tsx"
 import { MediaFilters, type SortKey } from "@/components/media/filters/MediaFilters.tsx"
@@ -41,7 +40,6 @@ async function inChunks<T, R>(items: T[], size: number, fn: (item: T) => Promise
 export function LibraryBrowser({ ids, type, externalLoading = false, heading }: { ids: number[]; type: "movie" | "tv"; externalLoading?: boolean; heading?: string }) {
     const tmdb = useTmdb()
     const { region } = useAppSettings()
-    const { client, valid } = useOmss()
     const { open } = useMediaDrawer()
     const { genres } = useFilterOptions(tmdb, type)
 
@@ -194,27 +192,6 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
         return [...map.values()].filter((g) => g.movies.length >= 2).sort((a, b) => b.movies.length - a.movies.length)
     }, [filtered, type])
 
-    // Continue the franchise: open the first in-progress movie, else the earliest unwatched, else the
-    // first — resolved from the scrobbler (chronological order). Opens the resume-aware drawer.
-    async function openCollection(movies: LibTitle[]) {
-        const ordered = [...movies].sort((a, b) => a.year - b.year)
-        if (valid) {
-            try {
-                const states = await Promise.all(ordered.map((m) => client.getScrobbleFor({ mediaType: "movie", tmdbId: m.id }).catch(() => null)))
-                const inProgress = ordered.find((_, i) => {
-                    const s = states[i]
-                    return s && s.progress > 2 && s.progress < 95
-                })
-                if (inProgress) return open({ type: "movie", id: inProgress.id })
-                const unwatched = ordered.find((_, i) => !states[i]?.watched)
-                if (unwatched) return open({ type: "movie", id: unwatched.id })
-            } catch {
-                // fall through to the first movie
-            }
-        }
-        open({ type: "movie", id: ordered[0].id })
-    }
-
     const toggle = (setter: (fn: (p: number[]) => number[]) => void) => (id: number) => {
         setter((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
         setVisibleCount(PAGE_SIZE)
@@ -261,7 +238,7 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
                     getKey={(c) => c.col.id}
                     itemClassName="basis-4/5 pl-2 sm:basis-1/2 md:basis-1/3 md:pl-4 lg:basis-1/4 last:mr-4 md:last:mr-6"
                     contentClassName="-ml-2 md:-ml-4"
-                    renderItem={(c) => <CollectionCard name={c.col.name} backdrop={c.col.backdrop} count={c.movies.length} providerId={[...c.movies].sort((a, b) => b.year - a.year)[0]?.id} onClick={() => void openCollection(c.movies)} />}
+                    renderItem={(c) => <CollectionCard name={c.col.name} backdrop={c.col.backdrop} count={c.movies.length} providerId={[...c.movies].sort((a, b) => b.year - a.year)[0]?.id} onClick={() => open({ type: "collection", id: c.col.id })} />}
                 />
             )}
 

@@ -14,7 +14,7 @@ function deserializeMedia(value: string): MediaDrawerPayload | null {
     const [type, id] = value.split("-")
 
     if (!type || !id) return null
-    if (type !== "movie" && type !== "tv") return null
+    if (type !== "movie" && type !== "tv" && type !== "collection") return null
 
     return {
         type,

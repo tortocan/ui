@@ -5,12 +5,22 @@ import { useMediaDrawer } from "@/components/media/drawer/hooks/useMediaDrawer"
 // recommendations/trailer UI, none of which is needed until a card is opened. Loading it
 // lazily keeps that weight out of the bundle every other route pays for.
 const MediaDrawer = lazy(() => import("@/components/media/drawer/MediaDrawer").then((m) => ({ default: m.MediaDrawer })))
+const CollectionDrawer = lazy(() => import("@/components/media/drawer/CollectionDrawer").then((m) => ({ default: m.CollectionDrawer })))
 
 export const MediaDrawerRoot: React.FC = () => {
     const { stack } = useMediaDrawer()
 
     const top = stack[stack.length - 1]
     if (!top) return null
+
+    // A collection (movie franchise) gets its own detail view; movies/TV use the media drawer.
+    if (top.type === "collection") {
+        return (
+            <Suspense fallback={null}>
+                <CollectionDrawer key={`collection-${top.id}-${stack.length}`} id={top.id} canGoBack={stack.length > 1} isOpen={true} />
+            </Suspense>
+        )
+    }
 
     // Performance reason: mounting every stacked entry kept every previous drawer's vaul
     // overlay, scroll-lock and useMediaDetails fetch alive underneath the new one, so each
