@@ -20,62 +20,30 @@ const QUALITY_LABELS: Record<string, string> = {
 }
 const qualityLabel = (level: string) => QUALITY_LABELS[level] ?? level
 
-/** A caption track as YouTube's captions module reports it (we only need these two fields). */
 /**
- * A caption track, normalized from YouTube's captions-module tracklist.
- * `vssId` is YouTube's unique per-track id (".en" manual, "a.en" auto-generated) — the ONLY field
- * that distinguishes tracks sharing a languageCode/displayName. `raw` is the original tracklist entry,
- * passed back verbatim to setOption('captions','track', …) (the only robust way to select a specific
- * track; {languageCode} ambiguously picks one when several share a language).
+ * A caption LANGUAGE for the menu. On a controls:0 youtube-nocookie player the captions-MODULE
+ * track API (setOption/getOption 'captions','track') is inert — it never shows or switches captions.
+ * The reliable lever is the `cc_load_policy` + `cc_lang_pref` player vars, which address a LANGUAGE,
+ * so the menu is one entry per language (not per raw track).
  */
-interface CaptionTrack {
-    key: string // dedupe/identity key: vssId, or a composite fallback when vssId is empty
-    vssId: string
+interface CaptionLang {
+    code: string // languageCode → cc_lang_pref value (e.g. "en", "en-US")
     label: string
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    raw: any
-}
-
-// Stable identity for a caption track: vss_id when present (".en"/"a.en"), else a composite so distinct
-// empty-vss_id tracks don't collapse. ONE identity used everywhere (list key, selection, poll read-back).
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function trackKey(t: any): string {
-    const vssId = typeof t?.vss_id === "string" ? t.vss_id : ""
-    const name = (t?.name ?? t?.trackName ?? "").toString().trim()
-    return vssId || `${t?.kind ?? ""}|${t?.languageCode ?? ""}|${name}`
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function normalizeCaptionTracks(raw: any[]): CaptionTrack[] {
+function normalizeCaptionLangs(raw: any[]): CaptionLang[] {
     const seen = new Set<string>()
-    const out: CaptionTrack[] = []
+    const out: CaptionLang[] = []
     for (const t of raw) {
         if (!t || t.is_servable === false) continue
-        const vssId = typeof t.vss_id === "string" ? t.vss_id : ""
-        const name = (t.name ?? t.trackName ?? "").toString().trim()
-        const key = trackKey(t)
-        if (seen.has(key)) continue // YouTube can repeat entries; keep one per identity
-        seen.add(key)
-        const base = (t.displayName || t.languageName || t.languageCode || "Unknown").toString()
-        const isAsr = t.kind === "asr" || vssId.startsWith("a.")
-        let label = base
-        if (name && !base.includes(name)) label = `${label} — ${name}`
-        if (isAsr) label = `${label} (auto-generated)`
-        out.push({ key, vssId, label, raw: t })
+        const code = (t.languageCode ?? "").toString().trim()
+        if (!code || seen.has(code)) continue // one entry per language (cc_lang_pref can't target a specific track)
+        seen.add(code)
+        const label = (t.languageName || t.displayName || code).toString()
+        out.push({ code, label })
     }
-    // Break any labels that are STILL identical (e.g. two manual same-language tracks) with a counter.
-    const counts = new Map<string, number>()
-    for (const o of out) counts.set(o.label, (counts.get(o.label) ?? 0) + 1)
-    const used = new Map<string, number>()
-    for (const o of out) {
-        if ((counts.get(o.label) ?? 0) > 1) {
-            const n = (used.get(o.label) ?? 0) + 1
-            used.set(o.label, n)
-            o.label = `${o.label} (${n})`
-        }
-    }
-    // Default track first.
-    out.sort((a, b) => (b.raw?.is_default ? 1 : 0) - (a.raw?.is_default ? 1 : 0))
+    out.sort((a, b) => a.label.localeCompare(b.label))
     return out
 }
 
@@ -141,6 +109,15 @@ interface TrailerDialogProps {
     tmdbId?: number
 }
 
+/** How a player instance should be (re)built — captured so caption switching can recreate it verbatim. */
+interface BuildOpts {
+    ccLang: string | null // cc_lang_pref (null = captions off)
+    startSeconds: number
+    play: boolean
+    muted: boolean
+    vol: number
+}
+
 export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, mediaType, tmdbId }) => {
     const [active, setActive] = useState(false)
     const [followed, setFollowed] = useState(false)
@@ -155,16 +132,20 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
     const [settingsTab, setSettingsTab] = useState<"quality" | "subtitles">("quality")
     const [levels, setLevels] = useState<string[]>([]) // available quality tokens (minus "auto")
     const [quality, setQuality] = useState("auto") // current playback quality token
-    const [tracks, setTracks] = useState<CaptionTrack[]>([]) // available caption tracks
-    const [track, setTrack] = useState<string | null>(null) // selected caption identity key, or null = off
-    const [vol, setVol] = useState(100) // player volume 0–100
-    const tracksSigRef = useRef("") // last caption-list signature, to skip redundant 4×/sec setTracks
+    const [tracks, setTracks] = useState<CaptionLang[]>([]) // available caption languages
+    const [capLang, setCapLang] = useState<string | null>(null) // selected caption language, or null = off
 
     const stageRef = useRef<HTMLDivElement>(null) // the fullscreen target / full-viewport overlay
     const hostRef = useRef<HTMLDivElement>(null) // YT replaces an imperative child of this with its iframe
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const playerRef = useRef<any>(null)
+    const pollRef = useRef(0) // the state-poll interval id (cleared across recreate + on teardown)
+    const curTimeRef = useRef(0) // latest position, so a caption-switch recreate resumes seamlessly
+    const capLangRef = useRef<string | null>(null) // mirror of capLang for the (re)build closure
+    const qualityPrefRef = useRef<string | null>(null) // user-chosen quality, re-applied across recreates
     const qualitySetRef = useRef(false)
+    const draggingRef = useRef(false) // a slider (seek/volume) is being dragged — don't let the poll fight it
+    const [vol, setVol] = useState(100) // player volume 0–100
     const { client, valid } = useOmss()
 
     useEffect(() => {
@@ -211,7 +192,9 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
 
     // Pick a quality level. "auto" lets YouTube adapt ("default" token); otherwise nudge to that level
     // (setPlaybackQuality is deprecated but still the only lever; YT may still adapt down to bandwidth).
+    // Remembered in qualityPrefRef so it survives the caption-switch recreate below.
     const selectQuality = useCallback((level: string) => {
+        qualityPrefRef.current = level === "auto" ? null : level
         const p = playerRef.current
         try {
             p?.setPlaybackQuality?.(level === "auto" ? "default" : level)
@@ -221,18 +204,176 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
         setQuality(level)
     }, [])
 
-    // Pick a caption track (null = off), via the captions module. Pass the FULL tracklist entry back —
-    // {languageCode} is ambiguous when several tracks share a language, which is why selection didn't
-    // stick. An empty object turns captions off. The 250ms poll re-reads getOption to confirm.
-    const selectCaption = useCallback((t: CaptionTrack | null) => {
-        const p = playerRef.current
+    // Read the caption tracklist (only valid after onApiChange) and populate the menu; retry a few times
+    // because the list can lag the module load. identity/selection is by LANGUAGE (cc_lang_pref), see above.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const readTracks = useCallback((target: any, tries: number) => {
+        if (target !== playerRef.current) return // player was replaced/destroyed — abandon this retry chain
         try {
-            p?.setOption?.("captions", "track", t ? t.raw : {})
+            target.loadModule?.("captions")
+            const tl = target.getOption?.("captions", "tracklist")
+            if (Array.isArray(tl) && tl.length) {
+                setTracks(normalizeCaptionLangs(tl))
+                return
+            }
         } catch {
-            /* module may not be ready yet */
+            /* module not ready */
         }
-        setTrack(t ? t.key : null)
+        if (tries > 0) window.setTimeout(() => readTracks(target, tries - 1), 700)
     }, [])
+
+    // (Re)build the YouTube player. The captions-module track API is inert on our controls:0 nocookie
+    // embed, so captions are driven by the cc_load_policy/cc_lang_pref player vars — which are only read
+    // at construction. Switching caption language therefore recreates the player, resuming at startSeconds.
+    const buildPlayer = useCallback(
+        (opts: BuildOpts) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const YT = (window as any).YT
+            const host = hostRef.current
+            if (!YT?.Player || !host) return
+
+            // Tear down any existing player + poll first (recreate path).
+            if (pollRef.current) {
+                window.clearInterval(pollRef.current)
+                pollRef.current = 0
+            }
+            try {
+                playerRef.current?.destroy?.()
+            } catch {
+                /* already gone */
+            }
+            playerRef.current = null
+            host.innerHTML = ""
+            qualitySetRef.current = false
+
+            // Give YT an imperative child (NOT a React-managed node) so unmount never collides with YT's DOM surgery.
+            const mount = document.createElement("div")
+            mount.style.width = "100%"
+            mount.style.height = "100%"
+            host.appendChild(mount)
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const playerVars: any = {
+                autoplay: opts.play ? 1 : 0,
+                controls: 0, // hidden — we render our own control bar + full-area gesture/tap layer
+                disablekb: 1,
+                modestbranding: 1,
+                rel: 0,
+                iv_load_policy: 3,
+                playsinline: 1,
+                fs: 0,
+                vq: "hd1080", // hint YouTube to start at HD (it still auto-adapts down to bandwidth)
+                origin: window.location.origin,
+            }
+            if (opts.startSeconds > 0) playerVars.start = Math.floor(opts.startSeconds)
+            // cc_load_policy:1 forces the caption overlay ON (independent of the control bar, so it shows
+            // with controls:0); cc_lang_pref selects the language. Omitted → captions off.
+            if (opts.ccLang) {
+                playerVars.cc_load_policy = 1
+                playerVars.cc_lang_pref = opts.ccLang
+            }
+
+            playerRef.current = new YT.Player(mount, {
+                host: "https://www.youtube-nocookie.com",
+                width: "100%",
+                height: "100%",
+                videoId: trailerId ?? undefined,
+                playerVars,
+                events: {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    onReady: (e: any) => {
+                        if (e.target !== playerRef.current) return // superseded by a newer build — don't start a poll or touch state
+                        if (!trailerId) e.target.loadPlaylist({ listType: "search", list: `${title} trailer`, index: 0 })
+                        if (opts.muted) e.target.mute()
+                        if (typeof opts.vol === "number") e.target.setVolume(opts.vol)
+                        if (opts.play) e.target.playVideo()
+                        readTracks(e.target, 6)
+                        // Autoplay fallback: if sound-autoplay is blocked, mute and retry so it still plays.
+                        window.setTimeout(() => {
+                            try {
+                                const s = e.target.getPlayerState?.()
+                                if (opts.play && s !== 1 && s !== 3) {
+                                    e.target.mute()
+                                    e.target.playVideo()
+                                }
+                            } catch {
+                                /* ignore */
+                            }
+                        }, 1200)
+                        // Poll PLAYBACK state only (time/duration/state/mute/volume/quality). We do NOT read the
+                        // captions module here — its track getter is inert on this build and only clobbers state.
+                        pollRef.current = window.setInterval(() => {
+                            const p = playerRef.current
+                            if (!p?.getDuration) return
+                            try {
+                                const d = p.getDuration() || 0
+                                const c = p.getCurrentTime() || 0
+                                curTimeRef.current = c
+                                setDur(d)
+                                setPlaying(p.getPlayerState?.() === 1)
+                                setMuted(!!p.isMuted?.())
+                                // Don't fight an in-progress seek/volume drag (both write these same states).
+                                if (!draggingRef.current) {
+                                    setCur(c)
+                                    setVol(p.getVolume?.() ?? 100) // underlying level; the slider shows 0 when muted via value=
+                                }
+                                // Available levels for the menu. We do NOT mirror getPlaybackQuality() into `quality`
+                                // — that returns the live/adapted resolution (never "auto"), which would clobber the
+                                // user's chosen preference. `quality` is set only by selectQuality (see the menu).
+                                const avail: string[] = p.getAvailableQualityLevels?.() ?? []
+                                setLevels(avail.filter((l) => l !== "auto"))
+                            } catch {
+                                /* ignore */
+                            }
+                        }, 250)
+                    },
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    onApiChange: (e: any) => {
+                        // Captions-module metadata is only valid after this event — read the tracklist here.
+                        readTracks(e.target, 6)
+                    },
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    onStateChange: (e: any) => {
+                        setPlaying(e.data === 1)
+                        // On first play, apply the chosen quality (or nudge to the highest; auto still adapts down).
+                        if (e.data === 1 && !qualitySetRef.current) {
+                            qualitySetRef.current = true
+                            try {
+                                if (qualityPrefRef.current) {
+                                    e.target.setPlaybackQuality?.(qualityPrefRef.current)
+                                } else {
+                                    const ls: string[] = e.target.getAvailableQualityLevels?.() ?? []
+                                    const best = ls.find((l) => l !== "auto")
+                                    if (best) e.target.setPlaybackQuality?.(best)
+                                }
+                            } catch {
+                                /* deprecated API — best-effort only */
+                            }
+                        }
+                        if (e.data === YT.PlayerState.ENDED) close()
+                    },
+                },
+            })
+        },
+        [trailerId, title, close, readTracks]
+    )
+
+    // Pick a caption language (null = off). The module track API doesn't work with controls:0, so we
+    // recreate the player with cc_lang_pref set to this language and resume at the current time. The
+    // selection is AUTHORITATIVE (capLang state) — nothing reads it back from the player to overwrite it.
+    const selectCaption = useCallback(
+        (code: string | null) => {
+            setCapLang(code)
+            capLangRef.current = code
+            const p = playerRef.current
+            const start = p?.getCurrentTime?.() ?? curTimeRef.current ?? 0
+            const wasMuted = !!p?.isMuted?.()
+            const curVol = p?.getVolume?.() ?? 100
+            const play = p?.getPlayerState?.() !== 2 // keep playing unless currently paused
+            buildPlayer({ ccLang: code, startSeconds: start, play, muted: wasMuted, vol: curVol })
+        },
+        [buildPlayer]
+    )
 
     // Volume slider (0–100). A non-zero level unmutes + applies it; zero MUTES but preserves the
     // underlying level (so the mute button later restores sound) rather than driving volume to 0.
@@ -319,11 +460,11 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
         }
     }, [])
 
-    // Build the player whenever we go active; poll its state for the custom controls; tear it down on close.
+    // Build the player whenever we go active; tear it down on close. Caption switching recreates it via
+    // buildPlayer (outside this effect); this effect owns the initial build + listeners + teardown.
     useEffect(() => {
         if (!active) return
         let killed = false
-        qualitySetRef.current = false
 
         const onKey = (e: KeyboardEvent) => {
             if (e.key === "Escape") close()
@@ -333,127 +474,17 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
         document.addEventListener("fullscreenchange", onFsChange)
         document.addEventListener("webkitfullscreenchange", onFsChange)
 
-        let poll = 0
         void loadYouTubeApi().then(() => {
-            if (killed || !hostRef.current) return
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const YT = (window as any).YT
-            // Give YT an imperative child (NOT a React-managed node) so unmount never collides with YT's DOM surgery.
-            const mount = document.createElement("div")
-            mount.style.width = "100%"
-            mount.style.height = "100%"
-            hostRef.current.appendChild(mount)
-
-            playerRef.current = new YT.Player(mount, {
-                host: "https://www.youtube-nocookie.com",
-                width: "100%",
-                height: "100%",
-                videoId: trailerId ?? undefined,
-                playerVars: {
-                    autoplay: 1,
-                    controls: 0, // hidden — we render our own control bar + full-area gesture/tap layer
-                    disablekb: 1,
-                    modestbranding: 1,
-                    rel: 0,
-                    iv_load_policy: 3,
-                    playsinline: 1,
-                    fs: 0,
-                    vq: "hd1080", // hint YouTube to start at HD (it still auto-adapts down to bandwidth)
-                    origin: window.location.origin,
-                },
-                events: {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    onReady: (e: any) => {
-                        if (!trailerId) e.target.loadPlaylist({ listType: "search", list: `${title} trailer`, index: 0 })
-                        e.target.playVideo()
-                        // Load the captions module so getOption('captions','tracklist') is populated.
-                        try {
-                            e.target.loadModule?.("captions")
-                        } catch {
-                            /* no captions for this video */
-                        }
-                        // Autoplay fallback: if sound-autoplay is blocked, mute and retry so it still plays.
-                        window.setTimeout(() => {
-                            try {
-                                const s = e.target.getPlayerState?.()
-                                if (s !== 1 && s !== 3) {
-                                    e.target.mute()
-                                    e.target.playVideo()
-                                }
-                            } catch {
-                                /* ignore */
-                            }
-                        }, 1200)
-                        // Poll playback state for the custom controls.
-                        poll = window.setInterval(() => {
-                            const p = playerRef.current
-                            if (!p?.getDuration) return
-                            try {
-                                setDur(p.getDuration() || 0)
-                                setCur(p.getCurrentTime() || 0)
-                                setPlaying(p.getPlayerState?.() === 1)
-                                setMuted(!!p.isMuted?.())
-                                setVol(p.getVolume?.() ?? 100) // underlying level; the slider shows 0 when muted via value=
-                                // Quality options (strip the trailing "auto" token — we offer our own Auto entry).
-                                const avail: string[] = p.getAvailableQualityLevels?.() ?? []
-                                setLevels(avail.filter((l) => l !== "auto"))
-                                setQuality(p.getPlaybackQuality?.() || "auto")
-                                // Caption tracks + the active one, in their OWN try: some player builds reject
-                                // the {includeAsr} 3rd arg (returns undefined / throws), which emptied the list.
-                                // Fall back to the plain call (what populated the list before) so subtitles never
-                                // vanish. identity is trackKey() (languageCode/displayName collide across variants).
-                                try {
-                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                    let tl = p.getOption?.("captions", "tracklist", { includeAsr: true }) as any[] | undefined
-                                    if (!Array.isArray(tl) || tl.length === 0) {
-                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                        const plain = p.getOption?.("captions", "tracklist") as any[] | undefined
-                                        if (Array.isArray(plain) && plain.length) tl = plain
-                                    }
-                                    if (Array.isArray(tl)) {
-                                        const norm = normalizeCaptionTracks(tl)
-                                        const sig = norm.map((t) => `${t.key}=${t.label}`).join("\n")
-                                        if (sig !== tracksSigRef.current) {
-                                            tracksSigRef.current = sig
-                                            setTracks(norm)
-                                        }
-                                    }
-                                    // Active track: {} / null / no identity fields → off. Otherwise its trackKey.
-                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                    const active = p.getOption?.("captions", "track") as any
-                                    const hasTrack = active && (active.vss_id || active.languageCode)
-                                    setTrack(hasTrack ? trackKey(active) : null)
-                                } catch {
-                                    /* captions module not ready / 3rd-arg unsupported on this build */
-                                }
-                            } catch {
-                                /* ignore */
-                            }
-                        }, 250)
-                    },
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    onStateChange: (e: any) => {
-                        setPlaying(e.data === 1)
-                        // On first play, nudge to the highest available level (auto still adapts down).
-                        if (e.data === 1 && !qualitySetRef.current) {
-                            qualitySetRef.current = true
-                            try {
-                                const levels: string[] = e.target.getAvailableQualityLevels?.() ?? []
-                                const best = levels.find((l) => l !== "auto")
-                                if (best) e.target.setPlaybackQuality?.(best)
-                            } catch {
-                                /* deprecated API — best-effort only */
-                            }
-                        }
-                        if (e.data === YT.PlayerState.ENDED) close()
-                    },
-                },
-            })
+            if (killed) return
+            buildPlayer({ ccLang: capLangRef.current, startSeconds: 0, play: true, muted: false, vol: 100 })
         })
 
         return () => {
             killed = true
-            if (poll) window.clearInterval(poll)
+            if (pollRef.current) {
+                window.clearInterval(pollRef.current)
+                pollRef.current = 0
+            }
             document.removeEventListener("keydown", onKey)
             document.removeEventListener("fullscreenchange", onFsChange)
             document.removeEventListener("webkitfullscreenchange", onFsChange)
@@ -470,12 +501,14 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
             setSettingsOpen(false)
             setLevels([])
             setTracks([])
-            setTrack(null)
+            setCapLang(null)
+            capLangRef.current = null
+            qualityPrefRef.current = null
             setQuality("auto")
             setVol(100)
-            tracksSigRef.current = ""
+            curTimeRef.current = 0
         }
-    }, [active, trailerId, title, close])
+    }, [active, trailerId, title, close, buildPlayer])
 
     return (
         <>
@@ -524,6 +557,9 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
                                 step="any"
                                 value={Math.min(cur, dur || 0)}
                                 onChange={onSeek}
+                                onPointerDown={() => (draggingRef.current = true)}
+                                onPointerUp={() => (draggingRef.current = false)}
+                                onPointerCancel={() => (draggingRef.current = false)}
                                 aria-label="Seek"
                                 className="h-1 flex-1 cursor-pointer accent-primary"
                             />
@@ -538,6 +574,9 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
                                 step={1}
                                 value={muted ? 0 : vol}
                                 onChange={onVolume}
+                                onPointerDown={() => (draggingRef.current = true)}
+                                onPointerUp={() => (draggingRef.current = false)}
+                                onPointerCancel={() => (draggingRef.current = false)}
                                 aria-label="Volume"
                                 className="h-1 w-16 cursor-pointer accent-primary sm:w-20"
                             />
@@ -585,19 +624,19 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
                                 <div className="max-h-64 overflow-y-auto p-1">
                                     {settingsTab === "quality" ? (
                                         <>
-                                            <SettingRow label="Auto" selected={quality === "auto" || !levels.includes(quality)} onClick={() => selectQuality("auto")} />
+                                            <SettingRow label="Auto" selected={quality === "auto"} onClick={() => selectQuality("auto")} />
                                             {levels.map((l) => (
                                                 <SettingRow key={l} label={qualityLabel(l)} selected={quality === l} onClick={() => selectQuality(l)} />
                                             ))}
                                         </>
                                     ) : (
                                         <>
-                                            <SettingRow label="Off" selected={track === null} onClick={() => selectCaption(null)} />
+                                            <SettingRow label="Off" selected={capLang === null} onClick={() => selectCaption(null)} />
                                             {tracks.length === 0 ? (
                                                 <div className="px-3 py-4 text-center text-xs text-white/50">No subtitles available</div>
                                             ) : (
-                                                tracks.map((tk) => (
-                                                    <SettingRow key={tk.key} label={tk.label} selected={track !== null && track === tk.key} onClick={() => selectCaption(tk)} />
+                                                tracks.map((t) => (
+                                                    <SettingRow key={t.code} label={t.label} selected={capLang === t.code} onClick={() => selectCaption(t.code)} />
                                                 ))
                                             )}
                                         </>
@@ -612,7 +651,7 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
     )
 }
 
-/** One selectable row in the settings menu (quality level or caption track). */
+/** One selectable row in the settings menu (quality level or caption language). */
 const SettingRow: React.FC<{ label: string; selected: boolean; onClick: () => void }> = ({ label, selected, onClick }) => (
     <button
         type="button"
