@@ -9,7 +9,7 @@ import { Rail } from "@/components/media/MediaRail/Rail.tsx"
 import { useTmdb } from "@/hooks/use-tmdb"
 import { useFilterOptions } from "@/components/media/filters/useFilterOptions.ts"
 import { useMediaDrawer } from "@/components/media/drawer/hooks/useMediaDrawer.ts"
-import { tmdbImage } from "@/lib/tmdb.utils"
+import { tmdbImage, yearOf } from "@/lib/tmdb.utils"
 import { RAIL_ITEM_CLASS, RAIL_CONTENT_CLASS } from "@/components/media/MediaRail/rail.constants"
 
 const img = tmdbImage
@@ -97,7 +97,7 @@ export function CollectionDrawer({ id, canGoBack, isOpen }: CollectionDrawerProp
                 type: "movie" as const,
                 title: p.title,
                 poster: img(p.poster_path, "w342"),
-                year: p.release_date ? Number(p.release_date.slice(0, 4)) : 0,
+                year: yearOf(p.release_date),
                 rating: p.vote_average ?? 0,
             })),
         [parts]

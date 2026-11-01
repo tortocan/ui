@@ -4,7 +4,7 @@ import { Rail } from "@/components/media/MediaRail/Rail.tsx"
 import { MediaCard } from "@/components/media/MediaRail/MediaCard.tsx"
 import { useTmdb } from "@/hooks/use-tmdb"
 import { useOmss } from "@/hooks/use-omss"
-import { tmdbImage } from "@/lib/tmdb.utils"
+import { tmdbImage, yearOf } from "@/lib/tmdb.utils"
 import { RAIL_ITEM_CLASS, RAIL_CONTENT_CLASS } from "@/components/media/MediaRail/rail.constants"
 
 const img = (path: string | null | undefined) => tmdbImage(path, "w342")
@@ -68,7 +68,7 @@ export function MediaCollection({ collectionId, name, currentId, language, provi
                         type: "movie" as const,
                         title: p.title,
                         poster: img(p.poster_path),
-                        year: p.release_date ? Number(p.release_date.slice(0, 4)) : 0,
+                        year: yearOf(p.release_date),
                         rating: p.vote_average ?? 0,
                         rank: i + 1, // position in chronological order (contiguous, no gaps/dupes on partial data)
                     }))

@@ -9,7 +9,7 @@ import { NETWORKS, STREAMING } from "@/components/media/filters/catalog.ts"
 import { useFilterOptions } from "@/components/media/filters/useFilterOptions.ts"
 import { Rail } from "@/components/media/MediaRail/Rail.tsx"
 import { CollectionCard } from "@/components/media/CollectionCard.tsx"
-import { tmdbImage } from "@/lib/tmdb.utils"
+import { tmdbImage, yearOf } from "@/lib/tmdb.utils"
 
 const PAGE_SIZE = 35
 const CHUNK = 20 // concurrent TMDB detail calls per batch
@@ -83,7 +83,7 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
                             type: "movie",
                             title: m.title,
                             poster: m.poster_path,
-                            year: m.release_date ? new Date(m.release_date).getFullYear() : 0,
+                            year: yearOf(m.release_date),
                             rating: m.vote_average,
                             popularity: m.popularity,
                             genreIds: (m.genres ?? []).map((g) => g.id),
@@ -98,7 +98,7 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
                         type: "tv",
                         title: s.name,
                         poster: s.poster_path,
-                        year: s.first_air_date ? new Date(s.first_air_date).getFullYear() : 0,
+                        year: yearOf(s.first_air_date),
                         rating: s.vote_average,
                         popularity: s.popularity,
                         genreIds: (s.genres ?? []).map((g) => g.id),

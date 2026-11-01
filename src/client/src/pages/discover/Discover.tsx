@@ -5,6 +5,7 @@ import { ShuffleIcon } from "lucide-react"
 import type { CountryISO3166_1, DiscoverMovieParams, DiscoverMovieSortBy, DiscoverTVParams, DiscoverTVSortBy, MovieResultItem, DiscoverTVResultItem } from "@lorenzopant/tmdb"
 import { useTmdb } from "@/hooks/use-tmdb"
 import { useAppSettings } from "@/hooks/use-appsettings.ts"
+import { yearOf } from "@/lib/tmdb.utils"
 import { useMediaDrawer } from "@/components/media/drawer/hooks/useMediaDrawer"
 import { BrowseLayout } from "@/components/media/BrowseLayout.tsx"
 import { MediaGrid } from "@/components/media/MediaGrid.tsx"
@@ -285,7 +286,7 @@ export default function Discover() {
                             type: item.media_kind,
                             title: isMovie ? (item as MovieResultItem).title : (item as DiscoverTVResultItem).name,
                             poster: item.poster_path,
-                            year: date ? new Date(date).getFullYear() : 0,
+                            year: yearOf(date),
                             rating: item.vote_average,
                         }
                     })}
