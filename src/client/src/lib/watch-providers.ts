@@ -21,6 +21,9 @@ export function fetchWatchProviders(tmdb: TMDB, type: "movie" | "tv", id: number
             const sort = (xs?: WatchProvider[]) => [...(xs ?? [])].sort((a, b) => (a.display_priority ?? 999) - (b.display_priority ?? 999))
             return { flatrate: sort(rd?.flatrate), rent: sort(rd?.rent), buy: sort(rd?.buy) }
         } catch {
+            // Don't cache a transient failure (proxy blip / rate-limit) — otherwise this title shows no
+            // provider for the rest of the session. Evict so the next mount retries (mirrors use-omss-home).
+            cache.delete(key)
             return EMPTY
         }
     })()

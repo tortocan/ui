@@ -56,16 +56,20 @@ function fetchOmssHome(client: OmssClient, baseUrl: string): Promise<OmssHomeDat
  * of (or instead of) the TMDB streaming provider. Returns empties until loaded / when OMSS is down.
  */
 export function useOmssHome(): OmssHomeData & { ready: boolean } {
-    const { client, valid, baseUrl } = useOmss()
+    const { client, baseUrl } = useOmss()
     const [data, setData] = useState<OmssHomeData>(EMPTY)
-    // `ready` = ownership is known (home loaded, or OMSS is down). Consumers that fall back to TMDB wait
-    // for it so they don't fire a TMDB lookup — or flash a TMDB logo — before learning the title is local.
+    // `ready` = ownership is known (home loaded, or no OMSS configured). Consumers that fall back to TMDB
+    // wait for it so they don't fire a TMDB lookup — or flash a TMDB logo — before learning the title is local.
     const [ready, setReady] = useState(false)
 
     useEffect(() => {
-        if (!valid) {
+        // Only short-circuit when NO OMSS is configured. When a baseUrl is set, probe directly via
+        // fetchOmssHome (its own getHealthStatus) instead of waiting for the provider's `valid`, which
+        // lags a round-trip on cold load — that lag flashed the TMDB logo + fired a wasted TMDB lookup
+        // for every owned title before ownership was known.
+        if (!baseUrl) {
             setData(EMPTY)
-            setReady(true) // OMSS down → nothing local; let the TMDB fallback proceed immediately
+            setReady(true)
             return
         }
         let cancelled = false
@@ -79,7 +83,7 @@ export function useOmssHome(): OmssHomeData & { ready: boolean } {
         return () => {
             cancelled = true
         }
-    }, [client, valid, baseUrl])
+    }, [client, baseUrl])
 
     return { ...data, ready }
 }
