@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
+import type { ComponentType, ReactNode } from "react"
 import type { Genre, TMDB, TrendingParams } from "@lorenzopant/tmdb"
+import type { HeroFetcherResult } from "@/components/media/HeroCarousel/types"
 import { useTmdb } from "@/hooks/use-tmdb"
 import { BrowseLayout } from "@/components/media/BrowseLayout.tsx"
 import { MovieRail, TvRail } from "@/components/media/MediaRail/TypedRails.tsx"
@@ -90,7 +92,7 @@ export default function BrowsePage({ kind }: { kind: BrowseKind }) {
 
     // Performance reason: stable fetcher identities so switching the trending range or genre doesn't
     // re-trigger network fetches for the unrelated rails below.
-    const fetchHero = useCallback(() => cfg.hero(tmdb), [tmdb, cfg])
+    const fetchHero = useCallback(() => cfg.hero(tmdb), [tmdb, cfg]) as HeroFetcherResult
     const fetchTrending = useCallback(() => cfg.trending(tmdb, trendingRange), [tmdb, cfg, trendingRange])
     const fetchByGenre = useCallback(() => cfg.byGenre(tmdb, selectedGenre?.id), [tmdb, cfg, selectedGenre])
     const fetchPopular = useCallback(() => cfg.popular(tmdb), [tmdb, cfg])
@@ -98,7 +100,9 @@ export default function BrowsePage({ kind }: { kind: BrowseKind }) {
 
     // Discover deep links: always carry the media type, plus the rail's own category (genre or sort).
     const discover = (q: string) => `/discover?type=${kind}&${q}`
-    const Rail = cfg.Rail
+    // cfg.Rail is MovieRail|TvRail; the KIND config deliberately erases the movie/tv fetcher union to
+    // Promise<unknown> (the kind always matches its Rail at runtime). Present it with a loose fetcher type.
+    const Rail = cfg.Rail as unknown as ComponentType<{ title: ReactNode; fetcher: () => Promise<unknown>; seeMoreHref: string }>
 
     // Library mode: show only the titles the OMSS server has (gatearr's /v1 media), not all of TMDB.
     // Same hero carousel on top as the full view (autoplay unchanged); just the grid below instead of rails.

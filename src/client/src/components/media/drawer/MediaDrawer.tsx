@@ -45,7 +45,8 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
     const preferAppliedRef = useRef(false)
     // The original-language code is known from the first (profile-language) fetch; feed it back when toggled.
     const [originalLang, setOriginalLang] = useState<string | null>(null)
-    const { data, isLoading } = useMediaDetails(payload.type, payload.id, showOriginal && originalLang ? tmdbLanguageFor(originalLang) : undefined)
+    // MediaDrawerRoot routes collections to CollectionDrawer, so payload.type is always movie|tv here.
+    const { data, isLoading } = useMediaDetails(payload.type as "movie" | "tv", payload.id, showOriginal && originalLang ? tmdbLanguageFor(originalLang) : undefined)
     const { closeAll, close } = useMediaDrawer()
 
     const navigate = useNavigate()

@@ -59,7 +59,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
         () => ({
             ...DEFAULT_TMDB_OPTIONS,
             // TMDB wants the full primary translation (e.g. "en-US", "zh-CN"); map it from the locale.
-            language: tmdbLanguageFor(locale),
+            language: tmdbLanguageFor(locale) as TMDBOptions["language"],
             region,
         }),
         [locale, region]

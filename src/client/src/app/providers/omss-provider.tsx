@@ -39,7 +39,7 @@ export function OmssProvider({ children }: { children: React.ReactNode }) {
             // Tag every OMSS call with the active profile so gatearr scopes scrobble/follow/notifications
             // to it. Read fresh per request (profile switches reload the page); omitted when no profile is
             // chosen, so gatearr falls back to the default profile — profiles stay optional.
-            getDefaultHeaders: () => {
+            getDefaultHeaders: (): Record<string, string> => {
                 const id = readActiveProfileId()
                 return id != null ? { "X-Profile-Id": String(id) } : {}
             },

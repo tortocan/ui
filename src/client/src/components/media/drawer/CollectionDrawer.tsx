@@ -29,7 +29,7 @@ interface CollectionDrawerProps {
  */
 export function CollectionDrawer({ id, canGoBack, isOpen }: CollectionDrawerProps) {
     const tmdb = useTmdb()
-    const { open, close, closeAll } = useMediaDrawer()
+    const { close, closeAll } = useMediaDrawer()
     const { genres } = useFilterOptions(tmdb, "movie")
 
     const [col, setCol] = useState<Collection | null>(null)

@@ -42,10 +42,10 @@ export function ContinueWatchingRail() {
                     try {
                         if (r.mediaType === "movie") {
                             const m = await tmdb.movies.details({ movie_id: r.tmdbId })
-                            return { key: r.mediaKey, id: r.tmdbId, type: "movie", title: m.title, backdrop: m.backdrop_path, runtime: m.runtime ?? undefined, progress: r.progress }
+                            return { key: r.mediaKey, id: r.tmdbId, type: "movie", title: m.title, backdrop: m.backdrop_path ?? null, runtime: m.runtime ?? undefined, progress: r.progress }
                         }
                         const s = await tmdb.tv_series.details({ series_id: r.tmdbId })
-                        return { key: r.mediaKey, id: r.tmdbId, type: "tv", title: s.name, backdrop: s.backdrop_path, season: r.season || undefined, episode: r.episode || undefined, runtime: s.episode_run_time?.[0], progress: r.progress }
+                        return { key: r.mediaKey, id: r.tmdbId, type: "tv", title: s.name, backdrop: s.backdrop_path ?? null, season: r.season || undefined, episode: r.episode || undefined, runtime: s.episode_run_time?.[0], progress: r.progress }
                     } catch {
                         return null
                     }

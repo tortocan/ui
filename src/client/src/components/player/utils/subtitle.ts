@@ -3,8 +3,6 @@ export function parseVTT(text: string) {
     const cues: { start: number; end: number; text: string }[] = []
     let currentCue: { start: number; end: number; text: string } | null = null
 
-    const timeRegex = /(\d{2}:)?\d{2}:\d{2}\.\d{3}/
-
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim()
 
