@@ -26,7 +26,7 @@ export function ContinueWatchingCard({ id, type, title, backdrop, season, episod
     const navigate = useNavigate()
 
     const rt = formatRuntime(runtime ?? undefined)
-    const meta = type === "tv" && season && episode ? `S${season}, E${episode}${rt ? ` · ${rt}` : ""}` : rt
+    const meta = type === "tv" && season != null && episode != null ? `S${season}, E${episode}${rt ? ` · ${rt}` : ""}` : rt
 
     // Resume directly. The player's useScrobble hook seeks to the saved position on load. For a show we
     // carry the in-progress season/episode straight through; a movie goes to its watch route.
