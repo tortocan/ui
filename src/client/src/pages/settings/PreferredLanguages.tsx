@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react"
 import { ChevronDown, ChevronUp, GripVertical, Lock, Plus, X } from "lucide-react"
 import { useAppSettings, supportedLocales, type SupportedLocales } from "@/hooks/use-appsettings"
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger } from "@/components/ui/select"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 
 const labelOf = (iso: SupportedLocales) => supportedLocales.find((l) => l.iso639 === iso)?.label ?? iso
@@ -91,25 +91,23 @@ export function PreferredLanguages() {
             ))}
 
             {available.length > 0 && (
-                <Select value="" onValueChange={(v) => add(v as SupportedLocales)}>
-                    <SelectTrigger className="w-full">
-                        <span className="flex items-center gap-2 text-muted-foreground">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <button type="button" className={cn(row, "w-full justify-start text-muted-foreground transition-colors hover:bg-muted")}>
                             <Plus className="size-4" />
-                            Add a language
-                        </span>
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectGroup>
-                            {[...available]
-                                .sort((a, b) => a.label.localeCompare(b.label))
-                                .map((l) => (
-                                    <SelectItem key={l.iso639} value={l.iso639}>
-                                        {l.label}
-                                    </SelectItem>
-                                ))}
-                        </SelectGroup>
-                    </SelectContent>
-                </Select>
+                            <span className="text-sm font-medium">Add a language</span>
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="max-h-72 w-(--radix-dropdown-menu-trigger-width) overflow-y-auto">
+                        {[...available]
+                            .sort((a, b) => a.label.localeCompare(b.label))
+                            .map((l) => (
+                                <DropdownMenuItem key={l.iso639} onClick={() => add(l.iso639)}>
+                                    {l.label}
+                                </DropdownMenuItem>
+                            ))}
+                    </DropdownMenuContent>
+                </DropdownMenu>
             )}
         </div>
     )
