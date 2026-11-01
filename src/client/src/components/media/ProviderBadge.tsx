@@ -46,6 +46,7 @@ export function ProviderBadge({ type, id, region: regionOverride, className }: {
 
     useEffect(() => {
         let cancelled = false
+        setLogo(null) // clear first so a region/id change doesn't flash the previous region's logo
         void fetchProviderLogo(tmdb, type, id, region).then((l) => {
             if (!cancelled) setLogo(l)
         })
