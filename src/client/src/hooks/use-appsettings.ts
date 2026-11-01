@@ -46,6 +46,9 @@ export const supportedLocales = [
     },
 ] as const
 
+export type SubtitleFontSize = "sm" | "md" | "lg" | "xl"
+export type SubtitleBackground = "none" | "subtle" | "solid"
+
 export type AppSettings = {
     locale: SupportedLocales
     region?: CountryISO3166_1
@@ -61,6 +64,12 @@ export type AppSettings = {
     showCarouselDots: boolean
     showFooter: boolean
 
+    // Subtitle appearance (applied by the player's CustomSubtitles overlay).
+    subtitleFontSize: SubtitleFontSize
+    subtitleColor: string // hex, e.g. "#ffffff"
+    subtitleBackground: SubtitleBackground
+    subtitlePosition: number // percent from the bottom of the video
+
     tmdbApiKey: string
     tmdbOptions: TMDBOptions
 
@@ -73,6 +82,11 @@ export type AppSettings = {
     setShowHeaderLogo: (value: boolean) => void
     setShowCarouselDots: (value: boolean) => void
     setShowFooter: (value: boolean) => void
+
+    setSubtitleFontSize: (value: SubtitleFontSize) => void
+    setSubtitleColor: (value: string) => void
+    setSubtitleBackground: (value: SubtitleBackground) => void
+    setSubtitlePosition: (value: number) => void
 
     setTmdbApiKey: (apiKey: string) => void
     setTmdbOptions: React.Dispatch<React.SetStateAction<TMDBOptions>>

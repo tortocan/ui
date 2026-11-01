@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Slider } from "@/components/ui/slider"
 
 import { useAppSettings } from "@/hooks/use-appsettings.ts"
 import { supportedLocales, type SupportedLocales } from "@/hooks/use-appsettings"
@@ -62,7 +63,12 @@ export default function Settings() {
     const { theme, setTheme } = useTheme()
     const { colorTheme, setColorTheme } = useColorTheme()
 
-    const { region, locale, autoplayNext, tmdbApiKey, libraryOnly, showHeaderIcons, showHeaderLogo, showCarouselDots, showFooter, setLocale, setAutoplayNext, setRegion, setLibraryOnly, setShowHeaderIcons, setShowHeaderLogo, setShowCarouselDots, setShowFooter, standalone } = useAppSettings()
+    const {
+        region, locale, autoplayNext, tmdbApiKey, libraryOnly, showHeaderIcons, showHeaderLogo, showCarouselDots, showFooter,
+        subtitleFontSize, subtitleColor, subtitleBackground, subtitlePosition,
+        setLocale, setAutoplayNext, setRegion, setLibraryOnly, setShowHeaderIcons, setShowHeaderLogo, setShowCarouselDots, setShowFooter,
+        setSubtitleFontSize, setSubtitleColor, setSubtitleBackground, setSubtitlePosition, standalone,
+    } = useAppSettings()
     const tmdb = useTmdb()
 
     const handleLanguageChange = (value: string) => {
@@ -305,6 +311,102 @@ export default function Settings() {
                                     <p className="pt-1 text-sm text-muted-foreground">{t("appearance.footer.info", "Show the footer at the bottom of every page")}</p>
                                 </div>
                                 <Switch id="show-footer" checked={showFooter} onCheckedChange={setShowFooter} />
+                            </div>
+
+                            {/* Subtitles */}
+                            <div className="space-y-4 border-t border-border pt-6">
+                                <div>
+                                    <Label>{t("appearance.subtitles.label", "Subtitles")}</Label>
+                                    <p className="pt-1 text-sm text-muted-foreground">{t("appearance.subtitles.info", "Style and position of subtitles in the player")}</p>
+                                </div>
+
+                                {/* Live preview */}
+                                <div className="relative flex h-24 items-end justify-center overflow-hidden rounded-lg bg-[linear-gradient(135deg,#1f2937,#4b5563)]">
+                                    <div
+                                        className="absolute left-1/2 max-w-[90%] -translate-x-1/2 rounded px-2 py-0.5 text-center font-medium whitespace-pre-wrap"
+                                        style={{
+                                            bottom: `${subtitlePosition}%`,
+                                            fontSize: { sm: "0.75rem", md: "0.9rem", lg: "1.05rem", xl: "1.25rem" }[subtitleFontSize],
+                                            color: subtitleColor,
+                                            backgroundColor: subtitleBackground === "none" ? "transparent" : subtitleBackground === "solid" ? "rgba(0,0,0,0.8)" : "rgba(0,0,0,0.35)",
+                                            textShadow: "0 1px 2px rgba(0,0,0,0.95), 0 0 3px rgba(0,0,0,0.95)",
+                                        }}
+                                    >
+                                        The quick brown fox
+                                    </div>
+                                </div>
+
+                                {/* Text size */}
+                                <div className="flex items-center justify-between gap-4">
+                                    <Label>{t("appearance.subtitles.size", "Text size")}</Label>
+                                    <div className="flex shrink-0 gap-1 rounded-lg border p-1">
+                                        {(["sm", "md", "lg", "xl"] as const).map((sz) => (
+                                            <button
+                                                key={sz}
+                                                type="button"
+                                                onClick={() => setSubtitleFontSize(sz)}
+                                                className={cn("rounded-md px-3 py-1.5 text-sm transition-all", subtitleFontSize === sz ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                                            >
+                                                {sz.toUpperCase()}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Text color */}
+                                <div className="flex items-center justify-between gap-4">
+                                    <Label>{t("appearance.subtitles.color", "Text color")}</Label>
+                                    <div className="flex gap-2">
+                                        {[
+                                            { value: "#ffffff", label: "White" },
+                                            { value: "#ffeb3b", label: "Yellow" },
+                                            { value: "#4dd0e1", label: "Cyan" },
+                                            { value: "#a5d6a7", label: "Green" },
+                                        ].map((c) => (
+                                            <button
+                                                key={c.value}
+                                                type="button"
+                                                title={c.label}
+                                                onClick={() => setSubtitleColor(c.value)}
+                                                style={{ backgroundColor: c.value }}
+                                                className={cn("size-7 rounded-full ring-offset-2 ring-offset-background transition-all", subtitleColor === c.value ? "scale-110 ring-2 ring-foreground" : "hover:scale-105 hover:ring-2 hover:ring-foreground/40")}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Background */}
+                                <div className="flex items-center justify-between gap-4">
+                                    <Label>{t("appearance.subtitles.background", "Background")}</Label>
+                                    <div className="flex shrink-0 gap-1 rounded-lg border p-1">
+                                        {([
+                                            { value: "none", label: "None" },
+                                            { value: "subtle", label: "Subtle" },
+                                            { value: "solid", label: "Solid" },
+                                        ] as const).map((bg) => (
+                                            <button
+                                                key={bg.value}
+                                                type="button"
+                                                onClick={() => setSubtitleBackground(bg.value)}
+                                                className={cn("rounded-md px-3 py-1.5 text-sm transition-all", subtitleBackground === bg.value ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                                            >
+                                                {bg.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Position */}
+                                <div className="flex items-center justify-between gap-4">
+                                    <div>
+                                        <Label>{t("appearance.subtitles.position", "Position")}</Label>
+                                        <p className="pt-1 text-sm text-muted-foreground">{t("appearance.subtitles.positionInfo", "Height above the bottom of the video")}</p>
+                                    </div>
+                                    <div className="flex w-48 shrink-0 items-center gap-3">
+                                        <Slider value={[subtitlePosition]} onValueChange={([v]) => setSubtitlePosition(v)} min={5} max={40} step={1} aria-label="Subtitle position" />
+                                        <span className="w-10 text-right text-sm text-muted-foreground tabular-nums">{subtitlePosition}%</span>
+                                    </div>
+                                </div>
                             </div>
                         </CardContent>
                     </Card>

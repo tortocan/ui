@@ -1,6 +1,6 @@
 import React, { useMemo } from "react"
 import { usePersistentState, useProfileState } from "@/hooks/use-localstorage"
-import { AppSettingsContext, type SupportedLocales } from "@/hooks/use-appsettings"
+import { AppSettingsContext, type SupportedLocales, type SubtitleFontSize, type SubtitleBackground } from "@/hooks/use-appsettings"
 import type { CountryISO3166_1, Timezone, TMDBOptions } from "@lorenzopant/tmdb"
 import { getCountry } from "@/lib/tmdb.utils"
 
@@ -33,6 +33,10 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     const [showHeaderLogo, setShowHeaderLogo] = useProfileState<boolean>("app.showHeaderLogo", true)
     const [showCarouselDots, setShowCarouselDots] = useProfileState<boolean>("app.showCarouselDots", true)
     const [showFooter, setShowFooter] = useProfileState<boolean>("app.showFooter", true)
+    const [subtitleFontSize, setSubtitleFontSize] = useProfileState<SubtitleFontSize>("app.subtitleFontSize", "lg")
+    const [subtitleColor, setSubtitleColor] = useProfileState<string>("app.subtitleColor", "#ffffff")
+    const [subtitleBackground, setSubtitleBackground] = useProfileState<SubtitleBackground>("app.subtitleBackground", "subtle")
+    const [subtitlePosition, setSubtitlePosition] = useProfileState<number>("app.subtitlePosition", 15)
 
     // Global (not per-profile): transient UI state and the OMSS-library scope.
     const [showSearch, setShowSearch] = usePersistentState<boolean>("app.showSearch", false)
@@ -70,6 +74,10 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
             showHeaderLogo,
             showCarouselDots,
             showFooter,
+            subtitleFontSize,
+            subtitleColor,
+            subtitleBackground,
+            subtitlePosition,
             tmdbApiKey,
             tmdbOptions,
 
@@ -82,10 +90,14 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
             setShowHeaderLogo,
             setShowCarouselDots,
             setShowFooter,
+            setSubtitleFontSize,
+            setSubtitleColor,
+            setSubtitleBackground,
+            setSubtitlePosition,
             setTmdbApiKey,
             setTmdbOptions,
         }),
-        [locale, region, autoplayNext, standalone, showSearch, libraryOnly, showHeaderIcons, showHeaderLogo, showCarouselDots, showFooter, tmdbApiKey, tmdbOptions, setLocale, setRegion, setAutoplayNext, setShowSearch, setLibraryOnly, setShowHeaderIcons, setShowHeaderLogo, setShowCarouselDots, setShowFooter, setTmdbApiKey, setTmdbOptions]
+        [locale, region, autoplayNext, standalone, showSearch, libraryOnly, showHeaderIcons, showHeaderLogo, showCarouselDots, showFooter, subtitleFontSize, subtitleColor, subtitleBackground, subtitlePosition, tmdbApiKey, tmdbOptions, setLocale, setRegion, setAutoplayNext, setShowSearch, setLibraryOnly, setShowHeaderIcons, setShowHeaderLogo, setShowCarouselDots, setShowFooter, setSubtitleFontSize, setSubtitleColor, setSubtitleBackground, setSubtitlePosition, setTmdbApiKey, setTmdbOptions]
     )
 
     return <AppSettingsContext.Provider value={value}>{children}</AppSettingsContext.Provider>
