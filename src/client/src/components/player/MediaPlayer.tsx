@@ -13,6 +13,7 @@ import { useScrobble } from "@/components/player/hooks/useScrobble.ts"
 import { CustomSubtitles } from "@/components/player/CustomSubtitles"
 import { useSeekPreviewVideo } from "./hooks/useSeekPreviewVideo"
 import { useThumbnailSprites } from "./hooks/useThumbnailSprites"
+import { TranscodingNotice } from "./TranscodingNotice"
 
 export function MediaPlayer() {
     const videoRef = useRef<HTMLVideoElement>(null)
@@ -326,6 +327,11 @@ export function MediaPlayer() {
                 }
             />
         )
+
+    // Container the browser can't decode (gatearr returns type "mkv"/"dash"). gatearr has queued it for
+    // transcode on source build; show a notice + let the bell announce it instead of a silent <video> error.
+    if (selectedSource.type === "mkv" || selectedSource.type === "dash")
+        return <TranscodingNotice title={media?.title} container={selectedSource.type} onBack={() => navigate(-1)} />
 
     return (
         <div
