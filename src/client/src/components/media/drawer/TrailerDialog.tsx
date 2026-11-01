@@ -21,9 +21,62 @@ const QUALITY_LABELS: Record<string, string> = {
 const qualityLabel = (level: string) => QUALITY_LABELS[level] ?? level
 
 /** A caption track as YouTube's captions module reports it (we only need these two fields). */
+/**
+ * A caption track, normalized from YouTube's captions-module tracklist.
+ * `vssId` is YouTube's unique per-track id (".en" manual, "a.en" auto-generated) — the ONLY field
+ * that distinguishes tracks sharing a languageCode/displayName. `raw` is the original tracklist entry,
+ * passed back verbatim to setOption('captions','track', …) (the only robust way to select a specific
+ * track; {languageCode} ambiguously picks one when several share a language).
+ */
 interface CaptionTrack {
-    languageCode: string
-    displayName: string
+    key: string // dedupe/identity key: vssId, or a composite fallback when vssId is empty
+    vssId: string
+    label: string
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    raw: any
+}
+
+// Stable identity for a caption track: vss_id when present (".en"/"a.en"), else a composite so distinct
+// empty-vss_id tracks don't collapse. ONE identity used everywhere (list key, selection, poll read-back).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function trackKey(t: any): string {
+    const vssId = typeof t?.vss_id === "string" ? t.vss_id : ""
+    const name = (t?.name ?? t?.trackName ?? "").toString().trim()
+    return vssId || `${t?.kind ?? ""}|${t?.languageCode ?? ""}|${name}`
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeCaptionTracks(raw: any[]): CaptionTrack[] {
+    const seen = new Set<string>()
+    const out: CaptionTrack[] = []
+    for (const t of raw) {
+        if (!t || t.is_servable === false) continue
+        const vssId = typeof t.vss_id === "string" ? t.vss_id : ""
+        const name = (t.name ?? t.trackName ?? "").toString().trim()
+        const key = trackKey(t)
+        if (seen.has(key)) continue // YouTube can repeat entries; keep one per identity
+        seen.add(key)
+        const base = (t.displayName || t.languageName || t.languageCode || "Unknown").toString()
+        const isAsr = t.kind === "asr" || vssId.startsWith("a.")
+        let label = base
+        if (name && !base.includes(name)) label = `${label} — ${name}`
+        if (isAsr) label = `${label} (auto-generated)`
+        out.push({ key, vssId, label, raw: t })
+    }
+    // Break any labels that are STILL identical (e.g. two manual same-language tracks) with a counter.
+    const counts = new Map<string, number>()
+    for (const o of out) counts.set(o.label, (counts.get(o.label) ?? 0) + 1)
+    const used = new Map<string, number>()
+    for (const o of out) {
+        if ((counts.get(o.label) ?? 0) > 1) {
+            const n = (used.get(o.label) ?? 0) + 1
+            used.set(o.label, n)
+            o.label = `${o.label} (${n})`
+        }
+    }
+    // Default track first.
+    out.sort((a, b) => (b.raw?.is_default ? 1 : 0) - (a.raw?.is_default ? 1 : 0))
+    return out
 }
 
 // Load the YouTube IFrame Player API once (shared across every TrailerDialog instance). We need the
@@ -103,7 +156,9 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
     const [levels, setLevels] = useState<string[]>([]) // available quality tokens (minus "auto")
     const [quality, setQuality] = useState("auto") // current playback quality token
     const [tracks, setTracks] = useState<CaptionTrack[]>([]) // available caption tracks
-    const [track, setTrack] = useState<string | null>(null) // selected caption languageCode, or null = off
+    const [track, setTrack] = useState<string | null>(null) // selected caption identity key, or null = off
+    const [vol, setVol] = useState(100) // player volume 0–100
+    const tracksSigRef = useRef("") // last caption-list signature, to skip redundant 4×/sec setTracks
 
     const stageRef = useRef<HTMLDivElement>(null) // the fullscreen target / full-viewport overlay
     const hostRef = useRef<HTMLDivElement>(null) // YT replaces an imperative child of this with its iframe
@@ -133,6 +188,11 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
         if (!p?.isMuted) return
         if (p.isMuted()) {
             p.unMute?.()
+            // If the level was dragged to 0 before muting, restore an audible default so unmute isn't silent.
+            if ((p.getVolume?.() ?? 0) === 0) {
+                p.setVolume?.(100)
+                setVol(100)
+            }
             setMuted(false)
         } else {
             p.mute?.()
@@ -161,16 +221,37 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
         setQuality(level)
     }, [])
 
-    // Pick a caption track (null = off), via the captions module. The module must be loaded first
-    // (done on ready); an empty track object turns captions off.
-    const selectCaption = useCallback((code: string | null) => {
+    // Pick a caption track (null = off), via the captions module. Pass the FULL tracklist entry back —
+    // {languageCode} is ambiguous when several tracks share a language, which is why selection didn't
+    // stick. An empty object turns captions off. The 250ms poll re-reads getOption to confirm.
+    const selectCaption = useCallback((t: CaptionTrack | null) => {
         const p = playerRef.current
         try {
-            p?.setOption?.("captions", "track", code ? { languageCode: code } : {})
+            p?.setOption?.("captions", "track", t ? t.raw : {})
         } catch {
             /* module may not be ready yet */
         }
-        setTrack(code)
+        setTrack(t ? t.key : null)
+    }, [])
+
+    // Volume slider (0–100). A non-zero level unmutes + applies it; zero MUTES but preserves the
+    // underlying level (so the mute button later restores sound) rather than driving volume to 0.
+    const onVolume = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        const v = Number(e.target.value)
+        const p = playerRef.current
+        try {
+            if (v === 0) {
+                p?.mute?.()
+                setMuted(true)
+            } else {
+                p?.setVolume?.(v)
+                if (p?.isMuted?.()) p.unMute?.()
+                setMuted(false)
+                setVol(v)
+            }
+        } catch {
+            /* ignore */
+        }
     }, [])
 
     // Follow this title for new-release notifications (gatearr /follow). Guarded against re-POST.
@@ -312,15 +393,28 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
                                 setCur(p.getCurrentTime() || 0)
                                 setPlaying(p.getPlayerState?.() === 1)
                                 setMuted(!!p.isMuted?.())
+                                setVol(p.getVolume?.() ?? 100) // underlying level; the slider shows 0 when muted via value=
                                 // Quality options (strip the trailing "auto" token — we offer our own Auto entry).
                                 const avail: string[] = p.getAvailableQualityLevels?.() ?? []
                                 setLevels(avail.filter((l) => l !== "auto"))
                                 setQuality(p.getPlaybackQuality?.() || "auto")
-                                // Caption tracks + the active one (empty track object → off).
-                                const tl = p.getOption?.("captions", "tracklist") as CaptionTrack[] | undefined
-                                if (Array.isArray(tl)) setTracks(tl)
-                                const active = p.getOption?.("captions", "track") as { languageCode?: string } | undefined
-                                setTrack(active?.languageCode ? active.languageCode : null)
+                                // Caption tracks + the active one. includeAsr surfaces auto-generated tracks;
+                                // identity is trackKey() (languageCode/displayName collide across variants).
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                const tl = p.getOption?.("captions", "tracklist", { includeAsr: true }) as any[] | undefined
+                                if (Array.isArray(tl)) {
+                                    const norm = normalizeCaptionTracks(tl)
+                                    const sig = norm.map((t) => `${t.key}=${t.label}`).join("\n")
+                                    if (sig !== tracksSigRef.current) {
+                                        tracksSigRef.current = sig
+                                        setTracks(norm)
+                                    }
+                                }
+                                // Active track: {} / null / no identity fields → off. Otherwise its trackKey.
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                const active = p.getOption?.("captions", "track") as any
+                                const hasTrack = active && (active.vss_id || active.languageCode)
+                                setTrack(hasTrack ? trackKey(active) : null)
                             } catch {
                                 /* ignore */
                             }
@@ -367,6 +461,8 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
             setTracks([])
             setTrack(null)
             setQuality("auto")
+            setVol(100)
+            tracksSigRef.current = ""
         }
     }, [active, trailerId, title, close])
 
@@ -424,6 +520,16 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
                             <button type="button" onClick={toggleMute} aria-label={muted ? "Unmute" : "Mute"} className="rounded p-1 transition-colors hover:bg-white/15">
                                 {muted ? <VolumeX className="size-5" /> : <Volume2 className="size-5" />}
                             </button>
+                            <input
+                                type="range"
+                                min={0}
+                                max={100}
+                                step={1}
+                                value={muted ? 0 : vol}
+                                onChange={onVolume}
+                                aria-label="Volume"
+                                className="h-1 w-16 cursor-pointer accent-primary sm:w-20"
+                            />
                             <button
                                 type="button"
                                 onClick={() => setSettingsOpen((v) => !v)}
@@ -480,12 +586,7 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
                                                 <div className="px-3 py-4 text-center text-xs text-white/50">No subtitles available</div>
                                             ) : (
                                                 tracks.map((tk) => (
-                                                    <SettingRow
-                                                        key={tk.languageCode}
-                                                        label={tk.displayName || tk.languageCode}
-                                                        selected={track === tk.languageCode}
-                                                        onClick={() => selectCaption(tk.languageCode)}
-                                                    />
+                                                    <SettingRow key={tk.key} label={tk.label} selected={track !== null && track === tk.key} onClick={() => selectCaption(tk)} />
                                                 ))
                                             )}
                                         </>
