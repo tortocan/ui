@@ -51,6 +51,15 @@ export const MediaEpisodes: React.FC<MediaEpisodesProps> = ({ tvId, seasons }) =
         })
     }
 
+    // Episode tiles are custom clickable elements; keep them operable by keyboard (Enter/Space), the
+    // same way SeeMoreCard/Settings do, so a show's episodes aren't mouse-only.
+    const activateOnKey = (e: React.KeyboardEvent, episode: (typeof episodes)[number]) => {
+        if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault()
+            handleEpisodeSelect(episode)
+        }
+    }
+
     return (
         <section className="space-y-4">
             <div className="flex items-center justify-between">
@@ -118,7 +127,14 @@ export const MediaEpisodes: React.FC<MediaEpisodesProps> = ({ tvId, seasons }) =
                     itemClassName="basis-full pl-4 transition-transform duration-300 ease-in-out hover:scale-[1.02] hover:cursor-pointer md:basis-1/3 lg:basis-1/4"
                     contentClassName="-ml-4"
                     renderItem={(episode) => (
-                        <div className="space-y-2" onClick={() => handleEpisodeSelect(episode)}>
+                        <div
+                            className="space-y-2 rounded-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                            role="button"
+                            tabIndex={0}
+                            aria-label={`Play ${episode.name}`}
+                            onClick={() => handleEpisodeSelect(episode)}
+                            onKeyDown={(e) => activateOnKey(e, episode)}
+                        >
                             <div className="relative aspect-video overflow-hidden rounded-lg bg-muted">
                                 {episode.stillUrl ? (
                                     <img src={episode.stillUrl} alt={episode.name} className="h-full w-full object-cover" />
@@ -141,7 +157,15 @@ export const MediaEpisodes: React.FC<MediaEpisodesProps> = ({ tvId, seasons }) =
                 <div className="h-100 overflow-x-scroll pr-4">
                     <div className="space-y-4">
                         {orderedEpisodes.map((episode) => (
-                            <div key={episode.id} className="flex gap-4 border-b border-border pb-4 last:border-0" onClick={() => handleEpisodeSelect(episode)}>
+                            <div
+                                key={episode.id}
+                                className="flex gap-4 border-b border-border pb-4 last:border-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                                role="button"
+                                tabIndex={0}
+                                aria-label={`Play ${episode.name}`}
+                                onClick={() => handleEpisodeSelect(episode)}
+                                onKeyDown={(e) => activateOnKey(e, episode)}
+                            >
                                 <div className="relative h-20 w-32 shrink-0 overflow-hidden rounded bg-muted">
                                     {episode.stillUrl ? (
                                         <img src={episode.stillUrl} alt={episode.name} className="h-full w-full object-cover" />
