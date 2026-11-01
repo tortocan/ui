@@ -31,7 +31,7 @@ interface MediaCollectionProps {
  */
 export function MediaCollection({ collectionId, name, currentId, language, providerRegion }: MediaCollectionProps) {
     const tmdb = useTmdb()
-    const [cards, setCards] = useState<{ id: number; type: "movie"; title: string; poster: string | null; year: number; rating: number }[] | null>(null)
+    const [cards, setCards] = useState<{ id: number; type: "movie"; title: string; poster: string | null; year: number; rating: number; rank: number }[] | null>(null)
 
     useEffect(() => {
         let cancelled = false
@@ -40,14 +40,16 @@ export function MediaCollection({ collectionId, name, currentId, language, provi
             try {
                 const col = await tmdb.collections.details({ collection_id: collectionId, ...(language ? { language: language as Language } : {}) })
                 const members = [...(col.parts ?? [])]
+                    // Chronological (release) order → the rank number reflects the franchise sequence.
                     .sort((a, b) => (a.release_date || "9999").localeCompare(b.release_date || "9999"))
-                    .map((p) => ({
+                    .map((p, i) => ({
                         id: p.id,
                         type: "movie" as const,
                         title: p.title,
                         poster: img(p.poster_path),
                         year: p.release_date ? Number(p.release_date.slice(0, 4)) : 0,
                         rating: p.vote_average ?? 0,
+                        rank: i + 1,
                     }))
                 if (!cancelled) setCards(members)
             } catch {
@@ -77,7 +79,7 @@ export function MediaCollection({ collectionId, name, currentId, language, provi
                 itemClassName={RAIL_ITEM_CLASS}
                 contentClassName="-ml-2 md:-ml-4"
                 opts={{ align: "start", loop: false, dragFree: true, startIndex: activeIndex }}
-                renderItem={(c) => <MediaCard id={c.id} type={c.type} title={c.title} imagePath={c.poster} imageAlt={c.title} year={c.year} rating={c.rating} active={c.id === currentId} providerRegion={providerRegion} />}
+                renderItem={(c) => <MediaCard id={c.id} type={c.type} title={c.title} imagePath={c.poster} imageAlt={c.title} year={c.year} rating={c.rating} active={c.id === currentId} providerRegion={providerRegion} rank={c.rank} />}
             />
         </section>
     )

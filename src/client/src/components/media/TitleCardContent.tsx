@@ -115,13 +115,13 @@ export function TitleCardContent({
                     {g}
                 </span>
             ))}
+            {actionChips}
             {tags?.map((t) => (
                 <span key={t} className={cn(CHIP, "border-primary/50 bg-primary/20")}>
                     <Layers className="size-4 opacity-80" />
                     {t}
                 </span>
             ))}
-            {actionChips}
         </div>
     )
 

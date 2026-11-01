@@ -19,12 +19,14 @@ export interface MediaCardProps {
     active?: boolean
     /** Region override for the streaming-provider badge (e.g. follow a detail's language toggle). */
     providerRegion?: string
+    /** Top-10-style rank number overlaid bottom-left (e.g. a title's position within its franchise). */
+    rank?: number
 }
 
 // Performance reason: rails render 6-20+ of these per page; without memo, every rail
 // re-render (e.g. a sibling rail loading) re-rendered every card in every other rail too.
 export const MediaCard = React.memo(
-    React.forwardRef<HTMLDivElement, MediaCardProps>(({ title, imagePath, imageAlt, aspectRatio = "portrait", className, rating, year, id, type, active = false, providerRegion }, ref) => {
+    React.forwardRef<HTMLDivElement, MediaCardProps>(({ title, imagePath, imageAlt, aspectRatio = "portrait", className, rating, year, id, type, active = false, providerRegion, rank }, ref) => {
         const { open } = useMediaDrawer()
 
         return (
@@ -44,6 +46,16 @@ export const MediaCard = React.memo(
 
                         {/* Streaming-provider logo, top-right. */}
                         <ProviderBadge type={type} id={id} region={providerRegion} />
+
+                        {/* Top-10-style rank number (franchise order), bottom-left, outlined for legibility. */}
+                        {rank != null && (
+                            <span
+                                className="pointer-events-none absolute -bottom-2 left-1 z-20 text-7xl leading-none font-black text-white/95 drop-shadow-[0_2px_6px_rgba(0,0,0,0.7)] [-webkit-text-stroke:2px_rgba(0,0,0,0.55)]"
+                                aria-hidden
+                            >
+                                {rank}
+                            </span>
+                        )}
 
                         {/* Hover overlay */}
                         <div className="pointer-events-none absolute inset-0 flex items-end opacity-0 transition-opacity duration-300 group-hover:opacity-100">
