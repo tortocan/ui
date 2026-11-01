@@ -10,6 +10,10 @@
         "build:client": "dotenv -e .env -- vite build",
         "format": "prettier --write .",
         "build:server": "npx rimraf tsconfig.server.tsbuildinfo && dotenv -e .env -- tsc -p tsconfig.server.json",
+        "typecheck": "npm run typecheck:client && npm run typecheck:server",
+        "typecheck:client": "tsc -p tsconfig.client.json",
+        "typecheck:server": "tsc -p tsconfig.server.json --noEmit",
+        "lint": "eslint .",
         "test": "tsx --test"
     },
     "dependencies": {
