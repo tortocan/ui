@@ -48,8 +48,9 @@ export interface TitleCardContentProps {
     description?: string
     /** When set, the description is truncated to ~this many chars (hero); omit for the full text (drawer). */
     descriptionClampChars?: number
-    playLabel: ReactNode
-    onPlay: () => void
+    /** Omit both to render no Play button (e.g. a collection detail). */
+    playLabel?: ReactNode
+    onPlay?: () => void
     /** Secondary action node (e.g. a "Learn more" button or the Trailer dialog). */
     secondary?: ReactNode
     /** Hero shows the buttons BELOW the description; the drawer shows them above it. */
@@ -108,14 +109,17 @@ export function TitleCardContent({
         </div>
     )
 
-    const actions = (
-        <div className="flex flex-wrap items-center gap-3">
-            <Button className="rounded-full px-8 font-semibold shadow-lg transition-all hover:scale-105 hover:shadow-xl" onClick={onPlay}>
-                {playLabel}
-            </Button>
-            {secondary}
-        </div>
-    )
+    const actions =
+        playLabel != null || secondary != null ? (
+            <div className="flex flex-wrap items-center gap-3">
+                {playLabel != null && (
+                    <Button className="rounded-full px-8 font-semibold shadow-lg transition-all hover:scale-105 hover:shadow-xl" onClick={onPlay}>
+                        {playLabel}
+                    </Button>
+                )}
+                {secondary}
+            </div>
+        ) : null
 
     const desc = clamped ? <p className="max-w-2xl text-base leading-relaxed text-white/80 sm:text-lg">{clamped}</p> : null
 

@@ -1,4 +1,4 @@
-import { Layers, Play } from "lucide-react"
+import { Layers } from "lucide-react"
 import { ProviderBadge } from "@/components/media/ProviderBadge.tsx"
 
 export interface CollectionCardProps {
@@ -12,8 +12,8 @@ export interface CollectionCardProps {
 
 /**
  * Big Apple TV-style landscape card for a movie collection (franchise). Shows the collection backdrop
- * under a gradient with its name + owned-movie count, a "Collection" tag, and a hover Play glyph.
- * Clicking continues the franchise (handled by the caller: first/next unwatched movie via the scrobbler).
+ * under a gradient with its name + owned-movie count and a "Collection" tag. Clicking opens the
+ * collection detail drawer (handled by the caller).
  */
 export function CollectionCard({ name, backdrop, count, providerId, onClick }: CollectionCardProps) {
     return (
@@ -32,13 +32,6 @@ export function CollectionCard({ name, backdrop, count, providerId, onClick }: C
 
             {/* Streaming-provider logo of a representative movie, top-right. */}
             {providerId ? <ProviderBadge type="movie" id={providerId} /> : null}
-
-            {/* Hover Play glyph */}
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                <span className="flex size-12 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm">
-                    <Play className="size-6 fill-current" />
-                </span>
-            </div>
 
             <div className="absolute inset-x-0 bottom-0 space-y-0.5 p-4 text-white">
                 <div className="flex items-center gap-1.5 text-[0.7rem] font-semibold tracking-wide text-white/75 uppercase">

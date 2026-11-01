@@ -1,4 +1,4 @@
-import { ArrowLeft, Play } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import type { Collection } from "@lorenzopant/tmdb"
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
@@ -7,8 +7,6 @@ import { MediaHeroCard } from "@/components/media/MediaHeroCard.tsx"
 import { MediaCard } from "@/components/media/MediaRail/MediaCard.tsx"
 import { Rail } from "@/components/media/MediaRail/Rail.tsx"
 import { useTmdb } from "@/hooks/use-tmdb"
-import { useOmss } from "@/hooks/use-omss"
-import { useOmssLibrary } from "@/hooks/use-omss-library.ts"
 import { useFilterOptions } from "@/components/media/filters/useFilterOptions.ts"
 import { useMediaDrawer } from "@/components/media/drawer/hooks/useMediaDrawer.ts"
 
@@ -22,14 +20,6 @@ function img(path: string | null | undefined, size: "w500" | "w342" | "original"
     return path.startsWith("http") ? path : `https://image.tmdb.org/t/p/${size}${path}`
 }
 
-// A franchise entry counts toward availability only once it has actually been released — TMDB
-// collections list announced sequels (empty/future release_date) a user can't own yet.
-function isReleased(date?: string | null): boolean {
-    if (!date) return false
-    const t = new Date(date).getTime()
-    return !Number.isNaN(t) && t <= Date.now()
-}
-
 interface CollectionDrawerProps {
     id: number
     canGoBack: boolean
@@ -39,21 +29,14 @@ interface CollectionDrawerProps {
 /**
  * Collection (movie-franchise) detail — the sibling of {@link MediaDrawer} for a `type: "collection"`
  * payload. It reuses the SAME pieces as a title's detail: the shared {@link MediaHeroCard} as the hero
- * (backdrop + title + chips + Play + overview) and a {@link Rail} of our standard {@link MediaCard}s
- * for the member movies — so a collection looks like a movie detail, not a bespoke layout. The hero's
- * leading chip is an availability badge; meta is "{N} Movies"; Play continues the franchise from the
- * scrobbler. Clicking a member opens its movie drawer on top (back returns here).
+ * (backdrop + title + chips + overview — no Play, a collection isn't itself playable) and a
+ * {@link Rail} of our standard {@link MediaCard}s for the member movies. Clicking a member opens its
+ * movie drawer on top (back returns here).
  */
 export function CollectionDrawer({ id, canGoBack, isOpen }: CollectionDrawerProps) {
     const tmdb = useTmdb()
-    const { client, valid } = useOmss()
     const { open, close, closeAll } = useMediaDrawer()
     const { genres } = useFilterOptions(tmdb, "movie")
-    const { library, loading: libLoading } = useOmssLibrary(true)
-    const owned = useMemo(() => new Set(library.movies), [library.movies])
-    // The owned set is only meaningful once OMSS is reachable AND its library has loaded; until then
-    // we must not render a (wrong) "Unavailable"/"View" state — the two fetches race.
-    const libReady = valid && !libLoading
 
     const [col, setCol] = useState<Collection | null>(null)
     const [loading, setLoading] = useState(true)
@@ -99,12 +82,6 @@ export function CollectionDrawer({ id, canGoBack, isOpen }: CollectionDrawerProp
         return list.sort((a, b) => (a.release_date || "9999").localeCompare(b.release_date || "9999"))
     }, [col])
 
-    const ownedCount = useMemo(() => parts.filter((p) => owned.has(p.id)).length, [parts, owned])
-    // Judge against RELEASED entries only, so owning every out-now film reads "Available" even when the
-    // collection also lists an announced sequel. Held back until the library is ready (avoids a flash).
-    const releasedCount = useMemo(() => parts.filter((p) => isReleased(p.release_date)).length, [parts])
-    const availability = !libReady || parts.length === 0 ? null : ownedCount === 0 ? "Unavailable" : releasedCount > 0 && ownedCount >= releasedCount ? "Available" : "Partially Available"
-
     // Up to three genre names, most frequent across the franchise first.
     const genreNames = useMemo(() => {
         if (!parts.length || !genres.length) return [] as string[]
@@ -130,41 +107,6 @@ export function CollectionDrawer({ id, canGoBack, isOpen }: CollectionDrawerProp
                 rating: p.vote_average ?? 0,
             })),
         [parts]
-    )
-
-    // Continue the franchise from the scrobbler: first in-progress owned movie, else earliest unwatched
-    // owned, else the first owned (fallback: the first part). Opens the resume-aware movie drawer.
-    async function handlePlay() {
-        const playable = parts.filter((p) => owned.has(p.id))
-        const pool = playable.length ? playable : parts
-        if (!pool.length) return
-        if (valid && playable.length) {
-            try {
-                const states = await Promise.all(playable.map((m) => client.getScrobbleFor({ mediaType: "movie", tmdbId: m.id }).catch(() => null)))
-                const inProgress = playable.find((_, i) => {
-                    const s = states[i]
-                    return s && s.progress > 2 && s.progress < 95
-                })
-                if (inProgress) return open({ type: "movie", id: inProgress.id })
-                const unwatched = playable.find((_, i) => !states[i]?.watched)
-                if (unwatched) return open({ type: "movie", id: unwatched.id })
-            } catch {
-                // fall through
-            }
-        }
-        open({ type: "movie", id: pool[0].id })
-    }
-
-    const availabilityBadge = availability && (
-        <span
-            className={
-                availability === "Unavailable"
-                    ? "inline-flex items-center rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-sm font-medium text-white backdrop-blur-md"
-                    : "inline-flex items-center rounded-full bg-emerald-500 px-3.5 py-1.5 text-sm font-semibold text-white"
-            }
-        >
-            {availability}
-        </span>
     )
 
     return (
@@ -193,24 +135,16 @@ export function CollectionDrawer({ id, canGoBack, isOpen }: CollectionDrawerProp
                     <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Failed to load collection.</div>
                 ) : (
                     <div className="relative h-full overflow-y-auto" onWheel={onBodyWheel} onTouchStart={onBodyTouchStart} onTouchEnd={onBodyTouchEnd}>
-                        {/* HERO — the exact same card a title's detail renders. */}
+                        {/* HERO — the same card a title's detail renders, minus the Play button. */}
                         <MediaHeroCard
                             image={img(col.backdrop_path, "original")}
                             logoUrl={null}
                             title={col.name}
-                            badge={availabilityBadge}
                             meta={`${parts.length} ${parts.length === 1 ? "Movie" : "Movies"}`}
                             genres={genreNames}
                             description={col.overview}
                             heightClassName="h-screen"
                             className="animate-in duration-700 fade-in"
-                            onPlay={() => void handlePlay()}
-                            playLabel={
-                                <>
-                                    <Play className="size-5 fill-white" />
-                                    {libReady && ownedCount === 0 ? "View" : "Play"}
-                                </>
-                            }
                         />
 
                         {/* MEMBERS — our standard MediaCards in a rail, floating up over the hero. */}

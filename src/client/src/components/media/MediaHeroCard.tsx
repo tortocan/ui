@@ -22,8 +22,9 @@ export interface MediaHeroCardProps {
     /** Optional provider logos: network top-right, studio bottom-right. */
     networkLogo?: string | null
     studioLogo?: string | null
-    playLabel: ReactNode
-    onPlay: () => void
+    /** Omit both to render no Play button (e.g. a collection detail). */
+    playLabel?: ReactNode
+    onPlay?: () => void
     /** Secondary action (Learn more in the carousel, Trailer in the drawer). */
     secondary?: ReactNode
     logoClassName?: string
