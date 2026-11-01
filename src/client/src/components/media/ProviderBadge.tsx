@@ -20,8 +20,9 @@ export function ProviderBadge({ type, id, region: regionOverride, className }: {
     const [tmdbLogo, setTmdbLogo] = useState<string | null>(null)
 
     useEffect(() => {
-        // Local wins — skip the TMDB lookup entirely when gatearr owns the title.
-        if (localLogo) {
+        // Local wins — and wait until ownership is known (home.ready) before the TMDB lookup, so an
+        // owned title never flashes a TMDB logo (or fires a wasted fetch) before resolving to local.
+        if (localLogo || !home.ready) {
             setTmdbLogo(null)
             return
         }
@@ -33,7 +34,7 @@ export function ProviderBadge({ type, id, region: regionOverride, className }: {
         return () => {
             cancelled = true
         }
-    }, [tmdb, type, id, region, localLogo])
+    }, [tmdb, type, id, region, localLogo, home.ready])
 
     const logo = localLogo ?? tmdbLogo
     if (!logo) return null

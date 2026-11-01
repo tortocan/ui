@@ -25,17 +25,24 @@ function fetchOmssHome(client: OmssClient, baseUrl: string): Promise<OmssHomeDat
     const p = (async () => {
         try {
             const { data } = await client.getHealthStatus()
-            const raw = data as unknown as { media?: { movies?: unknown; tv?: unknown }; providers?: { id?: unknown; logo?: unknown }[] } | null
-            const movies = new Set<number>(Array.isArray(raw?.media?.movies) ? (raw!.media!.movies as unknown[]).filter((x): x is number => typeof x === "number") : [])
+            // The SDK returns {data:null} on any failure (network/5xx) — do NOT cache that, or a blip
+            // during a gatearr pod restart would permanently disable local priority for the session.
+            if (data == null) {
+                cache.delete(baseUrl)
+                return EMPTY
+            }
+            const raw = data as unknown as { media?: { movies?: unknown; tv?: unknown }; providers?: { id?: unknown; logo?: unknown }[] }
+            const movies = new Set<number>(Array.isArray(raw.media?.movies) ? (raw.media!.movies as unknown[]).filter((x): x is number => typeof x === "number") : [])
             const tv = new Set<number>(
-                Array.isArray(raw?.media?.tv) ? (raw!.media!.tv as unknown[]).map((t) => (t as { id?: unknown })?.id).filter((x): x is number => typeof x === "number") : []
+                Array.isArray(raw.media?.tv) ? (raw.media!.tv as unknown[]).map((t) => (t as { id?: unknown })?.id).filter((x): x is number => typeof x === "number") : []
             )
             const providerLogos: Record<string, string> = {}
-            for (const prov of raw?.providers ?? []) {
+            for (const prov of raw.providers ?? []) {
                 if (typeof prov?.id === "string" && typeof prov?.logo === "string") providerLogos[prov.id] = prov.logo
             }
             return { movies, tv, providerLogos }
         } catch {
+            cache.delete(baseUrl)
             return EMPTY
         }
     })()
@@ -48,25 +55,33 @@ function fetchOmssHome(client: OmssClient, baseUrl: string): Promise<OmssHomeDat
  * Powers "local stream providers win": a title gatearr has on disk shows its Radarr/Sonarr logo ahead
  * of (or instead of) the TMDB streaming provider. Returns empties until loaded / when OMSS is down.
  */
-export function useOmssHome(): OmssHomeData {
+export function useOmssHome(): OmssHomeData & { ready: boolean } {
     const { client, valid, baseUrl } = useOmss()
     const [data, setData] = useState<OmssHomeData>(EMPTY)
+    // `ready` = ownership is known (home loaded, or OMSS is down). Consumers that fall back to TMDB wait
+    // for it so they don't fire a TMDB lookup — or flash a TMDB logo — before learning the title is local.
+    const [ready, setReady] = useState(false)
 
     useEffect(() => {
         if (!valid) {
             setData(EMPTY)
+            setReady(true) // OMSS down → nothing local; let the TMDB fallback proceed immediately
             return
         }
         let cancelled = false
+        setReady(false)
         void fetchOmssHome(client, baseUrl).then((d) => {
-            if (!cancelled) setData(d)
+            if (!cancelled) {
+                setData(d)
+                setReady(true)
+            }
         })
         return () => {
             cancelled = true
         }
     }, [client, valid, baseUrl])
 
-    return data
+    return { ...data, ready }
 }
 
 /** The local gatearr provider id for a media type (movie → Radarr, tv → Sonarr). */
