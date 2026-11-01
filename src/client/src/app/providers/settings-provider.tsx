@@ -1,8 +1,9 @@
-import React, { useMemo } from "react"
+import React, { useEffect, useMemo } from "react"
 import { usePersistentState, useProfileState } from "@/hooks/use-localstorage"
-import { AppSettingsContext, type SupportedLocales, type SubtitleFontSize, type SubtitleBackground } from "@/hooks/use-appsettings"
+import { AppSettingsContext, type SupportedLocales, type SubtitleFontSize, type SubtitleBackground, tmdbLanguageFor } from "@/hooks/use-appsettings"
 import type { CountryISO3166_1, Timezone, TMDBOptions } from "@lorenzopant/tmdb"
 import { getCountry } from "@/lib/tmdb.utils"
+import i18n from "@/app/i18n/i18n"
 
 const DEFAULT_TMDB_OPTIONS: TMDBOptions = {
     language: "en-US",
@@ -28,6 +29,14 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     // legacy global value so an existing user keeps their settings on first run.
     const [locale, setLocale] = useProfileState<SupportedLocales>("app.locale", "en")
     const [region, setRegion] = useProfileState<CountryISO3166_1 | undefined>("app.region", getCountry())
+
+    // Keep the UI language (i18next) in step with the active profile's locale. Switching a profile
+    // reloads the app, which re-initialises `locale` from the new profile's namespace; this effect then
+    // drives i18next to match. Without it, i18next's GLOBAL LanguageDetector cache keeps the previous
+    // profile's UI language even though TMDB (tmdbOptions.language, below) already follows the profile.
+    useEffect(() => {
+        if (i18n.language !== locale) void i18n.changeLanguage(locale)
+    }, [locale])
     const [autoplayNext, setAutoplayNext] = useProfileState<boolean>("app.autoplayNext", true)
     const [showHeaderIcons, setShowHeaderIcons] = useProfileState<boolean>("app.showHeaderIcons", true)
     const [showHeaderLogo, setShowHeaderLogo] = useProfileState<boolean>("app.showHeaderLogo", true)
@@ -47,7 +56,8 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     const tmdbOptions = useMemo<TMDBOptions>(
         () => ({
             ...DEFAULT_TMDB_OPTIONS,
-            language: locale,
+            // TMDB wants the full primary translation (e.g. "en-US", "zh-CN"); map it from the locale.
+            language: tmdbLanguageFor(locale),
             region,
         }),
         [locale, region]

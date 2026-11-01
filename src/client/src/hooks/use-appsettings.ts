@@ -1,8 +1,6 @@
 import React, { createContext, useContext } from "react"
 import type { CountryISO3166_1, TMDBOptions } from "@lorenzopant/tmdb"
 
-export type SupportedLocales = "en"
-
 export const supportedLocales = [
     {
         iso639: "en",
@@ -45,6 +43,14 @@ export const supportedLocales = [
         primaryTranslationTmdb: "it",
     },
 ] as const
+
+/** A supported UI/metadata language — the iso639 code of one of {@link supportedLocales}. */
+export type SupportedLocales = (typeof supportedLocales)[number]["iso639"]
+
+/** The TMDB `language` (primary translation) for a given UI locale, e.g. "en" → "en-US". */
+export function tmdbLanguageFor(locale: SupportedLocales): string {
+    return supportedLocales.find((l) => l.iso639 === locale)?.primaryTranslationTmdb ?? locale
+}
 
 export type SubtitleFontSize = "sm" | "md" | "lg" | "xl"
 export type SubtitleBackground = "none" | "subtle" | "solid"
