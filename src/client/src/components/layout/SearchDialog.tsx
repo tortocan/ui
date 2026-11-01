@@ -7,7 +7,8 @@ import type { Language, MultiSearchResultItem } from "@lorenzopant/tmdb"
 import { useSearchParams } from "react-router-dom"
 import { LucideClapperboard, LucideFilter, LucideGlobe, LucidePlay, LucideTv } from "lucide-react"
 import { useTranslation } from "react-i18next"
-import { useAppSettings, supportedLocales, tmdbLanguageFor, type SupportedLocales } from "@/hooks/use-appsettings.ts"
+import { useAppSettings, tmdbLanguageFor } from "@/hooks/use-appsettings.ts"
+import { useTmdbLanguages } from "@/hooks/use-tmdb-languages"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group.tsx"
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx"
 import { useMediaDrawer } from "@/components/media/drawer/hooks/useMediaDrawer.ts"
@@ -18,6 +19,7 @@ type MediaFilter = "all" | "movie" | "tv"
 export function SearchDialog() {
     const tmdb = useTmdb()
     const { showSearch, setShowSearch, locale, searchLocales, setSearchLocales } = useAppSettings()
+    const { labelOf } = useTmdbLanguages()
     const { t } = useTranslation(["searchdialog", "common"])
     const { open } = useMediaDrawer()
 
@@ -27,9 +29,7 @@ export function SearchDialog() {
         const codes = [tmdbLanguageFor(locale), ...searchLocales.map((l) => tmdbLanguageFor(l))]
         return Array.from(new Set(codes)) as Language[]
     }, [locale, searchLocales])
-    const toggleSearchLocale = (iso: SupportedLocales) => {
-        setSearchLocales(searchLocales.includes(iso) ? searchLocales.filter((l) => l !== iso) : [...searchLocales, iso])
-    }
+    const removeSearchLocale = (code: string) => setSearchLocales(searchLocales.filter((l) => l !== code))
 
     const [query, setQuery] = useState("")
     const debouncedQuery = useDebouncedValue(query, 400)
@@ -256,23 +256,20 @@ export function SearchDialog() {
                                         <LucideGlobe className="h-3.5 w-3.5" />
                                         {t("searchLanguages", "Search languages")}
                                     </DropdownMenuLabel>
-                                    {[...supportedLocales]
-                                        .sort((a, b) => a.label.localeCompare(b.label))
-                                        .map((l) => {
-                                            const isProfile = l.iso639 === locale
-                                            return (
-                                                <DropdownMenuCheckboxItem
-                                                    key={l.iso639}
-                                                    // The profile's own language is always searched — checked and locked.
-                                                    checked={isProfile || searchLocales.includes(l.iso639)}
-                                                    disabled={isProfile}
-                                                    onCheckedChange={() => toggleSearchLocale(l.iso639)}
-                                                    onSelect={(e) => e.preventDefault()}
-                                                >
-                                                    {l.label}
-                                                </DropdownMenuCheckboxItem>
-                                            )
-                                        })}
+                                    {/* Mirrors the configured preferred languages (Settings → TMDB): the profile's own
+                                        is always searched (checked + locked), each extra can be unchecked here to stop
+                                        searching it. Add more from Settings. */}
+                                    <DropdownMenuCheckboxItem checked disabled onSelect={(e) => e.preventDefault()}>
+                                        {labelOf(locale)}
+                                    </DropdownMenuCheckboxItem>
+                                    {searchLocales.map((code) => (
+                                        <DropdownMenuCheckboxItem key={code} checked onCheckedChange={() => removeSearchLocale(code)} onSelect={(e) => e.preventDefault()}>
+                                            {labelOf(code)}
+                                        </DropdownMenuCheckboxItem>
+                                    ))}
+                                    <DropdownMenuItem disabled className="text-[11px] text-muted-foreground">
+                                        {t("searchLanguagesManage", "Add more in Settings → TMDB")}
+                                    </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </InputGroupAddon>

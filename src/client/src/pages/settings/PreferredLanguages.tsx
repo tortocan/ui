@@ -1,12 +1,10 @@
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { ChevronDown, ChevronUp, GripVertical, Lock, Plus, X } from "lucide-react"
 import { useAppSettings, supportedLocales } from "@/hooks/use-appsettings"
-import { useTmdb } from "@/hooks/use-tmdb"
+import { useTmdbLanguages, type TmdbLanguage } from "@/hooks/use-tmdb-languages"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { cn } from "@/lib/utils"
-
-type Lang = { code: string; label: string; native?: string }
 
 /**
  * A per-profile, reorderable list of PREFERRED search languages. The profile's own language is always
@@ -23,42 +21,18 @@ type Lang = { code: string; label: string; native?: string }
  */
 export function PreferredLanguages() {
     const { locale, searchLocales, setSearchLocales } = useAppSettings()
-    const tmdb = useTmdb()
+    const { languages: tmdbLangs, labelOf } = useTmdbLanguages()
     const [dragIndex, setDragIndex] = useState<number | null>(null)
     const [overIndex, setOverIndex] = useState<number | null>(null)
     const [pickerOpen, setPickerOpen] = useState(false)
-
-    // Every TMDB language. Label is the ENGLISH name (always Latin + meaningful; native names can be
-    // empty or unrenderable). Falls back to the UI-locale set until the fetch resolves.
-    const [tmdbLangs, setTmdbLangs] = useState<Lang[]>([])
-    useEffect(() => {
-        let cancelled = false
-        void tmdb.configuration
-            .languages()
-            .then((list) => {
-                if (cancelled) return
-                setTmdbLangs(list.filter((l) => l.iso_639_1 && l.english_name).map((l) => ({ code: l.iso_639_1, label: l.english_name, native: l.name?.trim() || undefined })))
-            })
-            .catch(() => {})
-        return () => {
-            cancelled = true
-        }
-    }, [tmdb])
-
-    const labelMap = useMemo(() => {
-        const m = new Map<string, string>(supportedLocales.map((l) => [l.iso639, l.label]))
-        for (const l of tmdbLangs) if (!m.has(l.code)) m.set(l.code, l.label) // keep the native UI-locale labels
-        return m
-    }, [tmdbLangs])
-    const labelOf = (code: string) => labelMap.get(code) ?? code
 
     // The profile's own language is implicit (pinned first) — never a draggable item.
     const items = useMemo(() => searchLocales.filter((l) => l !== locale), [searchLocales, locale])
 
     // All TMDB languages not already chosen and not the profile's, sorted by English name. Falls back to
     // the UI locales before the TMDB list loads so the picker is never empty.
-    const available = useMemo<Lang[]>(() => {
-        const source: Lang[] = tmdbLangs.length ? tmdbLangs : supportedLocales.map((l) => ({ code: l.iso639, label: l.label }))
+    const available = useMemo<TmdbLanguage[]>(() => {
+        const source: TmdbLanguage[] = tmdbLangs.length ? tmdbLangs : supportedLocales.map((l) => ({ code: l.iso639, label: l.label }))
         return source.filter((l) => l.code !== locale && !items.includes(l.code)).sort((a, b) => a.label.localeCompare(b.label))
     }, [tmdbLangs, locale, items])
 
