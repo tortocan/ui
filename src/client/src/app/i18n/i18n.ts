@@ -8,7 +8,7 @@ i18n.use(HttpBackend)
     .use(initReactI18next)
     .init({
         fallbackLng: "en",
-        debug: import.meta.env.NODE_ENV === "development",
+        debug: import.meta.env.DEV,
         interpolation: {
             escapeValue: false,
         },

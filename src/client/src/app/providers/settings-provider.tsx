@@ -68,7 +68,11 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     const setTmdbOptions = React.useCallback(
         (updater: React.SetStateAction<TMDBOptions>) => {
             const next = typeof updater === "function" ? updater(tmdbOptions) : updater
-            if (next.language && next.language !== locale) setLocale(next.language as SupportedLocales)
+            // next.language is a TMDB primary translation (e.g. "en-US"); map back to the iso-639-1 locale.
+            if (next.language) {
+                const nextLocale = next.language.split("-")[0] as SupportedLocales
+                if (nextLocale !== locale) setLocale(nextLocale)
+            }
             if (next.region !== region) setRegion(next.region as CountryISO3166_1)
         },
         [tmdbOptions, locale, region, setLocale, setRegion]
