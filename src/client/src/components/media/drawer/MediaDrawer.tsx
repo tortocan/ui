@@ -1,24 +1,19 @@
-import { ArrowLeft, Languages, Play, RotateCcw } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
-import { useOmss } from "@/hooks/use-omss"
 import { useAppSettings, tmdbLanguageFor } from "@/hooks/use-appsettings"
-import { useTmdbLanguages } from "@/hooks/use-tmdb-languages"
 import i18n from "@/app/i18n/i18n"
 import { Button } from "@/components/ui/button"
 import { MediaHeroCard } from "@/components/media/MediaHeroCard.tsx"
-import { CHIP } from "@/components/media/TitleCardContent.tsx"
-import { WatchProviders } from "@/components/media/WatchProviders.tsx"
+import { useHeroActions } from "@/components/media/hooks/use-hero-actions.tsx"
 import { useMediaDetails } from "./hooks/useMediaDetails"
 import { MediaCast } from "./MediaCast"
 import { MediaCollection } from "./MediaCollection"
 import { MediaEpisodes } from "./MediaEpisodes"
 import { MediaRecommendations } from "./MediaRecommendations"
-import { TrailerDialog } from "./TrailerDialog"
 import type { MediaDrawerPayload } from "./types/drawer.types"
 import { formatRuntime } from "@/components/media/drawer/mappers/media.mapper.ts"
 import { cn } from "@/lib/utils.ts"
-import { useNavigate } from "react-router-dom"
 import { useMediaDrawer } from "@/components/media/drawer/hooks/useMediaDrawer.ts"
 
 interface MediaDrawerProps {
@@ -28,17 +23,8 @@ interface MediaDrawerProps {
     className?: string
 }
 
-// A representative streaming region for a language (TMDB watch-providers are region-keyed). Used so
-// the original-language toggle also shows that language's availability. Uppercasing the iso-639-1 code
-// already yields the right country for many European languages (es→ES, fr→FR …); the rest are explicit.
-const LANG_REGION: Record<string, string> = { en: "US", es: "ES", pt: "BR", ja: "JP", ko: "KR", zh: "CN", hi: "IN", ar: "AE", uk: "UA", el: "GR", cs: "CZ", da: "DK", sv: "SE", nb: "NO", no: "NO" }
-function regionForLanguage(code: string): string {
-    return LANG_REGION[code] ?? code.toUpperCase()
-}
-
 export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDrawerProps) {
     const { locale, preferOriginalContent } = useAppSettings()
-    const { labelOf } = useTmdbLanguages()
     // Toggle the displayed metadata between the profile (first) language and the title's original one.
     const [showOriginal, setShowOriginal] = useState(false)
     // Apply the "prefer original" setting at most once per opened title (user can still toggle after).
@@ -48,8 +34,6 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
     // MediaDrawerRoot routes collections to CollectionDrawer, so payload.type is always movie|tv here.
     const { data, isLoading } = useMediaDetails(payload.type as "movie" | "tv", payload.id, showOriginal && originalLang ? tmdbLanguageFor(originalLang) : undefined)
     const { closeAll, close } = useMediaDrawer()
-
-    const navigate = useNavigate()
 
     // UI chrome language for THIS drawer only: a fixed-T bound to the toggled language (not a global
     // i18n.changeLanguage), so Play/Trailer/Top Cast/… localize to the content's language here while the
@@ -85,36 +69,6 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
         if (end != null && end - start.y > 60) closeAll()
     }
 
-    // Turn Play into "Resume" from the scrobbler. For a movie: the stored position → "Resume · {time}".
-    // For a show: the in-progress episode, else the earliest unwatched episode → "Resume · S{s}E{e}",
-    // and Play navigates straight to that episode.
-    const { client, valid } = useOmss()
-    // null = not resumable; present = resumable (season/episode set for a show). The label is built at
-    // render so it can localize to the drawer's UI language.
-    const [resume, setResume] = useState<{ season?: number; episode?: number } | null>(null)
-
-    useEffect(() => {
-        let cancelled = false
-        setResume(null)
-        if (!data || !valid) return
-
-        // The backend owns the continue-watching decision; the client just asks and presents it.
-        void client.getResume(data.type, Number(data.id)).then(({ data: rt }) => {
-            if (cancelled || !rt || !rt.resumable) return
-            if (rt.mediaType === "movie") {
-                setResume({})
-            } else {
-                setResume({ season: rt.season, episode: rt.episode })
-            }
-        })
-
-        return () => {
-            cancelled = true
-        }
-        // Keyed on the stable title identity (not the whole `data` object) so a language toggle — which
-        // produces a new data ref but the same title — doesn't re-run this and flicker the Play button.
-    }, [client, valid, data?.type, data?.id])
-
     // Remember the title's original language from the (profile-language) fetch so the toggle can request
     // it. If "prefer original content" is on and the title has a distinct original, default to it (once);
     // a title whose original IS the profile language stays on the profile language (the US/profile fallback).
@@ -127,38 +81,17 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
         }
     }, [data?.originalLanguage, preferOriginalContent, locale])
 
-    // While showing the original language, the collection rail + streaming providers follow it too:
-    // the rail is fetched in that language, and providers use the region that matches the language.
-    const displayLang = showOriginal && originalLang ? originalLang : locale
-    const providerRegion = showOriginal && originalLang ? regionForLanguage(originalLang) : undefined
-
-    // The original-language toggle chip — only when the original differs from the profile language.
-    // Green (profile accent) while the original is showing; a plain chip otherwise.
-    const canToggleLang = !!originalLang && originalLang !== locale
-    const langChip = canToggleLang ? (
-        <button
-            type="button"
-            onClick={() => setShowOriginal((v) => !v)}
-            disabled={isLoading}
-            title={showOriginal ? "Showing the original language — click for your language" : "Show the original language"}
-            className={cn(CHIP, "transition-colors", showOriginal ? "border-primary/60 bg-primary/25" : "hover:bg-white/20", isLoading && "opacity-60")}
-        >
-            <Languages className="size-4 opacity-80" />
-            {labelOf(originalLang!)}
-        </button>
-    ) : null
-
-    const handlePlay = () => {
-        if (!data) return
-
-        const path = payload.type === "movie" ? `/watch/movie/${data.id}` : resume?.episode != null ? `/watch/tv/${data.id}/?s=${resume.season}&e=${resume.episode}` : `/watch/tv/${data.id}`
-
-        closeAll()
-
-        requestAnimationFrame(() => {
-            navigate(path)
-        })
-    }
+    // The hero action row (Resume + original-language toggle + Trailer + providers) is the SHARED element
+    // the home/discover carousel renders too. The drawer owns showOriginal (it also drives the detail
+    // refetch above) and reuses the hook's displayLang/providerRegion for the collection rail below.
+    const hero = useHeroActions({
+        media: { type: payload.type as "movie" | "tv", id: payload.id, title: data?.title ?? "", trailer: data?.trailer ?? null, originalLanguage: originalLang },
+        locale,
+        showOriginal,
+        onToggleShowOriginal: setShowOriginal,
+        isLoading,
+        onBeforePlay: closeAll,
+    })
 
     return (
         <Drawer open={isOpen} onOpenChange={(open) => !open && closeAll()}>
@@ -201,29 +134,16 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
                             meta={data.runtime ? formatRuntime(data.runtime) : null}
                             genres={data.genres}
                             tags={data.collection ? [dt("detail.collection", "Collection")] : undefined}
-                            actionChips={langChip}
+                            actionChips={hero.actionChips}
                             description={data.overview}
                             networkLogo={data.networkLogo}
                             studioLogo={data.studioLogo}
                             heightClassName="h-screen"
                             className="animate-in duration-700 fade-in"
-                            onPlay={handlePlay}
-                            playLabel={
-                                resume ? (
-                                    <>
-                                        <RotateCcw className="size-5" />
-                                        {dt("detail.resume", "Resume")}
-                                        {resume.episode != null ? ` · S${resume.season}E${resume.episode}` : ""}
-                                    </>
-                                ) : (
-                                    <>
-                                        <Play className="size-5 fill-white" />
-                                        {dt("detail.play", "Play")}
-                                    </>
-                                )
-                            }
-                            secondary={<TrailerDialog trailerId={data.trailer} title={data.title} mediaType={data.type} tmdbId={Number(data.id)} language={displayLang} label={dt("detail.trailer", "Trailer")} />}
-                            afterActions={<WatchProviders type={data.type} id={Number(data.id)} region={providerRegion} />}
+                            onPlay={hero.onPlay}
+                            playLabel={hero.playLabel}
+                            secondary={hero.secondary}
+                            afterActions={hero.afterActions}
                         />
 
                         {/* DETAIL SECTIONS — float ~10% up over the hero card's bottom, exactly like the
@@ -241,7 +161,7 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
                             {/* COLLECTION — the rest of the franchise, above Top Cast. */}
                             {data.collection && (
                                 <div className="mb-8">
-                                    <MediaCollection collectionId={data.collection.id} name={data.collection.name} currentId={Number(data.id)} language={tmdbLanguageFor(displayLang)} providerRegion={providerRegion} />
+                                    <MediaCollection collectionId={data.collection.id} name={data.collection.name} currentId={Number(data.id)} language={tmdbLanguageFor(hero.displayLang)} providerRegion={hero.providerRegion} />
                                 </div>
                             )}
 

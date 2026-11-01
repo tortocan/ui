@@ -1,7 +1,7 @@
 import type { MovieDetailsWithAppends, TVDetailsWithAppends, TVSeason } from "@lorenzopant/tmdb"
 import { MOVIE_APPENDS, TV_APPENDS } from "../constants/tmdb"
 import type { MediaCast, MediaEpisode, MediaNormalized, MediaRecommendation } from "../types/media.types"
-import { FALLBACK_IMAGE, tmdbImage } from "@/lib/tmdb.utils"
+import { FALLBACK_IMAGE, pickYouTubeTrailerKey, tmdbImage } from "@/lib/tmdb.utils"
 
 type WithLogo = { logo_path?: string | null }
 
@@ -17,16 +17,7 @@ export const mapMedia = (data: MovieDetailsWithAppends<typeof MOVIE_APPENDS> | T
     const companies = ((data as { production_companies?: WithLogo[] }).production_companies ?? []) as WithLogo[]
     const networks = (tvData?.networks ?? []) as WithLogo[]
 
-    // Prefer an official YouTube Trailer, then any Trailer/Teaser/Clip, then any YouTube video —
-    // long-running shows frequently expose only teasers/clips (or nothing) under "Trailer".
-    const yt = (data.videos?.results ?? []).filter((v) => v.site === "YouTube")
-    const trailer =
-        yt.find((v) => v.type === "Trailer" && v.official)?.key ??
-        yt.find((v) => v.type === "Trailer")?.key ??
-        yt.find((v) => v.type === "Teaser")?.key ??
-        yt.find((v) => v.type === "Clip")?.key ??
-        yt[0]?.key ??
-        null
+    const trailer = pickYouTubeTrailerKey(data.videos?.results)
 
     const cast: MediaCast[] =
         data.credits?.cast.slice(0, 10).map((c) => ({

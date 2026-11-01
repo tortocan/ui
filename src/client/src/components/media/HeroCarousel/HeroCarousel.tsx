@@ -1,23 +1,18 @@
 import { useEffect, useMemo, useState } from "react"
 import type { TMDB } from "@lorenzopant/tmdb"
 import Autoplay from "embla-carousel-autoplay"
-import { Info, Play } from "lucide-react"
 import { Carousel, type CarouselApi, CarouselContent, CarouselItem } from "@/components/ui/carousel"
-import { MediaHeroCard } from "@/components/media/MediaHeroCard.tsx"
+import { HeroSlideCard } from "./HeroSlideCard"
 import { useHeroSlides } from "./use-heroslides"
 import type { HeroFetcherResult } from "./types"
 import { Button } from "@/components/ui/button.tsx"
 import "@/styles/animation.css"
-import { useMediaDrawer } from "@/components/media/drawer/hooks/useMediaDrawer"
 import { useIsMobile } from "@/hooks/use-mobile.ts"
-import { useNavigate } from "react-router-dom"
 import { useAppSettings } from "@/hooks/use-appsettings.ts"
 
 export function HeroCarousel({ tmdb, fetcher }: { tmdb: TMDB; fetcher: HeroFetcherResult }) {
-    const { open } = useMediaDrawer()
     const { slides, loading, error, reload } = useHeroSlides(tmdb, fetcher)
     const isMobile = useIsMobile()
-    const navigate = useNavigate()
     const { showCarouselDots } = useAppSettings()
 
     const [heroApi, setHeroApi] = useState<CarouselApi>()
@@ -76,36 +71,7 @@ export function HeroCarousel({ tmdb, fetcher }: { tmdb: TMDB; fetcher: HeroFetch
             <CarouselContent className="ml-0 h-full">
                 {slides.map((slide, index) => (
                     <CarouselItem key={`${slide.type}-${slide.id}`} className="pl-0" aria-hidden={activeSlide !== index} inert={activeSlide !== index}>
-                        <MediaHeroCard
-                            image={slide.image}
-                            logoUrl={slide.logo}
-                            title={slide.title}
-                            rating={slide.rating}
-                            date={slide.year}
-                            meta={slide.runtime}
-                            genres={slide.genres}
-                            description={slide.description}
-                            descriptionClampChars={isMobile ? 160 : 420}
-                            networkLogo={slide.networkLogo}
-                            studioLogo={slide.studioLogo}
-                            onPlay={() => navigate(slide.type === "movie" ? "/watch/movie/" + slide.id : "/watch/tv/" + slide.id + "?s=1&e=1")}
-                            playLabel={
-                                <>
-                                    <Play className="size-4 fill-current" />
-                                    Play
-                                </>
-                            }
-                            secondary={
-                                <Button
-                                    variant="outline"
-                                    className="rounded-full border-white/30 bg-white/10 px-7 text-white backdrop-blur-md hover:bg-white/20 hover:text-white"
-                                    onClick={() => open({ type: slide.type, id: slide.id })}
-                                >
-                                    <Info className="size-4" />
-                                    Learn more
-                                </Button>
-                            }
-                        />
+                        <HeroSlideCard slide={slide} active={activeSlide === index} descriptionClampChars={isMobile ? 160 : 420} />
                     </CarouselItem>
                 ))}
             </CarouselContent>

@@ -15,9 +15,13 @@ export type HeroSlide = {
     /** First network logo (TV only) and first production-company logo, if available. */
     networkLogo: string | null
     studioLogo: string | null
+    /** YouTube trailer key (drives the hero's Trailer button); null when none. */
+    trailer: string | null
+    /** The title's original-language iso-639-1 code (drives the original-language toggle chip). */
+    originalLanguage: string
 }
 
-export type DetailedMedia = MovieDetailsWithAppends<"images"[]> | TVDetailsWithAppends<"images"[]>
+export type DetailedMedia = MovieDetailsWithAppends<("images" | "videos")[]> | TVDetailsWithAppends<("images" | "videos")[]>
 
 export type MixedMediaItem = { type: "movie"; id: number } | { type: "tv"; id: number }
 

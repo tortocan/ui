@@ -28,6 +28,20 @@ export function yearOf(date: string | null | undefined): number {
     return Number.isFinite(y) ? y : 0
 }
 
+/** A TMDB `videos.results` entry, narrowed to the fields the trailer picker reads. */
+type TmdbVideo = { site?: string; type?: string; official?: boolean; key: string }
+
+/**
+ * Pick the best YouTube trailer key from a TMDB `videos.results` list: an official Trailer, then any
+ * Trailer, then a Teaser, then a Clip, then any YouTube video (long-running shows frequently expose only
+ * teasers/clips, or nothing). Returns null when there's no YouTube video. Shared by the hero-slide and
+ * media-detail mappers so both pick the trailer identically.
+ */
+export function pickYouTubeTrailerKey(videos: TmdbVideo[] | undefined): string | null {
+    const yt = (videos ?? []).filter((v) => v.site === "YouTube")
+    return yt.find((v) => v.type === "Trailer" && v.official)?.key ?? yt.find((v) => v.type === "Trailer")?.key ?? yt.find((v) => v.type === "Teaser")?.key ?? yt.find((v) => v.type === "Clip")?.key ?? yt[0]?.key ?? null
+}
+
 export function getCountry(): CountryISO3166_1 | undefined {
     try {
         const locale = new Intl.Locale(navigator.language)

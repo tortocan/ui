@@ -1,6 +1,6 @@
 import type { DetailedMedia, HeroSlide } from "./types"
 import { formatRuntime } from "@/components/media/drawer/mappers/media.mapper.ts"
-import { tmdbImage } from "@/lib/tmdb.utils"
+import { pickYouTubeTrailerKey, tmdbImage } from "@/lib/tmdb.utils"
 
 type WithLogo = { logo_path?: string | null }
 
@@ -36,6 +36,8 @@ export function toHeroSlides(mediaItems: DetailedMedia[]): HeroSlide[] {
                 runtime: isMovie ? (formatRuntime(media.runtime) ?? "") : (media.status ?? ""),
                 genres: (media.genres ?? []).slice(0, 3).map((g) => g.name),
                 logo: media.images.logos[0].file_path,
+                trailer: pickYouTubeTrailerKey(media.videos?.results),
+                originalLanguage: (media as { original_language?: string }).original_language ?? "",
             }
         })
 }

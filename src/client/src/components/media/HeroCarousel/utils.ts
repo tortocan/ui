@@ -31,13 +31,13 @@ export async function fetchDetailedMedia(items: MixedMediaItem[], tmdb: TMDB) {
             if (item.type === "movie") {
                 return tmdb.movies.details({
                     movie_id: item.id,
-                    append_to_response: ["images"],
+                    append_to_response: ["images", "videos"],
                 })
             }
 
             return tmdb.tv_series.details({
                 series_id: item.id,
-                append_to_response: ["images"],
+                append_to_response: ["images", "videos"],
             })
         })
     )
