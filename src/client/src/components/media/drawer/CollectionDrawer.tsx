@@ -22,6 +22,14 @@ function img(path: string | null | undefined, size: "w500" | "w342" | "original"
     return path.startsWith("http") ? path : `https://image.tmdb.org/t/p/${size}${path}`
 }
 
+// A franchise entry counts toward availability only once it has actually been released — TMDB
+// collections list announced sequels (empty/future release_date) a user can't own yet.
+function isReleased(date?: string | null): boolean {
+    if (!date) return false
+    const t = new Date(date).getTime()
+    return !Number.isNaN(t) && t <= Date.now()
+}
+
 interface CollectionDrawerProps {
     id: number
     canGoBack: boolean
@@ -41,8 +49,11 @@ export function CollectionDrawer({ id, canGoBack, isOpen }: CollectionDrawerProp
     const { client, valid } = useOmss()
     const { open, close, closeAll } = useMediaDrawer()
     const { genres } = useFilterOptions(tmdb, "movie")
-    const { library } = useOmssLibrary(true)
+    const { library, loading: libLoading } = useOmssLibrary(true)
     const owned = useMemo(() => new Set(library.movies), [library.movies])
+    // The owned set is only meaningful once OMSS is reachable AND its library has loaded; until then
+    // we must not render a (wrong) "Unavailable"/"View" state — the two fetches race.
+    const libReady = valid && !libLoading
 
     const [col, setCol] = useState<Collection | null>(null)
     const [loading, setLoading] = useState(true)
@@ -89,7 +100,10 @@ export function CollectionDrawer({ id, canGoBack, isOpen }: CollectionDrawerProp
     }, [col])
 
     const ownedCount = useMemo(() => parts.filter((p) => owned.has(p.id)).length, [parts, owned])
-    const availability = parts.length === 0 ? null : ownedCount === 0 ? "Unavailable" : ownedCount === parts.length ? "Available" : "Partially Available"
+    // Judge against RELEASED entries only, so owning every out-now film reads "Available" even when the
+    // collection also lists an announced sequel. Held back until the library is ready (avoids a flash).
+    const releasedCount = useMemo(() => parts.filter((p) => isReleased(p.release_date)).length, [parts])
+    const availability = !libReady || parts.length === 0 ? null : ownedCount === 0 ? "Unavailable" : releasedCount > 0 && ownedCount >= releasedCount ? "Available" : "Partially Available"
 
     // Up to three genre names, most frequent across the franchise first.
     const genreNames = useMemo(() => {
@@ -194,7 +208,7 @@ export function CollectionDrawer({ id, canGoBack, isOpen }: CollectionDrawerProp
                             playLabel={
                                 <>
                                     <Play className="size-5 fill-white" />
-                                    {ownedCount > 0 ? "Play" : "View"}
+                                    {libReady && ownedCount === 0 ? "View" : "Play"}
                                 </>
                             }
                         />
