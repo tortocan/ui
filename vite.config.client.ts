@@ -250,5 +250,22 @@ export default defineConfig({
         emptyOutDir: true,
 
         outDir: resolve(import.meta.dirname, "build", "client"),
+
+        rollupOptions: {
+            output: {
+                // Split large, rarely-changing vendor libraries into their own cacheable chunks so the
+                // app entry isn't one ~600 kB blob. Keeps chunks nearer Vite's 500 kB guidance and lets
+                // vendor code cache across app redeploys (only the small app chunks change).
+                manualChunks(id) {
+                    if (!id.includes("node_modules")) return
+                    if (/node_modules\/(react-dom|react-router-dom|react-router|react|scheduler)\//.test(id)) return "react-vendor"
+                    if (/node_modules\/(@radix-ui|radix-ui|@base-ui)/.test(id)) return "ui-vendor"
+                    if (/node_modules\/hls\.js/.test(id)) return "hls"
+                    if (/node_modules\/(recharts|d3-|internmap|victory-vendor)/.test(id)) return "charts"
+                    if (/node_modules\/embla-carousel/.test(id)) return "embla"
+                    return "vendor"
+                },
+            },
+        },
     },
 })
