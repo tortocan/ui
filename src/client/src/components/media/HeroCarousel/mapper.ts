@@ -1,14 +1,11 @@
 import type { DetailedMedia, HeroSlide } from "./types"
 import { formatRuntime } from "@/components/media/drawer/mappers/media.mapper.ts"
+import { tmdbImage } from "@/lib/tmdb.utils"
 
 type WithLogo = { logo_path?: string | null }
 
-// The TMDB client resolves known image file_path fields to full URLs, but company/network logo_path
-// may come through raw — handle both (pass a full URL through, otherwise prepend the image base).
-function logoUrl(path?: string | null): string | null {
-    if (!path) return null
-    return path.startsWith("http") ? path : `https://image.tmdb.org/t/p/w500${path}`
-}
+// Company/network logo_path comes through raw (the SDK only auto-resolves known image fields); w500.
+const logoUrl = (path?: string | null) => tmdbImage(path, "w500")
 
 export function toHeroSlides(mediaItems: DetailedMedia[]): HeroSlide[] {
     return mediaItems

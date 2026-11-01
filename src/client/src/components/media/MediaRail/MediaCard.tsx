@@ -1,6 +1,7 @@
 import * as React from "react"
 import { Card, CardContent } from "@/components/ui/card.tsx"
 import { cn } from "@/lib/utils.ts"
+import { FALLBACK_IMAGE } from "@/lib/tmdb.utils"
 import { useMediaDrawer } from "@/components/media/drawer/hooks/useMediaDrawer"
 import { StarRating } from "@/components/media/StarRating"
 import { ProviderBadge } from "@/components/media/ProviderBadge.tsx"
@@ -34,7 +35,7 @@ export const MediaCard = React.memo(
                 <CardContent className="p-0">
                     <div className={cn("relative overflow-hidden rounded-md bg-muted transition-all", aspectRatio === "portrait" ? "aspect-2/3" : "aspect-video")}>
                         <img
-                            src={imagePath ?? "/favicon.svg"}
+                            src={imagePath ?? FALLBACK_IMAGE}
                             alt={imageAlt || title}
                             className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.08]"
                             loading="lazy"

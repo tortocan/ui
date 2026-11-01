@@ -1,12 +1,7 @@
 import * as React from "react"
 import { Rail } from "./Rail.tsx"
+import { RAIL_ITEM_CLASS } from "./rail.constants.ts"
 import { cn } from "@/lib/utils.ts"
-
-// Shared slide sizing for every rail item (incl. skeletons and the trailing See-more card).
-// `last:mr-*` gives the DOM-last slide a trailing inset: Embla folds the last slide's margin-right
-// into contentSize, so the scroll limit extends past the last card by that much — the last card
-// clears the edge with breathing room instead of jamming flush-right (the iOS/macOS feel).
-const RAIL_ITEM_CLASS = "basis-1/2 pl-2 sm:basis-1/3 md:basis-1/4 md:pl-4 lg:basis-1/5 xl:basis-1/7 last:mr-4 md:last:mr-6"
 
 export interface MediaRailProps<T> {
     title?: React.ReactNode | string

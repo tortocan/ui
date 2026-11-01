@@ -9,16 +9,10 @@ import { Rail } from "@/components/media/MediaRail/Rail.tsx"
 import { useTmdb } from "@/hooks/use-tmdb"
 import { useFilterOptions } from "@/components/media/filters/useFilterOptions.ts"
 import { useMediaDrawer } from "@/components/media/drawer/hooks/useMediaDrawer.ts"
+import { tmdbImage } from "@/lib/tmdb.utils"
+import { RAIL_ITEM_CLASS, RAIL_CONTENT_CLASS } from "@/components/media/MediaRail/rail.constants"
 
-// Mirrors the library rail's slide sizing so the member cards read exactly like every other rail.
-const RAIL_ITEM_CLASS = "basis-1/2 pl-2 sm:basis-1/3 md:basis-1/4 md:pl-4 lg:basis-1/5 xl:basis-1/7 last:mr-4 md:last:mr-6"
-
-// Collection images may arrive as raw TMDB paths (the collections endpoint isn't always path-resolved
-// by the client) — pass http(s) through, otherwise prepend the TMDB CDN base.
-function img(path: string | null | undefined, size: "w500" | "w342" | "original"): string | null {
-    if (!path) return null
-    return path.startsWith("http") ? path : `https://image.tmdb.org/t/p/${size}${path}`
-}
+const img = tmdbImage
 
 interface CollectionDrawerProps {
     id: number
@@ -155,7 +149,7 @@ export function CollectionDrawer({ id, canGoBack, isOpen }: CollectionDrawerProp
                                     items={cards}
                                     getKey={(c) => c.id}
                                     itemClassName={RAIL_ITEM_CLASS}
-                                    contentClassName="-ml-2 md:-ml-4"
+                                    contentClassName={RAIL_CONTENT_CLASS}
                                     renderItem={(c) => <MediaCard id={c.id} type={c.type} title={c.title} imagePath={c.poster} imageAlt={c.title} year={c.year} rating={c.rating} />}
                                 />
                             </section>

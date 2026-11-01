@@ -9,6 +9,7 @@ import { NETWORKS, STREAMING } from "@/components/media/filters/catalog.ts"
 import { useFilterOptions } from "@/components/media/filters/useFilterOptions.ts"
 import { Rail } from "@/components/media/MediaRail/Rail.tsx"
 import { CollectionCard } from "@/components/media/CollectionCard.tsx"
+import { tmdbImage } from "@/lib/tmdb.utils"
 
 const PAGE_SIZE = 35
 const CHUNK = 20 // concurrent TMDB detail calls per batch
@@ -17,10 +18,7 @@ type LibCollection = { id: number; name: string; backdrop: string | null }
 type LibTitle = GridCard & { popularity: number; genreIds: number[]; companyIds: number[]; networkIds: number[]; collection?: LibCollection }
 
 // belongs_to_collection.backdrop_path may arrive raw (not resolved to a URL by the client).
-function collectionImage(path?: string | null): string | null {
-    if (!path) return null
-    return path.startsWith("http") ? path : `https://image.tmdb.org/t/p/w780${path}`
-}
+const collectionImage = (path?: string | null) => tmdbImage(path, "w780")
 
 async function inChunks<T, R>(items: T[], size: number, fn: (item: T) => Promise<R>): Promise<R[]> {
     const out: R[] = []

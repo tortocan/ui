@@ -2,7 +2,7 @@ import React, { useEffect, useMemo } from "react"
 import { usePersistentState, useProfileState } from "@/hooks/use-localstorage"
 import { AppSettingsContext, type SupportedLocales, type SubtitleFontSize, type SubtitleBackground, tmdbLanguageFor } from "@/hooks/use-appsettings"
 import type { CountryISO3166_1, Timezone, TMDBOptions } from "@lorenzopant/tmdb"
-import { getCountry } from "@/lib/tmdb.utils"
+import { getCountry, FALLBACK_IMAGE } from "@/lib/tmdb.utils"
 import i18n from "@/app/i18n/i18n"
 
 const DEFAULT_TMDB_OPTIONS: TMDBOptions = {
@@ -16,7 +16,7 @@ const DEFAULT_TMDB_OPTIONS: TMDBOptions = {
             backdrops: "original",
             logos: "original",
         },
-        fallback_url: "/favicon.svg",
+        fallback_url: FALLBACK_IMAGE,
     },
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone as Timezone,
     cache: true,

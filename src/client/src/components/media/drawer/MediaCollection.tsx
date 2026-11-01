@@ -4,14 +4,10 @@ import { Rail } from "@/components/media/MediaRail/Rail.tsx"
 import { MediaCard } from "@/components/media/MediaRail/MediaCard.tsx"
 import { useTmdb } from "@/hooks/use-tmdb"
 import { useOmss } from "@/hooks/use-omss"
+import { tmdbImage } from "@/lib/tmdb.utils"
+import { RAIL_ITEM_CLASS, RAIL_CONTENT_CLASS } from "@/components/media/MediaRail/rail.constants"
 
-// Mirrors the library rail's slide sizing so the member cards read exactly like every other rail.
-const RAIL_ITEM_CLASS = "basis-1/2 pl-2 sm:basis-1/3 md:basis-1/4 md:pl-4 lg:basis-1/5 xl:basis-1/7 last:mr-4 md:last:mr-6"
-
-function img(path: string | null | undefined): string | null {
-    if (!path) return null
-    return path.startsWith("http") ? path : `https://image.tmdb.org/t/p/w342${path}`
-}
+const img = (path: string | null | undefined) => tmdbImage(path, "w342")
 
 interface MediaCollectionProps {
     collectionId: number
@@ -102,7 +98,7 @@ export function MediaCollection({ collectionId, name, currentId, language, provi
                 items={cards}
                 getKey={(c) => c.id}
                 itemClassName={RAIL_ITEM_CLASS}
-                contentClassName="-ml-2 md:-ml-4"
+                contentClassName={RAIL_CONTENT_CLASS}
                 opts={{ align: "start", loop: false, dragFree: true, startIndex: activeIndex }}
                 renderItem={(c) => <MediaCard id={c.id} type={c.type} title={c.title} imagePath={c.poster} imageAlt={c.title} year={c.year} rating={c.rating} active={c.id === currentId} providerRegion={providerRegion} rank={c.rank} />}
             />

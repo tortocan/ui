@@ -1,15 +1,12 @@
 import type { MovieDetailsWithAppends, TVDetailsWithAppends, TVSeason } from "@lorenzopant/tmdb"
 import { MOVIE_APPENDS, TV_APPENDS } from "../constants/tmdb"
 import type { MediaCast, MediaEpisode, MediaNormalized, MediaRecommendation } from "../types/media.types"
+import { FALLBACK_IMAGE, tmdbImage } from "@/lib/tmdb.utils"
 
 type WithLogo = { logo_path?: string | null }
 
-// Company/network logo_path may come through raw (the TMDB client only auto-resolves known image
-// fields) — pass a full URL through, otherwise prepend the image base. Same helper as the hero carousel.
-function logoUrl(path?: string | null): string | null {
-    if (!path) return null
-    return path.startsWith("http") ? path : `https://image.tmdb.org/t/p/w500${path}`
-}
+// Company/network logo_path comes through raw (the SDK only auto-resolves known image fields); w500.
+const logoUrl = (path?: string | null) => tmdbImage(path, "w500")
 
 export const mapMedia = (data: MovieDetailsWithAppends<typeof MOVIE_APPENDS> | TVDetailsWithAppends<typeof TV_APPENDS>, type: "movie" | "tv"): MediaNormalized => {
     const isMovie = type === "movie"
@@ -36,7 +33,7 @@ export const mapMedia = (data: MovieDetailsWithAppends<typeof MOVIE_APPENDS> | T
             id: c.id,
             name: c.name,
             character: c.character,
-            profileUrl: c.profile_path ?? `/favicon.svg`,
+            profileUrl: c.profile_path ?? FALLBACK_IMAGE,
         })) || []
 
     const recommendations: MediaRecommendation[] =
@@ -44,8 +41,8 @@ export const mapMedia = (data: MovieDetailsWithAppends<typeof MOVIE_APPENDS> | T
             id: r.id,
             type: ("media_type" in r ? r.media_type : isMovie ? "movie" : "tv") as "movie" | "tv",
             title: ("title" in r ? r.title : r.name) as string,
-            posterUrl: r.poster_path ?? `/favicon.svg`,
-            backdropUrl: r.backdrop_path ?? `/favicon.svg`,
+            posterUrl: r.poster_path ?? FALLBACK_IMAGE,
+            backdropUrl: r.backdrop_path ?? FALLBACK_IMAGE,
             rating: r.vote_average,
         })) || []
 
@@ -59,8 +56,8 @@ export const mapMedia = (data: MovieDetailsWithAppends<typeof MOVIE_APPENDS> | T
         voteCount: data.vote_count,
         runtime: isMovie ? movieData!.runtime : tvData!.episode_run_time?.[0],
         genres: data.genres.map((g) => g.name),
-        backdropUrl: data.backdrop_path ?? "/favicon.svg",
-        posterUrl: data.poster_path ?? "/favicon.svg",
+        backdropUrl: data.backdrop_path ?? FALLBACK_IMAGE,
+        posterUrl: data.poster_path ?? FALLBACK_IMAGE,
         logoUrl: data.images?.logos[0]?.file_path,
         networkLogo: logoUrl(networks.find((n) => n.logo_path)?.logo_path),
         studioLogo: logoUrl(companies.find((c) => c.logo_path)?.logo_path),
@@ -72,7 +69,7 @@ export const mapMedia = (data: MovieDetailsWithAppends<typeof MOVIE_APPENDS> | T
             seasonNumber: s.season_number,
             name: s.name,
             episodeCount: s.episode_count,
-            posterUrl: s.poster_path ?? `/favicon.svg`,
+            posterUrl: s.poster_path ?? FALLBACK_IMAGE,
             airDate: s.air_date ?? "N/A",
         })),
         collection: movieData?.belongs_to_collection ? { id: movieData.belongs_to_collection.id, name: movieData.belongs_to_collection.name } : undefined,
@@ -86,7 +83,7 @@ export const mapEpisodes = (season: TVSeason): MediaEpisode[] => {
         episodeNumber: e.episode_number,
         name: e.name,
         overview: e.overview,
-        stillUrl: e.still_path?.replace("w300", "original") ?? `/favicon.svg`,
+        stillUrl: e.still_path?.replace("w300", "original") ?? FALLBACK_IMAGE,
         airDate: e.air_date ?? "N/A",
         runtime: e.runtime ?? 0,
     }))
