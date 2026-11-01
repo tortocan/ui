@@ -47,10 +47,11 @@ export const MediaCard = React.memo(
                         {/* Streaming-provider logo, top-right. */}
                         <ProviderBadge type={type} id={id} region={providerRegion} />
 
-                        {/* Top-10-style rank number (franchise order), bottom-left, outlined for legibility. */}
+                        {/* Top-10-style rank number (franchise order), upper-left, with a translucent
+                            top→bottom gradient fill so the poster shows through, like Apple TV / Netflix. */}
                         {rank != null && (
                             <span
-                                className="pointer-events-none absolute -bottom-2 left-1 z-20 text-7xl leading-none font-black text-white/95 drop-shadow-[0_2px_6px_rgba(0,0,0,0.7)] [-webkit-text-stroke:2px_rgba(0,0,0,0.55)]"
+                                className="pointer-events-none absolute top-0 left-1 z-10 bg-gradient-to-b from-white/95 to-white/25 bg-clip-text text-7xl leading-none font-black text-transparent drop-shadow-[0_2px_8px_rgba(0,0,0,0.65)]"
                                 aria-hidden
                             >
                                 {rank}
