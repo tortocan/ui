@@ -36,7 +36,10 @@ function formatReleaseDate(date?: string | null): string | null {
 export interface TitleCardContentProps {
     logoUrl?: string | null
     title: string
-    rating: string | number
+    /** Omit to hide the rating chip entirely (e.g. a collection has no single rating). */
+    rating?: string | number
+    /** Optional leading pill rendered before the chips (e.g. a collection availability badge). */
+    badge?: ReactNode
     /** Release/first-air date string; the year is shown. */
     date?: string | null
     /** Runtime (movies) or status like "Returning Series"/"Ended" (TV). */
@@ -64,6 +67,7 @@ export function TitleCardContent({
     logoUrl,
     title,
     rating,
+    badge,
     date,
     meta,
     genres,
@@ -83,9 +87,12 @@ export function TitleCardContent({
 
     const chips = (
         <div className="flex flex-wrap items-center gap-2">
-            <span className={CHIP}>
-                <StarRating rating={rating} className="font-semibold" />
-            </span>
+            {badge}
+            {rating != null && rating !== "" && (
+                <span className={CHIP}>
+                    <StarRating rating={rating} className="font-semibold" />
+                </span>
+            )}
             {releaseLabel && (
                 <span className={cn(CHIP, unreleased && CHIP_UNRELEASED)}>
                     <Calendar className="size-4 opacity-80" />

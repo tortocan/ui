@@ -7,7 +7,10 @@ export interface MediaHeroCardProps {
     image?: string | null
     logoUrl?: string | null
     title: string
-    rating: string | number
+    /** Omit to hide the rating chip (e.g. a collection has no single rating). */
+    rating?: string | number
+    /** Optional leading pill before the chips (e.g. a collection availability badge). */
+    badge?: ReactNode
     /** Release/first-air date (the year is shown). */
     date?: string | null
     /** Runtime (movies) or status (TV). */
@@ -41,6 +44,7 @@ export function MediaHeroCard({
     logoUrl,
     title,
     rating,
+    badge,
     date,
     meta,
     genres,
@@ -92,6 +96,7 @@ export function MediaHeroCard({
                             logoUrl={logoUrl}
                             title={title}
                             rating={rating}
+                            badge={badge}
                             date={date}
                             meta={meta}
                             genres={genres}

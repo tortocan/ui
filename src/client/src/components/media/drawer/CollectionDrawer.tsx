@@ -1,18 +1,23 @@
-import { ArrowLeft, CheckCircle2, Clock3, Play } from "lucide-react"
+import { ArrowLeft, Play } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
-import type { Collection, CollectionItem } from "@lorenzopant/tmdb"
+import type { Collection } from "@lorenzopant/tmdb"
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
 import { Button } from "@/components/ui/button"
+import { MediaHeroCard } from "@/components/media/MediaHeroCard.tsx"
+import { MediaCard } from "@/components/media/MediaRail/MediaCard.tsx"
+import { Rail } from "@/components/media/MediaRail/Rail.tsx"
 import { useTmdb } from "@/hooks/use-tmdb"
 import { useOmss } from "@/hooks/use-omss"
 import { useOmssLibrary } from "@/hooks/use-omss-library.ts"
 import { useFilterOptions } from "@/components/media/filters/useFilterOptions.ts"
 import { useMediaDrawer } from "@/components/media/drawer/hooks/useMediaDrawer.ts"
-import { cn } from "@/lib/utils.ts"
+
+// Mirrors the library rail's slide sizing so the member cards read exactly like every other rail.
+const RAIL_ITEM_CLASS = "basis-1/2 pl-2 sm:basis-1/3 md:basis-1/4 md:pl-4 lg:basis-1/5 xl:basis-1/7 last:mr-4 md:last:mr-6"
 
 // Collection images may arrive as raw TMDB paths (the collections endpoint isn't always path-resolved
-// by the client) — pass http(s) through, otherwise prepend the TMDB CDN base at a sensible size.
-function img(path: string | null | undefined, size: "w780" | "w342" | "original"): string | null {
+// by the client) — pass http(s) through, otherwise prepend the TMDB CDN base.
+function img(path: string | null | undefined, size: "w500" | "w342" | "original"): string | null {
     if (!path) return null
     return path.startsWith("http") ? path : `https://image.tmdb.org/t/p/${size}${path}`
 }
@@ -25,11 +30,11 @@ interface CollectionDrawerProps {
 
 /**
  * Collection (movie-franchise) detail — the sibling of {@link MediaDrawer} for a `type: "collection"`
- * payload. Keeps the app's hero-drawer style (full-bleed backdrop + diagonal gradient, content anchored
- * bottom-left, detail sections floating up over it) but adapts the content to a franchise: a poster +
- * availability pill + "{N} Movies · genres" + Overview, and a grid of member movies tagged owned
- * (available) or not-yet (clock). Clicking a member opens its movie drawer on top (back returns here);
- * Play continues the franchise — the first in-progress owned movie, else the earliest unwatched/first.
+ * payload. It reuses the SAME pieces as a title's detail: the shared {@link MediaHeroCard} as the hero
+ * (backdrop + title + chips + Play + overview) and a {@link Rail} of our standard {@link MediaCard}s
+ * for the member movies — so a collection looks like a movie detail, not a bespoke layout. The hero's
+ * leading chip is an availability badge; meta is "{N} Movies"; Play continues the franchise from the
+ * scrobbler. Clicking a member opens its movie drawer on top (back returns here).
  */
 export function CollectionDrawer({ id, canGoBack, isOpen }: CollectionDrawerProps) {
     const tmdb = useTmdb()
@@ -99,6 +104,20 @@ export function CollectionDrawer({ id, canGoBack, isOpen }: CollectionDrawerProp
             .slice(0, 3)
     }, [parts, genres])
 
+    // Member cards use our standard GridCard shape (poster resolved, year/rating from the part).
+    const cards = useMemo(
+        () =>
+            parts.map((p) => ({
+                id: p.id,
+                type: "movie" as const,
+                title: p.title,
+                poster: img(p.poster_path, "w342"),
+                year: p.release_date ? Number(p.release_date.slice(0, 4)) : 0,
+                rating: p.vote_average ?? 0,
+            })),
+        [parts]
+    )
+
     // Continue the franchise from the scrobbler: first in-progress owned movie, else earliest unwatched
     // owned, else the first owned (fallback: the first part). Opens the resume-aware movie drawer.
     async function handlePlay() {
@@ -122,8 +141,17 @@ export function CollectionDrawer({ id, canGoBack, isOpen }: CollectionDrawerProp
         open({ type: "movie", id: pool[0].id })
     }
 
-    const backdrop = img(col?.backdrop_path, "original")
-    const poster = img(col?.poster_path, "w342")
+    const availabilityBadge = availability && (
+        <span
+            className={
+                availability === "Unavailable"
+                    ? "inline-flex items-center rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-sm font-medium text-white backdrop-blur-md"
+                    : "inline-flex items-center rounded-full bg-emerald-500 px-3.5 py-1.5 text-sm font-semibold text-white"
+            }
+        >
+            {availability}
+        </span>
+    )
 
     return (
         <Drawer open={isOpen} onOpenChange={(o) => !o && closeAll()}>
@@ -151,108 +179,43 @@ export function CollectionDrawer({ id, canGoBack, isOpen }: CollectionDrawerProp
                     <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Failed to load collection.</div>
                 ) : (
                     <div className="relative h-full overflow-y-auto" onWheel={onBodyWheel} onTouchStart={onBodyTouchStart} onTouchEnd={onBodyTouchEnd}>
-                        {/* HERO — full-bleed backdrop + diagonal gradient, content bottom-left (our style). */}
-                        <section className="animate-in relative h-screen w-full overflow-hidden duration-700 fade-in">
-                            <div className="absolute inset-0">
-                                {backdrop ? (
-                                    <img src={backdrop} alt={col.name} draggable={false} className="h-full w-full object-cover object-center" />
-                                ) : (
-                                    <div className="flex h-full w-full items-center justify-center bg-muted text-sm text-muted-foreground">No backdrop available</div>
-                                )}
-                            </div>
-                            <div className="absolute inset-0 bg-[linear-gradient(110deg,rgba(0,0,0,0.92)_10%,rgba(0,0,0,0.45)_45%,rgba(0,0,0,0.82)_100%)]" />
+                        {/* HERO — the exact same card a title's detail renders. */}
+                        <MediaHeroCard
+                            image={img(col.backdrop_path, "original")}
+                            logoUrl={null}
+                            title={col.name}
+                            badge={availabilityBadge}
+                            meta={`${parts.length} ${parts.length === 1 ? "Movie" : "Movies"}`}
+                            genres={genreNames}
+                            description={col.overview}
+                            heightClassName="h-screen"
+                            className="animate-in duration-700 fade-in"
+                            onPlay={() => void handlePlay()}
+                            playLabel={
+                                <>
+                                    <Play className="size-5 fill-white" />
+                                    {ownedCount > 0 ? "Play" : "View"}
+                                </>
+                            }
+                        />
 
-                            <div className="relative z-10 flex h-full items-end pb-[8vh] md:pb-[10vh]">
-                                <div className="w-full px-6 sm:px-8 lg:px-12">
-                                    <div className="flex max-w-3xl items-end gap-5">
-                                        {poster && (
-                                            <img
-                                                src={poster}
-                                                alt={col.name}
-                                                draggable={false}
-                                                className="hidden w-32 shrink-0 rounded-lg shadow-2xl ring-1 ring-white/10 sm:block md:w-40"
-                                            />
-                                        )}
-                                        <div className="space-y-4">
-                                            {availability && (
-                                                <span
-                                                    className={cn(
-                                                        "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
-                                                        availability === "Unavailable" ? "bg-white/15 text-white/80 backdrop-blur-md" : "bg-emerald-500 text-white"
-                                                    )}
-                                                >
-                                                    {availability}
-                                                </span>
-                                            )}
-                                            <h1 className="text-2xl font-black tracking-tight text-white drop-shadow-2xl md:text-4xl lg:text-6xl">{col.name}</h1>
-                                            <p className="text-sm font-medium text-white/80 sm:text-base">
-                                                {parts.length} {parts.length === 1 ? "Movie" : "Movies"}
-                                                {genreNames.length > 0 && <span className="text-white/50"> · {genreNames.join(", ")}</span>}
-                                            </p>
-                                            <div className="flex flex-wrap items-center gap-3">
-                                                <Button className="rounded-full px-8 font-semibold shadow-lg transition-all hover:scale-105 hover:shadow-xl" onClick={() => void handlePlay()}>
-                                                    <Play className="size-5 fill-white" />
-                                                    {ownedCount > 0 ? "Play" : "View"}
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-
-                        {/* DETAIL — float up over the hero's bottom (same overlap as MediaDrawer). */}
+                        {/* MEMBERS — our standard MediaCards in a rail, floating up over the hero. */}
                         <div className="relative z-20 -mt-[8vh] px-4 pt-8 pb-10 text-white md:-mt-[10vh] md:px-8">
-                            {col.overview && (
-                                <section className="mb-8 max-w-3xl">
-                                    <h2 className="mb-2 text-xl font-semibold">Overview</h2>
-                                    <p className="leading-relaxed text-white/80">{col.overview}</p>
-                                </section>
-                            )}
-
-                            <section>
-                                <h2 className="mb-4 text-xl font-semibold">Movies</h2>
-                                <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 sm:gap-4 md:grid-cols-5 lg:grid-cols-6">
-                                    {parts.map((p) => (
-                                        <CollectionMemberCard key={p.id} part={p} available={owned.has(p.id)} onClick={() => open({ type: "movie", id: p.id })} />
-                                    ))}
-                                </div>
+                            <section className="space-y-4">
+                                <h2 className="text-xl font-semibold">Movies</h2>
+                                <Rail
+                                    items={cards}
+                                    getKey={(c) => c.id}
+                                    itemClassName={RAIL_ITEM_CLASS}
+                                    contentClassName="-ml-2 md:-ml-4"
+                                    renderItem={(c) => <MediaCard id={c.id} type={c.type} title={c.title} imagePath={c.poster} imageAlt={c.title} year={c.year} rating={c.rating} />}
+                                />
                             </section>
                         </div>
                     </div>
                 )}
             </DrawerContent>
         </Drawer>
-    )
-}
-
-function CollectionMemberCard({ part, available, onClick }: { part: CollectionItem; available: boolean; onClick: () => void }) {
-    const poster = img(part.poster_path, "w342")
-    const year = part.release_date ? part.release_date.slice(0, 4) : ""
-    return (
-        <button type="button" onClick={onClick} className="group relative overflow-hidden rounded-xl bg-muted text-left ring-1 ring-white/10 transition-transform hover:scale-[1.03]">
-            <div className="aspect-2/3 w-full">
-                {poster ? (
-                    <img src={poster} alt={part.title} loading="lazy" className="h-full w-full object-cover" />
-                ) : (
-                    <div className="flex h-full w-full items-center justify-center p-2 text-center text-xs text-muted-foreground">{part.title}</div>
-                )}
-            </div>
-
-            {/* MOVIE tag top-left. */}
-            <span className="absolute top-2 left-2 rounded-md bg-sky-600/90 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-white uppercase">Movie</span>
-
-            {/* Availability: green check when owned, amber clock when not yet available. */}
-            <span className="absolute top-2 right-2">
-                {available ? <CheckCircle2 className="size-5 fill-emerald-500 text-white" /> : <Clock3 className="size-5 rounded-full bg-amber-500/90 p-0.5 text-white" />}
-            </span>
-
-            {/* Title + year on hover. */}
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-linear-to-t from-black/85 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
-                <div className="truncate text-xs font-semibold text-white">{part.title}</div>
-                {year && <div className="text-[10px] text-white/70">{year}</div>}
-            </div>
-        </button>
     )
 }
 
@@ -264,11 +227,10 @@ function CollectionDrawerSkeleton() {
                 <div className="absolute inset-0 bg-linear-to-t from-black via-black/40 to-transparent" />
             </div>
             <div className="relative z-20 -mt-[45vh] px-4 pb-10 md:px-8">
-                <div className="mb-5 h-12 w-[40%] animate-pulse rounded-md bg-muted" />
-                <div className="mb-6 h-4 w-48 animate-pulse rounded bg-muted" />
-                <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 md:grid-cols-6">
+                <div className="mb-5 h-8 w-40 animate-pulse rounded-md bg-muted" />
+                <div className="flex gap-4">
                     {Array.from({ length: 6 }).map((_, i) => (
-                        <div key={i} className="aspect-2/3 animate-pulse rounded-xl bg-muted" />
+                        <div key={i} className="aspect-2/3 w-1/2 animate-pulse rounded-md bg-muted sm:w-1/3 md:w-1/4 lg:w-1/5 xl:w-1/7" />
                     ))}
                 </div>
             </div>
