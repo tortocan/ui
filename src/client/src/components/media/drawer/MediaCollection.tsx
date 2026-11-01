@@ -3,6 +3,7 @@ import type { Language } from "@lorenzopant/tmdb"
 import { Rail } from "@/components/media/MediaRail/Rail.tsx"
 import { MediaCard } from "@/components/media/MediaRail/MediaCard.tsx"
 import { useTmdb } from "@/hooks/use-tmdb"
+import { useOmss } from "@/hooks/use-omss"
 
 // Mirrors the library rail's slide sizing so the member cards read exactly like every other rail.
 const RAIL_ITEM_CLASS = "basis-1/2 pl-2 sm:basis-1/3 md:basis-1/4 md:pl-4 lg:basis-1/5 xl:basis-1/7 last:mr-4 md:last:mr-6"
@@ -31,6 +32,7 @@ interface MediaCollectionProps {
  */
 export function MediaCollection({ collectionId, name, currentId, language, providerRegion }: MediaCollectionProps) {
     const tmdb = useTmdb()
+    const { baseUrl, valid } = useOmss()
     const [cards, setCards] = useState<{ id: number; type: "movie"; title: string; poster: string | null; year: number; rating: number; rank: number }[] | null>(null)
 
     useEffect(() => {
@@ -39,9 +41,32 @@ export function MediaCollection({ collectionId, name, currentId, language, provi
         void (async () => {
             try {
                 const col = await tmdb.collections.details({ collection_id: collectionId, ...(language ? { language: language as Language } : {}) })
-                const members = [...(col.parts ?? [])]
-                    // Chronological (release) order → the rank number reflects the franchise sequence.
-                    .sort((a, b) => (a.release_date || "9999").localeCompare(b.release_date || "9999"))
+                const parts = col.parts ?? []
+
+                // Chronological (saga) order from gatearr's Wikidata metadata provider: tmdbId → ordinal
+                // under the shared series (e.g. Star Wars Episode numbers). Best-effort — any failure or
+                // missing title falls back to release-date order.
+                let chrono: Record<string, number> = {}
+                if (valid && parts.length) {
+                    try {
+                        const ids = parts.map((p) => p.id).join(",")
+                        const res = await fetch(`${baseUrl.replace(/\/+$/, "")}/metadata/chronology?ids=${ids}`, { headers: { Accept: "application/json" } })
+                        if (res.ok) chrono = ((await res.json()) as { data?: Record<string, number> })?.data ?? {}
+                    } catch {
+                        /* fall back to release-date order */
+                    }
+                }
+
+                const members = [...parts]
+                    .sort((a, b) => {
+                        const oa = chrono[a.id]
+                        const ob = chrono[b.id]
+                        // Titles with a saga ordinal come first (ordered by it); the rest by release date.
+                        if (oa != null && ob != null) return oa - ob
+                        if (oa != null) return -1
+                        if (ob != null) return 1
+                        return (a.release_date || "9999").localeCompare(b.release_date || "9999")
+                    })
                     .map((p, i) => ({
                         id: p.id,
                         type: "movie" as const,
@@ -49,7 +74,7 @@ export function MediaCollection({ collectionId, name, currentId, language, provi
                         poster: img(p.poster_path),
                         year: p.release_date ? Number(p.release_date.slice(0, 4)) : 0,
                         rating: p.vote_average ?? 0,
-                        rank: i + 1,
+                        rank: i + 1, // position in chronological order (contiguous, no gaps/dupes on partial data)
                     }))
                 if (!cancelled) setCards(members)
             } catch {
@@ -59,7 +84,7 @@ export function MediaCollection({ collectionId, name, currentId, language, provi
         return () => {
             cancelled = true
         }
-    }, [tmdb, collectionId, language])
+    }, [tmdb, collectionId, language, baseUrl, valid])
 
     const heading = useMemo(() => name || "Collection", [name])
 
