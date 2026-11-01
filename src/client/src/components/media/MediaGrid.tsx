@@ -32,6 +32,16 @@ export function MediaGrid({ cards, loading = false, skeletonCount = 21, hasMore 
     // sentinel stays on screen before the new cards arrive).
     const lastRequestedCount = useRef(-1)
 
+    // A filter change REPLACES the list with a fresh first page (often the same length as the last
+    // requested count, e.g. 20 -> 20), which the count guard alone reads as "already requested" and
+    // wedges infinite scroll permanently. Detect a replacement by the identity of the first card and
+    // reset the guard so the next page can load again. An append keeps the same first card, so this
+    // never fires mid-pagination.
+    const firstCardKey = cards.length > 0 ? `${cards[0].type}-${cards[0].id}` : ""
+    useEffect(() => {
+        lastRequestedCount.current = -1
+    }, [firstCardKey])
+
     useEffect(() => {
         if (!onLoadMore || !hasMore) return
         const el = sentinelRef.current
