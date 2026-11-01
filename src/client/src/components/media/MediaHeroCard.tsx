@@ -31,6 +31,8 @@ export interface MediaHeroCardProps {
     onPlay?: () => void
     /** Secondary action (Learn more in the carousel, Trailer in the drawer). */
     secondary?: ReactNode
+    /** Rendered after the secondary action in the actions row (e.g. streaming-provider logos). */
+    afterActions?: ReactNode
     logoClassName?: string
     /** Section height. Carousel: h-[80vh] md:h-screen (default); drawer: h-screen. */
     heightClassName?: string
@@ -62,6 +64,7 @@ export function MediaHeroCard({
     playLabel,
     onPlay,
     secondary,
+    afterActions,
     logoClassName,
     heightClassName,
     className,
@@ -116,6 +119,7 @@ export function MediaHeroCard({
                             onPlay={onPlay}
                             playLabel={playLabel}
                             secondary={secondary}
+                            afterActions={afterActions}
                         />
                     </div>
                 </div>

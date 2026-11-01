@@ -57,6 +57,8 @@ export interface TitleCardContentProps {
     onPlay?: () => void
     /** Secondary action node (e.g. a "Learn more" button or the Trailer dialog). */
     secondary?: ReactNode
+    /** Rendered at the end of the actions row, after the secondary action (e.g. streaming providers). */
+    afterActions?: ReactNode
     /** Hero shows the buttons BELOW the description; the drawer shows them above it. */
     actionsBelowDescription?: boolean
     logoClassName?: string
@@ -83,6 +85,7 @@ export function TitleCardContent({
     playLabel,
     onPlay,
     secondary,
+    afterActions,
     actionsBelowDescription,
     logoClassName,
 }: TitleCardContentProps) {
@@ -123,7 +126,7 @@ export function TitleCardContent({
     )
 
     const actions =
-        playLabel != null || secondary != null ? (
+        playLabel != null || secondary != null || afterActions != null ? (
             <div className="flex flex-wrap items-center gap-3">
                 {playLabel != null && (
                     <Button className="rounded-full px-8 font-semibold shadow-lg transition-all hover:scale-105 hover:shadow-xl" onClick={onPlay}>
@@ -131,6 +134,7 @@ export function TitleCardContent({
                     </Button>
                 )}
                 {secondary}
+                {afterActions}
             </div>
         ) : null
 

@@ -7,6 +7,7 @@ import { useTmdbLanguages } from "@/hooks/use-tmdb-languages"
 import { Button } from "@/components/ui/button"
 import { MediaHeroCard } from "@/components/media/MediaHeroCard.tsx"
 import { CHIP } from "@/components/media/TitleCardContent.tsx"
+import { WatchProviders } from "@/components/media/WatchProviders.tsx"
 import { useMediaDetails } from "./hooks/useMediaDetails"
 import { MediaCast } from "./MediaCast"
 import { MediaCollection } from "./MediaCollection"
@@ -182,6 +183,7 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
                                 )
                             }
                             secondary={<TrailerDialog trailerId={data.trailer} title={data.title} mediaType={data.type} tmdbId={Number(data.id)} />}
+                            afterActions={<WatchProviders type={data.type} id={Number(data.id)} />}
                         />
 
                         {/* DETAIL SECTIONS — float ~10% up over the hero card's bottom, exactly like the
