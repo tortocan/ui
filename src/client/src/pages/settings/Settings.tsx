@@ -30,6 +30,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 
 import ConfirmDialog from "@/components/layout/ConfirmDialog.tsx"
 import { ProfileSettings } from "@/pages/settings/ProfileSettings.tsx"
+import { PreferredLanguages } from "@/pages/settings/PreferredLanguages.tsx"
 
 import { AlertTriangle, Monitor, Moon, RefreshCcw, Star, Sun, Trash2 } from "lucide-react"
 import { useEffect } from "react"
@@ -172,6 +173,17 @@ export default function Settings() {
                                         </SelectGroup>
                                     </SelectContent>
                                 </Select>
+                            </div>
+
+                            <div className="mt-3 border-t pt-6">
+                                <Label>{t("general.searchLanguages.label", "Preferred search languages")}</Label>
+                                <span className="mt-1 mb-3 flex text-muted-foreground">
+                                    {t(
+                                        "general.searchLanguages.info",
+                                        "Search these languages (beyond your own, which is always included first). Drag to set the priority order — earlier languages win a title's displayed name."
+                                    )}
+                                </span>
+                                <PreferredLanguages />
                             </div>
 
                             <div className="mt-3 flex justify-between">
