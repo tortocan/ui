@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Slider } from "@/components/ui/slider"
 
 import { useAppSettings } from "@/hooks/use-appsettings.ts"
+import { profileScopedKey } from "@/hooks/use-localstorage"
 import { supportedLocales, type SupportedLocales } from "@/hooks/use-appsettings"
 import { supportedRegions, useTmdb } from "@/hooks/use-tmdb.ts"
 import { useOmss } from "@/hooks/use-omss.ts"
@@ -80,6 +81,13 @@ export default function Settings() {
         })
         // tmdb cache
         tmdb.cache?.clear()
+        // Persist synchronously: setLocale writes via a passive effect that the synchronous reload below
+        // can preempt, dropping the change so the UI reverts to the old language after reload.
+        try {
+            localStorage.setItem(profileScopedKey("app.locale"), JSON.stringify(value))
+        } catch {
+            /* ignore storage failures */
+        }
         location.reload()
     }
 
@@ -754,6 +762,12 @@ export default function Settings() {
                                     onValueChange={(value) => {
                                         setRegion(value as CountryISO3166_1)
                                         cache?.clear()
+                                        // Persist synchronously so the deferred write isn't lost to the reload (see language above).
+                                        try {
+                                            localStorage.setItem(profileScopedKey("app.region"), JSON.stringify(value))
+                                        } catch {
+                                            /* ignore storage failures */
+                                        }
                                         location.reload()
                                     }}
                                 >
