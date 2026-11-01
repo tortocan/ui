@@ -15,7 +15,7 @@ import { useAppSettings } from "@/hooks/use-appsettings.ts"
 
 export function HeroCarousel({ tmdb, fetcher }: { tmdb: TMDB; fetcher: HeroFetcherResult }) {
     const { open } = useMediaDrawer()
-    const { slides, loading } = useHeroSlides(tmdb, fetcher)
+    const { slides, loading, error, reload } = useHeroSlides(tmdb, fetcher)
     const isMobile = useIsMobile()
     const navigate = useNavigate()
     const { showCarouselDots } = useAppSettings()
@@ -48,16 +48,28 @@ export function HeroCarousel({ tmdb, fetcher }: { tmdb: TMDB; fetcher: HeroFetch
         }
     }, [heroApi])
 
-    const heroEmptyState = useMemo(
-        () => (
+    // Real loading state ONLY while actually loading; a terminal empty/error state otherwise. (The old
+    // code collapsed loading, error, and zero-result into one perpetual fake "Loading content..." pulse.)
+    if (loading) {
+        return (
             <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
                 <h1 className="animate-pulse text-2xl font-semibold">Loading content...</h1>
             </div>
-        ),
-        []
-    )
+        )
+    }
 
-    if (loading || slides.length === 0) return heroEmptyState
+    if (slides.length === 0) {
+        return (
+            <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
+                <h1 className="text-2xl font-semibold">{error ? "Couldn't load content" : "Nothing to show here"}</h1>
+                {error && (
+                    <Button variant="outline" onClick={reload} className="rounded-full">
+                        Try again
+                    </Button>
+                )}
+            </div>
+        )
+    }
 
     return (
         <Carousel setApi={setHeroApi} opts={{ loop: true }} plugins={plugins} className="h-full w-full">

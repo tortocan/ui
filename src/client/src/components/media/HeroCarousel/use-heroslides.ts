@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import type { TMDB } from "@lorenzopant/tmdb"
 
 import { toHeroSlides } from "./mapper"
@@ -9,12 +9,15 @@ import { toast } from "sonner"
 export function useHeroSlides(tmdb: TMDB, fetcher: HeroFetcherResult) {
     const [slides, setSlides] = useState<HeroSlide[]>([])
     const [loading, setLoading] = useState(true)
+    const [error, setError] = useState(false)
+    const [reloadNonce, setReloadNonce] = useState(0)
 
     useEffect(() => {
         let mounted = true
 
         async function load() {
             setLoading(true)
+            setError(false)
 
             try {
                 const mixed = await resolveHeroFetcher(fetcher)
@@ -23,11 +26,11 @@ export function useHeroSlides(tmdb: TMDB, fetcher: HeroFetcherResult) {
                 const filtered = detailed.filter((m) => m.images.logos.length > 0 && (m.images.backdrops.length > 0 || m.backdrop_path !== undefined))
 
                 if (!mounted) return
-                const slides = toHeroSlides(filtered)
-
-                setSlides(slides)
+                setSlides(toHeroSlides(filtered))
             } catch (e) {
                 console.error(e)
+                if (!mounted) return
+                setError(true)
 
                 toast.error("TMDB movies could not be loaded.", {
                     description: "Please reload the page or try again later.",
@@ -42,7 +45,9 @@ export function useHeroSlides(tmdb: TMDB, fetcher: HeroFetcherResult) {
         return () => {
             mounted = false
         }
-    }, [tmdb, fetcher])
+    }, [tmdb, fetcher, reloadNonce])
 
-    return { slides, loading }
+    const reload = useCallback(() => setReloadNonce((n) => n + 1), [])
+
+    return { slides, loading, error, reload }
 }
