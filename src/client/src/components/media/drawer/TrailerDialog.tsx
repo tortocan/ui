@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { ChevronDown, ChevronUp, Film, Maximize, Minimize, Pause, Play, Volume2, VolumeX } from "lucide-react"
+import { Check, ChevronDown, ChevronUp, Film, Maximize, Minimize, Pause, Play, Volume2, VolumeX } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { useOmss } from "@/hooks/use-omss"
+import { useProfiles } from "@/app/providers/profile-provider"
 import { cn } from "@/lib/utils"
 
 // Load the YouTube IFrame Player API once (shared across every TrailerDialog instance). We need the
@@ -83,6 +84,9 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
     const [dur, setDur] = useState(0)
     const [isFs, setIsFs] = useState(false)
     const [vol, setVol] = useState(100) // player volume 0–100
+    // Profile picker: which profiles to apply the follow to (the current one is always included).
+    const [pickerOpen, setPickerOpen] = useState(false)
+    const [picked, setPicked] = useState<Set<number>>(new Set())
 
     const stageRef = useRef<HTMLDivElement>(null) // the fullscreen target / full-viewport overlay
     const hostRef = useRef<HTMLDivElement>(null) // YT replaces an imperative child of this with its iframe
@@ -90,7 +94,8 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
     const playerRef = useRef<any>(null)
     const qualitySetRef = useRef(false)
     const draggingRef = useRef(false) // a slider (seek/volume) is being dragged — don't let the poll fight it
-    const { client, valid } = useOmss()
+    const { client, valid, baseUrl } = useOmss()
+    const { profiles, activeProfile } = useProfiles()
 
     useEffect(() => {
         void loadYouTubeApi()
@@ -154,18 +159,48 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
         }
     }, [])
 
-    // Follow this title for new-release notifications (gatearr /follow). Guarded against re-POST.
-    const doFollow = useCallback(async () => {
-        if (!valid || !mediaType || !tmdbId || followed) return
-        setFollowed(true)
-        try {
-            await client.follow({ mediaType, tmdbId, title })
-            toast.success(`Following — we'll notify you about new releases for ${title}`)
-        } catch {
-            setFollowed(false)
-            toast.error("Couldn't follow this title")
+    // Follow this title for new-release notifications (gatearr /follow). Applies to the given profiles
+    // (the "current + selection" set). A direct text/plain POST (no custom header → no CORS preflight)
+    // carries profileIds; gatearr upserts a follow for each. Guarded against re-POST.
+    const applyFollow = useCallback(
+        async (profileIds: number[]) => {
+            if (!valid || !mediaType || !tmdbId || followed) return
+            setFollowed(true)
+            setPickerOpen(false)
+            try {
+                // A single profile with no multi-select → the SDK call (carries X-Profile-Id). Multiple →
+                // the explicit profileIds body so gatearr fans the follow out to each at once.
+                if (profileIds.length <= 1) {
+                    await client.follow({ mediaType, tmdbId, title })
+                } else {
+                    const res = await fetch(`${baseUrl.replace(/\/+$/, "")}/follow`, {
+                        method: "POST",
+                        headers: { "Content-Type": "text/plain" },
+                        body: JSON.stringify({ mediaType, tmdbId, title, profileIds }),
+                    })
+                    if (!res.ok) throw new Error(`follow ${res.status}`)
+                }
+                const n = profileIds.length
+                toast.success(n > 1 ? `Following on ${n} profiles — we'll notify you about new releases for ${title}` : `Following — we'll notify you about new releases for ${title}`)
+            } catch {
+                setFollowed(false)
+                toast.error("Couldn't follow this title")
+            }
+        },
+        [client, valid, baseUrl, mediaType, tmdbId, title, followed]
+    )
+
+    // The follow gesture. With more than one profile, pop the selection box (current profile preselected
+    // + locked); with a single/no profile, just follow directly.
+    const requestFollow = useCallback(() => {
+        if (!valid || !mediaType || !tmdbId || followed || pickerOpen) return
+        if (profiles.length > 1) {
+            setPicked(new Set(activeProfile ? [activeProfile.id] : []))
+            setPickerOpen(true)
+        } else {
+            void applyFollow(activeProfile ? [activeProfile.id] : [])
         }
-    }, [client, valid, mediaType, tmdbId, title, followed])
+    }, [valid, mediaType, tmdbId, followed, pickerOpen, profiles.length, activeProfile, applyFollow])
 
     // ---- Full-area gesture + tap layer. Swipe UP follows, swipe DOWN closes; a tap toggles play/pause.
     // A swipe suppresses the trailing (ghost) click so it doesn't also toggle play.
@@ -177,7 +212,7 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
     }
     const onWheel = (e: React.WheelEvent) => {
         if (e.deltaY < -24) close()
-        else if (e.deltaY > 24) void doFollow()
+        else if (e.deltaY > 24) requestFollow()
     }
     const onTouchStart = (e: React.TouchEvent) => {
         touchStartY.current = e.touches[0]?.clientY ?? null
@@ -192,7 +227,7 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
             close()
         } else if (start - end > 60) {
             markSwipe()
-            void doFollow()
+            requestFollow()
         }
     }
     const onLayerClick = () => {
@@ -207,6 +242,7 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
     const launch = useCallback(() => {
         setActive(true)
         setFollowed(false)
+        setPickerOpen(false)
         const el = stageRef.current
         if (el) {
             el.classList.remove("hidden")
@@ -407,6 +443,58 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
                                 {isFs ? <Minimize className="size-5" /> : <Maximize className="size-5" />}
                             </button>
                         </div>
+
+                        {/* Profile picker — which profiles to apply the follow to (rendered INSIDE the stage so
+                            it's visible in fullscreen; a body-portaled popover would not be). The current
+                            profile is preselected and locked; others toggle. */}
+                        {pickerOpen && (
+                            <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/70 p-6" onClick={() => setPickerOpen(false)}>
+                                <div className="w-full max-w-sm rounded-2xl bg-zinc-900/95 p-5 text-white shadow-2xl ring-1 ring-white/10" onClick={(e) => e.stopPropagation()}>
+                                    <h3 className="text-base font-semibold">Follow on which profiles?</h3>
+                                    <p className="mt-1 text-xs text-white/60">We'll notify the selected profiles about new releases for {title}.</p>
+                                    <div className="mt-4 max-h-64 space-y-1 overflow-y-auto">
+                                        {profiles.map((p) => {
+                                            const isCurrent = activeProfile?.id === p.id
+                                            const checked = isCurrent || picked.has(p.id)
+                                            return (
+                                                <button
+                                                    key={p.id}
+                                                    type="button"
+                                                    disabled={isCurrent}
+                                                    onClick={() =>
+                                                        setPicked((prev) => {
+                                                            const next = new Set(prev)
+                                                            if (next.has(p.id)) next.delete(p.id)
+                                                            else next.add(p.id)
+                                                            return next
+                                                        })
+                                                    }
+                                                    className={cn(
+                                                        "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors",
+                                                        checked ? "bg-primary/20" : "hover:bg-white/10",
+                                                        isCurrent ? "cursor-default" : "cursor-pointer"
+                                                    )}
+                                                >
+                                                    <span className={cn("flex size-5 shrink-0 items-center justify-center rounded-md border", checked ? "border-primary bg-primary text-primary-foreground" : "border-white/30")}>
+                                                        {checked && <Check className="size-3.5" />}
+                                                    </span>
+                                                    <span className="flex-1 truncate text-sm font-medium">{p.name}</span>
+                                                    {isCurrent && <span className="text-[10px] font-medium tracking-wide text-white/45 uppercase">Current</span>}
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                    <div className="mt-5 flex justify-end gap-2">
+                                        <Button variant="ghost" size="sm" onClick={() => setPickerOpen(false)}>
+                                            Cancel
+                                        </Button>
+                                        <Button size="sm" onClick={() => void applyFollow(Array.from(new Set([...(activeProfile ? [activeProfile.id] : []), ...picked])))}>
+                                            Follow
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>,
                     document.body
                 )}
