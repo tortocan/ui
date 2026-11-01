@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
+import { toast } from "sonner"
 import { followMediaKey, type FollowState } from "@omss/sdk"
 import { useOmss } from "@/hooks/use-omss"
 
@@ -42,23 +43,27 @@ export function useFollows() {
         [client, refresh]
     )
 
+    // The OMSS SDK reports failures via { error }, not by throwing — only drop the row on success, else
+    // the UI would show an unfollow/clear that never reached the backend (these hooks don't poll).
     const unfollow = useCallback(
         async (mediaKey: string) => {
-            try {
-                await client.unfollow(mediaKey)
-            } finally {
-                setFollows((prev) => prev.filter((f) => f.mediaKey !== mediaKey))
+            const { error } = await client.unfollow(mediaKey)
+            if (error) {
+                toast.error("Couldn't unfollow")
+                return
             }
+            setFollows((prev) => prev.filter((f) => f.mediaKey !== mediaKey))
         },
         [client]
     )
 
     const clear = useCallback(async () => {
-        try {
-            await client.clearFollows()
-        } finally {
-            setFollows([])
+        const { error } = await client.clearFollows()
+        if (error) {
+            toast.error("Couldn't clear follows")
+            return
         }
+        setFollows([])
     }, [client])
 
     const isFollowed = useCallback(

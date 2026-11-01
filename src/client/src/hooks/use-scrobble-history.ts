@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
+import { toast } from "sonner"
 import type { ScrobbleMediaType, ScrobbleState } from "@omss/sdk"
 import { useOmss } from "@/hooks/use-omss"
 import { useTmdb } from "@/hooks/use-tmdb"
@@ -90,21 +91,25 @@ export function useScrobbleHistory() {
         void refresh()
     }, [refresh])
 
+    // The OMSS SDK reports failures via { error }, not by throwing — only mutate on success, else the UI
+    // would show a clear/remove that never reached the backend (this hook doesn't poll).
     const clear = useCallback(async () => {
-        try {
-            await client.clearScrobbles()
-        } finally {
-            setItems([])
+        const { error } = await client.clearScrobbles()
+        if (error) {
+            toast.error("Couldn't clear history")
+            return
         }
+        setItems([])
     }, [client])
 
     const remove = useCallback(
         async (key: string) => {
-            try {
-                await client.deleteScrobble(key)
-            } finally {
-                setItems((prev) => prev.filter((i) => i.key !== key))
+            const { error } = await client.deleteScrobble(key)
+            if (error) {
+                toast.error("Couldn't remove from history")
+                return
             }
+            setItems((prev) => prev.filter((i) => i.key !== key))
         },
         [client]
     )

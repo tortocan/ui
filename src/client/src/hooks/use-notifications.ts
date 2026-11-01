@@ -55,36 +55,41 @@ export function useNotifications() {
         }
     }, [refresh, valid])
 
+    // The OMSS SDK returns failures as { error } rather than throwing, so a try/finally would mutate the
+    // UI even on a backend 500/offline. Check the result and only apply the optimistic change on success.
     const markAllRead = useCallback(async () => {
-        try {
-            await client.markNotificationsRead()
-        } finally {
-            const now = Math.floor(Date.now() / 1000)
-            setItems((prev) => prev.map((n) => ({ ...n, readAt: n.readAt ?? now })))
-            setUnread(0)
-            lastUnreadRef.current = 0
+        const { error } = await client.markNotificationsRead()
+        if (error) {
+            toast.error("Couldn't mark notifications read")
+            return
         }
+        const now = Math.floor(Date.now() / 1000)
+        setItems((prev) => prev.map((n) => ({ ...n, readAt: n.readAt ?? now })))
+        setUnread(0)
+        lastUnreadRef.current = 0
     }, [client])
 
     const remove = useCallback(
         async (id: number) => {
-            try {
-                await client.deleteNotification(id)
-            } finally {
-                setItems((prev) => prev.filter((n) => n.id !== id))
+            const { error } = await client.deleteNotification(id)
+            if (error) {
+                toast.error("Couldn't dismiss notification")
+                return
             }
+            setItems((prev) => prev.filter((n) => n.id !== id))
         },
         [client]
     )
 
     const clear = useCallback(async () => {
-        try {
-            await client.clearNotifications()
-        } finally {
-            setItems([])
-            setUnread(0)
-            lastUnreadRef.current = 0
+        const { error } = await client.clearNotifications()
+        if (error) {
+            toast.error("Couldn't clear notifications")
+            return
         }
+        setItems([])
+        setUnread(0)
+        lastUnreadRef.current = 0
     }, [client])
 
     return { items, unread, loading, refresh, markAllRead, remove, clear }
