@@ -32,5 +32,13 @@
         "label": "免责声明",
         "value": "{{projectName}} 是一个免费的开源项目，为流媒体电影和电视剧提供用户界面。它本身不托管任何内容，而是需要一个 OMSS 实现（例如 {{coreName}}）来提供实际的流媒体服务。{{projectName}} 仅供教育和个人使用，不得用于商业目的。用户有责任确保遵守所有适用的有关使用流媒体内容的法律法规。",
         "button": "返回首页"
+    },
+    "detail": {
+        "play": "播放",
+        "resume": "继续观看",
+        "trailer": "预告片",
+        "topCast": "主演",
+        "recommendations": "推荐",
+        "collection": "系列"
     }
 }

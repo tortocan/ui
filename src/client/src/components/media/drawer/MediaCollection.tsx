@@ -19,6 +19,8 @@ interface MediaCollectionProps {
     currentId: number
     /** Display language override (follows the detail's original-language toggle), e.g. "es"/"en-US". */
     language?: string
+    /** Region override for the member cards' streaming-provider badges (follows the language toggle). */
+    providerRegion?: string
 }
 
 /**
@@ -27,7 +29,7 @@ interface MediaCollectionProps {
  * currently open is kept in the rail and emphasized (highlighted). Shown above Top Cast; self-hides
  * while loading or if the franchise has no members.
  */
-export function MediaCollection({ collectionId, name, currentId, language }: MediaCollectionProps) {
+export function MediaCollection({ collectionId, name, currentId, language, providerRegion }: MediaCollectionProps) {
     const tmdb = useTmdb()
     const [cards, setCards] = useState<{ id: number; type: "movie"; title: string; poster: string | null; year: number; rating: number }[] | null>(null)
 
@@ -75,7 +77,7 @@ export function MediaCollection({ collectionId, name, currentId, language }: Med
                 itemClassName={RAIL_ITEM_CLASS}
                 contentClassName="-ml-2 md:-ml-4"
                 opts={{ align: "start", loop: false, dragFree: true, startIndex: activeIndex }}
-                renderItem={(c) => <MediaCard id={c.id} type={c.type} title={c.title} imagePath={c.poster} imageAlt={c.title} year={c.year} rating={c.rating} active={c.id === currentId} />}
+                renderItem={(c) => <MediaCard id={c.id} type={c.type} title={c.title} imagePath={c.poster} imageAlt={c.title} year={c.year} rating={c.rating} active={c.id === currentId} providerRegion={providerRegion} />}
             />
         </section>
     )

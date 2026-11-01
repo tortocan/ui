@@ -33,5 +33,13 @@
         "label": "Disclaimer",
         "value": "{{projectName}} is a free and open-source project that provides a user interface for streaming movies and TV shows. It does not host any content itself, but rather requires a OMSS implementation (like {{coreName}}) to provide the actual streaming services. {{projectName}} is intended for educational and personal use only, and should not be used for commercial purposes. Users are responsible for ensuring that they comply with all applicable laws and regulations regarding the use of streaming content.",
         "button": "Back to Home"
+    },
+    "detail": {
+        "play": "Play",
+        "resume": "Resume",
+        "trailer": "Trailer",
+        "topCast": "Top Cast",
+        "recommendations": "Recommendations",
+        "collection": "Collection"
     }
 }

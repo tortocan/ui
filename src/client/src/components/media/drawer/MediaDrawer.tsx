@@ -4,6 +4,7 @@ import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } f
 import { useOmss } from "@/hooks/use-omss"
 import { useAppSettings, tmdbLanguageFor } from "@/hooks/use-appsettings"
 import { useTmdbLanguages } from "@/hooks/use-tmdb-languages"
+import i18n from "@/app/i18n/i18n"
 import { Button } from "@/components/ui/button"
 import { MediaHeroCard } from "@/components/media/MediaHeroCard.tsx"
 import { CHIP } from "@/components/media/TitleCardContent.tsx"
@@ -47,6 +48,19 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
 
     const navigate = useNavigate()
 
+    // UI chrome language for THIS drawer only: a fixed-T bound to the toggled language (not a global
+    // i18n.changeLanguage), so Play/Trailer/Top Cast/… localize to the content's language here while the
+    // rest of the app stays in the profile language. Load the target language's resources, then re-render.
+    const uiLang = showOriginal && originalLang ? originalLang : i18n.language
+    const [, setLangTick] = useState(0)
+    useEffect(() => {
+        void i18n
+            .loadLanguages(uiLang)
+            .then(() => setLangTick((n) => n + 1))
+            .catch(() => {})
+    }, [uiLang])
+    const dt = i18n.getFixedT(uiLang, "common")
+
     // Swipe/scroll UP to close — but only when the body is already at the top, so it never fights
     // normal downward scrolling through the episodes/cast/recommendations. Wheel covers a trackpad
     // two-finger swipe; touch covers a finger flick.
@@ -72,7 +86,9 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
     // For a show: the in-progress episode, else the earliest unwatched episode → "Resume · S{s}E{e}",
     // and Play navigates straight to that episode.
     const { client, valid } = useOmss()
-    const [resume, setResume] = useState<{ label: string; season?: number; episode?: number } | null>(null)
+    // null = not resumable; present = resumable (season/episode set for a show). The label is built at
+    // render so it can localize to the drawer's UI language.
+    const [resume, setResume] = useState<{ season?: number; episode?: number } | null>(null)
 
     useEffect(() => {
         let cancelled = false
@@ -83,9 +99,9 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
         void client.getResume(data.type, Number(data.id)).then(({ data: rt }) => {
             if (cancelled || !rt || !rt.resumable) return
             if (rt.mediaType === "movie") {
-                setResume({ label: "Resume" })
+                setResume({})
             } else {
-                setResume({ label: `Resume · S${rt.season}E${rt.episode}`, season: rt.season, episode: rt.episode })
+                setResume({ season: rt.season, episode: rt.episode })
             }
         })
 
@@ -174,7 +190,7 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
                             date={data.releaseDate}
                             meta={data.runtime ? formatRuntime(data.runtime) : null}
                             genres={data.genres}
-                            tags={data.collection ? ["Collection"] : undefined}
+                            tags={data.collection ? [dt("detail.collection", "Collection")] : undefined}
                             actionChips={langChip}
                             description={data.overview}
                             networkLogo={data.networkLogo}
@@ -186,16 +202,17 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
                                 resume ? (
                                     <>
                                         <RotateCcw className="size-5" />
-                                        {resume.label}
+                                        {dt("detail.resume", "Resume")}
+                                        {resume.episode != null ? ` · S${resume.season}E${resume.episode}` : ""}
                                     </>
                                 ) : (
                                     <>
                                         <Play className="size-5 fill-white" />
-                                        Play
+                                        {dt("detail.play", "Play")}
                                     </>
                                 )
                             }
-                            secondary={<TrailerDialog trailerId={data.trailer} title={data.title} mediaType={data.type} tmdbId={Number(data.id)} language={displayLang} />}
+                            secondary={<TrailerDialog trailerId={data.trailer} title={data.title} mediaType={data.type} tmdbId={Number(data.id)} language={displayLang} label={dt("detail.trailer", "Trailer")} />}
                             afterActions={<WatchProviders type={data.type} id={Number(data.id)} region={providerRegion} />}
                         />
 
@@ -214,18 +231,18 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
                             {/* COLLECTION — the rest of the franchise, above Top Cast. */}
                             {data.collection && (
                                 <div className="mb-8">
-                                    <MediaCollection collectionId={data.collection.id} name={data.collection.name} currentId={Number(data.id)} language={tmdbLanguageFor(displayLang)} />
+                                    <MediaCollection collectionId={data.collection.id} name={data.collection.name} currentId={Number(data.id)} language={tmdbLanguageFor(displayLang)} providerRegion={providerRegion} />
                                 </div>
                             )}
 
                             {/* CAST */}
                             <div className="mb-8">
-                                <MediaCast cast={data.cast} />
+                                <MediaCast cast={data.cast} heading={dt("detail.topCast", "Top Cast")} />
                             </div>
 
                             {/* RECOMMENDATIONS */}
                             <div>
-                                <MediaRecommendations recommendations={data.recommendations} />
+                                <MediaRecommendations recommendations={data.recommendations} heading={dt("detail.recommendations", "Recommendations")} />
                             </div>
                         </div>
                     </div>

@@ -75,9 +75,11 @@ interface TrailerDialogProps {
     /** Active display language (iso-639-1, e.g. "es") — biases the YouTube player + search fallback so
      * the trailer loads in the toggled language. `trailerId`/`title` already reflect it. */
     language?: string
+    /** Localized label for the trigger button (defaults to "Trailer"). */
+    label?: string
 }
 
-export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, mediaType, tmdbId, language }) => {
+export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, mediaType, tmdbId, language, label = "Trailer" }) => {
     const [active, setActive] = useState(false)
     const [followed, setFollowed] = useState(false)
     // Custom-control state, polled from the player.
@@ -376,7 +378,7 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
         <>
             <Button onClick={launch} variant={"outline"} className={"rounded-full border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"}>
                 <Film className="h-4 w-4" aria-hidden />
-                <span className="ml-2 text-sm font-medium">Trailer</span>
+                <span className="ml-2 text-sm font-medium">{label}</span>
             </Button>
 
             {typeof document !== "undefined" &&

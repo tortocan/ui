@@ -32,5 +32,13 @@
         "label": "Avertissement",
         "value": "{{projectName}} est un projet gratuit et open-source qui fournit une interface utilisateur pour le streaming de films et de séries TV. Il n'héberge aucun contenu lui-même, mais nécessite une implémentation OMSS (comme {{coreName}}) pour fournir les services de streaming réels. {{projectName}} est destiné à un usage éducatif et personnel uniquement, et ne doit pas être utilisé à des fins commerciales. Les utilisateurs sont responsables de s'assurer qu'ils respectent toutes les lois et réglementations applicables concernant l'utilisation des contenus en streaming.",
         "button": "Retour à l'accueil"
+    },
+    "detail": {
+        "play": "Lecture",
+        "resume": "Reprendre",
+        "trailer": "Bande-annonce",
+        "topCast": "Têtes d'affiche",
+        "recommendations": "Recommandations",
+        "collection": "Collection"
     }
 }

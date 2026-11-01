@@ -6,16 +6,17 @@ import { StarRating } from "@/components/media/StarRating"
 
 interface MediaRecommendationsProps {
     recommendations: MediaRecommendation[]
+    heading?: string
 }
 
-export const MediaRecommendations: React.FC<MediaRecommendationsProps> = ({ recommendations }) => {
+export const MediaRecommendations: React.FC<MediaRecommendationsProps> = ({ recommendations, heading = "Recommendations" }) => {
     const { open } = useMediaDrawer()
 
     if (!recommendations.length) return null
 
     return (
         <section className="space-y-4">
-            <h3 className="text-xl font-semibold">Recommendations</h3>
+            <h3 className="text-xl font-semibold">{heading}</h3>
 
             <Rail
                 items={recommendations}

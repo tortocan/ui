@@ -17,12 +17,14 @@ export interface MediaCardProps {
     year: number
     /** Emphasize this card as the current selection (e.g. the open title inside its own franchise rail). */
     active?: boolean
+    /** Region override for the streaming-provider badge (e.g. follow a detail's language toggle). */
+    providerRegion?: string
 }
 
 // Performance reason: rails render 6-20+ of these per page; without memo, every rail
 // re-render (e.g. a sibling rail loading) re-rendered every card in every other rail too.
 export const MediaCard = React.memo(
-    React.forwardRef<HTMLDivElement, MediaCardProps>(({ title, imagePath, imageAlt, aspectRatio = "portrait", className, rating, year, id, type, active = false }, ref) => {
+    React.forwardRef<HTMLDivElement, MediaCardProps>(({ title, imagePath, imageAlt, aspectRatio = "portrait", className, rating, year, id, type, active = false, providerRegion }, ref) => {
         const { open } = useMediaDrawer()
 
         return (
@@ -41,7 +43,7 @@ export const MediaCard = React.memo(
                         {active && <div className="pointer-events-none absolute inset-0 z-30 rounded-md ring-4 ring-primary ring-inset" />}
 
                         {/* Streaming-provider logo, top-right. */}
-                        <ProviderBadge type={type} id={id} />
+                        <ProviderBadge type={type} id={id} region={providerRegion} />
 
                         {/* Hover overlay */}
                         <div className="pointer-events-none absolute inset-0 flex items-end opacity-0 transition-opacity duration-300 group-hover:opacity-100">

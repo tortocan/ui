@@ -4,14 +4,15 @@ import type { MediaCast as MediaCastType } from "./types/media.types"
 
 interface MediaCastProps {
     cast: MediaCastType[]
+    heading?: string
 }
 
-export const MediaCast: React.FC<MediaCastProps> = ({ cast }) => {
+export const MediaCast: React.FC<MediaCastProps> = ({ cast, heading = "Top Cast" }) => {
     if (!cast.length) return null
 
     return (
         <section className="space-y-4">
-            <h3 className="text-xl font-semibold">Top Cast</h3>
+            <h3 className="text-xl font-semibold">{heading}</h3>
 
             <Rail
                 items={cast}

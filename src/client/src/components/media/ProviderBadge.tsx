@@ -38,14 +38,15 @@ function fetchProviderLogo(tmdb: ReturnType<typeof useTmdb>, type: "movie" | "tv
  * rent/buy) watch provider for the active region via TMDB (cached across cards + served through
  * gatearr's TMDB proxy). Renders nothing when the title has no provider in the region.
  */
-export function ProviderBadge({ type, id, className }: { type: "movie" | "tv"; id: number; className?: string }) {
+export function ProviderBadge({ type, id, region: regionOverride, className }: { type: "movie" | "tv"; id: number; region?: string; className?: string }) {
     const tmdb = useTmdb()
-    const { region } = useAppSettings()
+    const { region: profileRegion } = useAppSettings()
+    const region = regionOverride ?? profileRegion ?? "US"
     const [logo, setLogo] = useState<string | null>(null)
 
     useEffect(() => {
         let cancelled = false
-        void fetchProviderLogo(tmdb, type, id, region ?? "US").then((l) => {
+        void fetchProviderLogo(tmdb, type, id, region).then((l) => {
             if (!cancelled) setLogo(l)
         })
         return () => {
