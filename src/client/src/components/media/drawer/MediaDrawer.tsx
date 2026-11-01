@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { MediaHeroCard } from "@/components/media/MediaHeroCard.tsx"
 import { useMediaDetails } from "./hooks/useMediaDetails"
 import { MediaCast } from "./MediaCast"
+import { MediaCollection } from "./MediaCollection"
 import { MediaEpisodes } from "./MediaEpisodes"
 import { MediaRecommendations } from "./MediaRecommendations"
 import { TrailerDialog } from "./TrailerDialog"
@@ -125,6 +126,7 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
                             date={data.releaseDate}
                             meta={data.runtime ? formatRuntime(data.runtime) : null}
                             genres={data.genres}
+                            tags={data.collection ? ["Collection"] : undefined}
                             description={data.overview}
                             networkLogo={data.networkLogo}
                             studioLogo={data.studioLogo}
@@ -156,6 +158,13 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
                             {data.type === "tv" && data.seasons && (
                                 <div className="mb-8">
                                     <MediaEpisodes tvId={data.id} seasons={data.seasons} />
+                                </div>
+                            )}
+
+                            {/* COLLECTION — the rest of the franchise, above Top Cast. */}
+                            {data.collection && (
+                                <div className="mb-8">
+                                    <MediaCollection collectionId={data.collection.id} name={data.collection.name} excludeId={Number(data.id)} />
                                 </div>
                             )}
 

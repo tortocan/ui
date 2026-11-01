@@ -18,6 +18,8 @@ export interface MediaNormalized {
     cast: MediaCast[]
     recommendations: MediaRecommendation[]
     seasons?: MediaSeason[]
+    /** The TMDB franchise this movie belongs to, when any (drives the "Collection" tag + rail). */
+    collection?: { id: number; name: string }
 }
 
 export interface MediaCast {

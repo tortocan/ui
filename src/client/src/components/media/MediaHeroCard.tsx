@@ -11,6 +11,8 @@ export interface MediaHeroCardProps {
     rating?: string | number
     /** Optional leading pill before the chips (e.g. a collection availability badge). */
     badge?: ReactNode
+    /** Extra accent chips after the genres (e.g. "Collection"). */
+    tags?: string[]
     /** Release/first-air date (the year is shown). */
     date?: string | null
     /** Runtime (movies) or status (TV). */
@@ -46,6 +48,7 @@ export function MediaHeroCard({
     title,
     rating,
     badge,
+    tags,
     date,
     meta,
     genres,
@@ -98,6 +101,7 @@ export function MediaHeroCard({
                             title={title}
                             rating={rating}
                             badge={badge}
+                            tags={tags}
                             date={date}
                             meta={meta}
                             genres={genres}

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { Calendar } from "lucide-react"
+import { Calendar, Layers } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { StarRating } from "@/components/media/StarRating"
 import { cn } from "@/lib/utils"
@@ -40,6 +40,8 @@ export interface TitleCardContentProps {
     rating?: string | number
     /** Optional leading pill rendered before the chips (e.g. a collection availability badge). */
     badge?: ReactNode
+    /** Extra accent chips rendered after the genres (e.g. "Collection"); each gets a Layers icon. */
+    tags?: string[]
     /** Release/first-air date string; the year is shown. */
     date?: string | null
     /** Runtime (movies) or status like "Returning Series"/"Ended" (TV). */
@@ -69,6 +71,7 @@ export function TitleCardContent({
     title,
     rating,
     badge,
+    tags,
     date,
     meta,
     genres,
@@ -104,6 +107,12 @@ export function TitleCardContent({
             {genres.slice(0, 3).map((g) => (
                 <span key={g} className={CHIP}>
                     {g}
+                </span>
+            ))}
+            {tags?.map((t) => (
+                <span key={t} className={cn(CHIP, "border-primary/50 bg-primary/20")}>
+                    <Layers className="size-4 opacity-80" />
+                    {t}
                 </span>
             ))}
         </div>

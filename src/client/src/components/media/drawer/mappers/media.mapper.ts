@@ -75,6 +75,7 @@ export const mapMedia = (data: MovieDetailsWithAppends<typeof MOVIE_APPENDS> | T
             posterUrl: s.poster_path ?? `/favicon.svg`,
             airDate: s.air_date ?? "N/A",
         })),
+        collection: movieData?.belongs_to_collection ? { id: movieData.belongs_to_collection.id, name: movieData.belongs_to_collection.name } : undefined,
     }
 }
 
