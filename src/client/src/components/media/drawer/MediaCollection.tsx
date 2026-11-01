@@ -14,16 +14,17 @@ function img(path: string | null | undefined): string | null {
 interface MediaCollectionProps {
     collectionId: number
     name: string
-    /** The movie currently open — excluded from its own franchise rail. */
-    excludeId: number
+    /** The movie currently open — kept in the rail and emphasized as the current selection. */
+    currentId: number
 }
 
 /**
- * The "belongs to a collection" rail on a movie's detail page: the other films of the franchise,
- * rendered as our standard {@link MediaCard}s (clicking opens that movie's drawer on top). Shown above
- * Top Cast. Self-hides while loading or if the franchise has no other members.
+ * The "belongs to a collection" rail on a movie's detail page: the whole franchise in release order,
+ * rendered as our standard {@link MediaCard}s (clicking opens that movie's drawer on top). The film
+ * currently open is kept in the rail and emphasized (highlighted). Shown above Top Cast; self-hides
+ * while loading or if the franchise has no members.
  */
-export function MediaCollection({ collectionId, name, excludeId }: MediaCollectionProps) {
+export function MediaCollection({ collectionId, name, currentId }: MediaCollectionProps) {
     const tmdb = useTmdb()
     const [cards, setCards] = useState<{ id: number; type: "movie"; title: string; poster: string | null; year: number; rating: number }[] | null>(null)
 
@@ -34,7 +35,6 @@ export function MediaCollection({ collectionId, name, excludeId }: MediaCollecti
             try {
                 const col = await tmdb.collections.details({ collection_id: collectionId })
                 const members = [...(col.parts ?? [])]
-                    .filter((p) => p.id !== excludeId)
                     .sort((a, b) => (a.release_date || "9999").localeCompare(b.release_date || "9999"))
                     .map((p) => ({
                         id: p.id,
@@ -52,7 +52,7 @@ export function MediaCollection({ collectionId, name, excludeId }: MediaCollecti
         return () => {
             cancelled = true
         }
-    }, [tmdb, collectionId, excludeId])
+    }, [tmdb, collectionId])
 
     const heading = useMemo(() => name || "Collection", [name])
 
@@ -66,7 +66,7 @@ export function MediaCollection({ collectionId, name, excludeId }: MediaCollecti
                 getKey={(c) => c.id}
                 itemClassName={RAIL_ITEM_CLASS}
                 contentClassName="-ml-2 md:-ml-4"
-                renderItem={(c) => <MediaCard id={c.id} type={c.type} title={c.title} imagePath={c.poster} imageAlt={c.title} year={c.year} rating={c.rating} />}
+                renderItem={(c) => <MediaCard id={c.id} type={c.type} title={c.title} imagePath={c.poster} imageAlt={c.title} year={c.year} rating={c.rating} active={c.id === currentId} />}
             />
         </section>
     )

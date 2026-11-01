@@ -15,18 +15,26 @@ export interface MediaCardProps {
     id: number
     rating: number
     year: number
+    /** Emphasize this card as the current selection (e.g. the open title inside its own franchise rail). */
+    active?: boolean
 }
 
 // Performance reason: rails render 6-20+ of these per page; without memo, every rail
 // re-render (e.g. a sibling rail loading) re-rendered every card in every other rail too.
 export const MediaCard = React.memo(
-    React.forwardRef<HTMLDivElement, MediaCardProps>(({ title, imagePath, imageAlt, aspectRatio = "portrait", className, rating, year, id, type }, ref) => {
+    React.forwardRef<HTMLDivElement, MediaCardProps>(({ title, imagePath, imageAlt, aspectRatio = "portrait", className, rating, year, id, type, active = false }, ref) => {
         const { open } = useMediaDrawer()
 
         return (
             <Card ref={ref} className={cn("group overflow-hidden border-none py-0 transition-all", className)} onClick={() => open({ type: type, id: id })}>
                 <CardContent className="p-0">
-                    <div className={cn("relative overflow-hidden rounded-md bg-muted", aspectRatio === "portrait" ? "aspect-2/3" : "aspect-video")}>
+                    <div
+                        className={cn(
+                            "relative overflow-hidden rounded-md bg-muted transition-all",
+                            aspectRatio === "portrait" ? "aspect-2/3" : "aspect-video",
+                            active && "ring-2 ring-primary ring-offset-2 ring-offset-black"
+                        )}
+                    >
                         <img
                             src={imagePath ?? "/favicon.svg"}
                             alt={imageAlt || title}

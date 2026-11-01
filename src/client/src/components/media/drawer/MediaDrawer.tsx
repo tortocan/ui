@@ -164,7 +164,7 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
                             {/* COLLECTION — the rest of the franchise, above Top Cast. */}
                             {data.collection && (
                                 <div className="mb-8">
-                                    <MediaCollection collectionId={data.collection.id} name={data.collection.name} excludeId={Number(data.id)} />
+                                    <MediaCollection collectionId={data.collection.id} name={data.collection.name} currentId={Number(data.id)} />
                                 </div>
                             )}
 
