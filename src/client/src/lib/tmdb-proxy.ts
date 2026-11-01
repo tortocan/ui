@@ -32,13 +32,17 @@ function resolveGatearrBase(): string {
  */
 export function installTmdbProxy(): void {
     if (installed || typeof window === "undefined" || typeof window.fetch !== "function") return
-
-    const base = resolveGatearrBase()
-    if (!base) return // no backend configured → leave TMDB calls direct
-
     installed = true
-    const proxyPrefix = `${base}/tmdb`
-    const rewrite = (url: string) => (url.startsWith(TMDB_API) ? proxyPrefix + url.slice(TMDB_API.length) : url)
+
+    // Resolve the gatearr base PER REQUEST, not once at bootstrap: the backend URL is user-mutable at
+    // runtime (the Settings input, ?omssurl=) with no page reload, so a base captured here would keep
+    // routing TMDB to a stale target — or, if empty at boot, bypass the proxy forever. A TMDB call falls
+    // back to going direct whenever no backend is configured at request time.
+    const rewrite = (url: string): string => {
+        if (!url.startsWith(TMDB_API)) return url
+        const base = resolveGatearrBase()
+        return base ? `${base}/tmdb` + url.slice(TMDB_API.length) : url
+    }
 
     const original = window.fetch.bind(window)
     window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
