@@ -14,13 +14,14 @@ import { CustomSubtitles } from "@/components/player/CustomSubtitles"
 import { useSeekPreviewVideo } from "./hooks/useSeekPreviewVideo"
 import { useThumbnailSprites } from "./hooks/useThumbnailSprites"
 import { TranscodingNotice } from "./TranscodingNotice"
+import { ErrorState } from "./ErrorState"
 
 export function MediaPlayer() {
     const videoRef = useRef<HTMLVideoElement>(null)
     const containerRef = useRef<HTMLDivElement>(null)
     const hlsRef = useRef<Hls | null>(null)
 
-    const { media, isPlaying, isLoading, currentTime, duration, volume, isMuted, setIsPlaying, setIsLoading, setCurrentTime, setDuration, setVolume, setIsMuted, setError } = usePlayerState()
+    const { media, isPlaying, isLoading, currentTime, duration, volume, isMuted, error, setIsPlaying, setIsLoading, setCurrentTime, setDuration, setVolume, setIsMuted, setError } = usePlayerState()
     const { t } = useTranslation("player")
 
     const { handleEpisodeEnded } = useEpisodeAutoplay()
@@ -35,6 +36,8 @@ export function MediaPlayer() {
     const [showAutoplay, setShowAutoplay] = useState(false)
     const [isPiP, setIsPiP] = useState(false)
     const [playbackRate, setPlaybackRate] = useState(1)
+    // Bumped by "Try Again" to re-run the source-init effect (re-attach HLS / reload the <video>).
+    const [reloadNonce, setReloadNonce] = useState(0)
 
     // Swipe DOWN to close the player (back), like the trailer modal. The old swipe up/down → volume
     // binding is removed. Wheel deltaY < -24 is a physical down-swipe under Mac natural scrolling; the
@@ -80,6 +83,7 @@ export function MediaPlayer() {
         if (!video || !selectedSource) return
 
         setIsLoading(true)
+        setError(undefined) // clear any prior fatal error when (re)attaching a source
 
         if (selectedSource.type === "hls") {
             if (Hls.isSupported()) {
@@ -124,7 +128,7 @@ export function MediaPlayer() {
                 hlsRef.current = null
             }
         }
-    }, [selectedSource, setError, setIsLoading, setIsPlaying])
+    }, [selectedSource, reloadNonce, setError, setIsLoading, setIsPlaying])
 
     // Apply the selected audio track to the <video> element (OMSS only gives the track list; the
     // player stored the choice without applying it). For a multi-audio mp4, HTMLMediaElement exposes
@@ -316,6 +320,8 @@ export function MediaPlayer() {
         }
     }
 
+    const handleRetry = () => setReloadNonce((n) => n + 1)
+
     if (!selectedSource)
         return (
             <LoadingState
@@ -353,6 +359,7 @@ export function MediaPlayer() {
                 onPlaying={() => setIsLoading(false)}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
+                onError={() => setError(t("states.error", "Something went wrong during playback."))}
                 onClick={togglePlay}
                 autoPlay
                 preload="auto"
@@ -409,6 +416,12 @@ export function MediaPlayer() {
                 }}
                 onCancel={() => setShowAutoplay(false)}
             />
+
+            {error && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/95">
+                    <ErrorState error={error} onRetry={handleRetry} />
+                </div>
+            )}
         </div>
     )
 }
