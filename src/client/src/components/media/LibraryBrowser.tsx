@@ -261,7 +261,7 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
                     getKey={(c) => c.col.id}
                     itemClassName="basis-4/5 pl-2 sm:basis-1/2 md:basis-1/3 md:pl-4 lg:basis-1/4 last:mr-4 md:last:mr-6"
                     contentClassName="-ml-2 md:-ml-4"
-                    renderItem={(c) => <CollectionCard name={c.col.name} backdrop={c.col.backdrop} count={c.movies.length} onClick={() => void openCollection(c.movies)} />}
+                    renderItem={(c) => <CollectionCard name={c.col.name} backdrop={c.col.backdrop} count={c.movies.length} providerId={[...c.movies].sort((a, b) => b.year - a.year)[0]?.id} onClick={() => void openCollection(c.movies)} />}
                 />
             )}
 

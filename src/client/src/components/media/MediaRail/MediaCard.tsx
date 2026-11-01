@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card.tsx"
 import { cn } from "@/lib/utils.ts"
 import { useMediaDrawer } from "@/components/media/drawer/hooks/useMediaDrawer"
 import { StarRating } from "@/components/media/StarRating"
+import { ProviderBadge } from "@/components/media/ProviderBadge.tsx"
 
 export interface MediaCardProps {
     title: string
@@ -32,6 +33,9 @@ export const MediaCard = React.memo(
                             className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.08]"
                             loading="lazy"
                         />
+
+                        {/* Streaming-provider logo, top-right. */}
+                        <ProviderBadge type={type} id={id} />
 
                         {/* Hover overlay */}
                         <div className="pointer-events-none absolute inset-0 flex items-end opacity-0 transition-opacity duration-300 group-hover:opacity-100">

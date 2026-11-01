@@ -1,9 +1,12 @@
 import { Layers, Play } from "lucide-react"
+import { ProviderBadge } from "@/components/media/ProviderBadge.tsx"
 
 export interface CollectionCardProps {
     name: string
     backdrop?: string | null
     count: number
+    /** A representative movie id, used for the top-right streaming-provider logo. */
+    providerId?: number
     onClick: () => void
 }
 
@@ -12,7 +15,7 @@ export interface CollectionCardProps {
  * under a gradient with its name + owned-movie count, a "Collection" tag, and a hover Play glyph.
  * Clicking continues the franchise (handled by the caller: first/next unwatched movie via the scrobbler).
  */
-export function CollectionCard({ name, backdrop, count, onClick }: CollectionCardProps) {
+export function CollectionCard({ name, backdrop, count, providerId, onClick }: CollectionCardProps) {
     return (
         <button
             type="button"
@@ -26,6 +29,9 @@ export function CollectionCard({ name, backdrop, count, onClick }: CollectionCar
             )}
 
             <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.88)_0%,rgba(0,0,0,0.2)_45%,transparent_72%)]" />
+
+            {/* Streaming-provider logo of a representative movie, top-right. */}
+            {providerId ? <ProviderBadge type="movie" id={providerId} /> : null}
 
             {/* Hover Play glyph */}
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">

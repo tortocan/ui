@@ -1,6 +1,7 @@
 import { Play } from "lucide-react"
 import { formatRuntime } from "@/components/media/drawer/mappers/media.mapper.ts"
 import { useMediaDrawer } from "@/components/media/drawer/hooks/useMediaDrawer"
+import { ProviderBadge } from "@/components/media/ProviderBadge.tsx"
 
 export interface ContinueWatchingCardProps {
     id: number
@@ -33,6 +34,9 @@ export function ContinueWatchingCard({ id, type, title, backdrop, season, episod
             className="group relative block aspect-video w-full overflow-hidden rounded-xl bg-muted text-left shadow-md transition-all hover:shadow-xl focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
         >
             <img src={backdrop ?? "/favicon.svg"} alt={title} loading="lazy" className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-105" />
+
+            {/* Streaming-provider logo, top-right. */}
+            <ProviderBadge type={type} id={id} />
 
             {/* Bottom gradient for legibility */}
             <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.85)_0%,rgba(0,0,0,0.15)_45%,transparent_70%)]" />
