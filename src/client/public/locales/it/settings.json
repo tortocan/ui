@@ -5,7 +5,8 @@
         "history": "Cronologia",
         "playback": "Riproduzione",
         "omss": "OMSS",
-        "tmdb": "TMDB"
+        "tmdb": "TMDB",
+        "appearance": "Aspetto"
     },
     "general": {
         "title": "Generale",
@@ -74,6 +75,21 @@
             "selectlabel": "Regioni",
             "placeholder": "Seleziona regione",
             "info": "Cambierà la sezione \"In tendenza ora\" di TMDB ecc. in base alla regione selezionata. {{projectName}} tenta di rilevare la tua regione in base alle impostazioni del browser. Probabilmente non devi modificare questo."
+        }
+    },
+    "appearance": {
+        "title": "Aspetto",
+        "description": "Personalizza l'aspetto dell'app",
+        "theme": {
+            "label": "Tema",
+            "info": "Scegli tra modalità chiara e scura",
+            "light": "Chiaro",
+            "dark": "Scuro",
+            "system": "Sistema"
+        },
+        "colorTheme": {
+            "label": "Tema colore",
+            "info": "Scegli un colore d'accento per l'interfaccia"
         }
     }
 }

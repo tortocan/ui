@@ -5,7 +5,8 @@
         "history": "历史记录",
         "playback": "播放",
         "omss": "OMSS",
-        "tmdb": "TMDB"
+        "tmdb": "TMDB",
+        "appearance": "外观"
     },
     "general": {
         "title": "通用",
@@ -74,6 +75,21 @@
             "selectlabel": "地区列表",
             "placeholder": "选择地区",
             "info": "将更改 TMDB 的\"当前热门\"板块等内容，以匹配您选择的地区。{{projectName}} 会尝试根据您的浏览器设置推测您的地区，通常无需手动更改。"
+        }
+    },
+    "appearance": {
+        "title": "外观",
+        "description": "自定义应用的外观和风格",
+        "theme": {
+            "label": "主题",
+            "info": "在浅色和深色模式之间选择",
+            "light": "浅色",
+            "dark": "深色",
+            "system": "系统"
+        },
+        "colorTheme": {
+            "label": "配色主题",
+            "info": "为界面选择强调色"
         }
     }
 }

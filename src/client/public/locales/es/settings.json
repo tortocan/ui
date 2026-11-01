@@ -5,7 +5,8 @@
         "history": "Historial",
         "playback": "Reproducción",
         "omss": "OMSS",
-        "tmdb": "TMDB"
+        "tmdb": "TMDB",
+        "appearance": "Apariencia"
     },
     "general": {
         "title": "General",
@@ -74,6 +75,21 @@
             "selectlabel": "Regiones",
             "placeholder": "Seleccionar región",
             "info": "Cambiará la sección \"Tendencias\" de TMDB, etc., a tu región seleccionada. {{projectName}} intenta detectar tu región según la configuración de tu navegador. Probablemente no necesites cambiar esto."
+        }
+    },
+    "appearance": {
+        "title": "Apariencia",
+        "description": "Personaliza la apariencia de la aplicación",
+        "theme": {
+            "label": "Tema",
+            "info": "Elige entre modo claro y oscuro",
+            "light": "Claro",
+            "dark": "Oscuro",
+            "system": "Sistema"
+        },
+        "colorTheme": {
+            "label": "Tema de color",
+            "info": "Elige un color de acento para la interfaz"
         }
     }
 }
