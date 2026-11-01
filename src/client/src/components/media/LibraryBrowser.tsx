@@ -7,6 +7,7 @@ import { MediaGrid, type GridCard } from "@/components/media/MediaGrid.tsx"
 import { MediaFilters, type SortKey } from "@/components/media/filters/MediaFilters.tsx"
 import { NETWORKS, STREAMING } from "@/components/media/filters/catalog.ts"
 import { useFilterOptions } from "@/components/media/filters/useFilterOptions.ts"
+import { useTmdbLanguages } from "@/hooks/use-tmdb-languages"
 import { Rail } from "@/components/media/MediaRail/Rail.tsx"
 import { CollectionCard } from "@/components/media/CollectionCard.tsx"
 import { tmdbImage, yearOf } from "@/lib/tmdb.utils"
@@ -15,7 +16,7 @@ const PAGE_SIZE = 35
 const CHUNK = 20 // concurrent TMDB detail calls per batch
 
 type LibCollection = { id: number; name: string; backdrop: string | null }
-type LibTitle = GridCard & { popularity: number; genreIds: number[]; companyIds: number[]; networkIds: number[]; collection?: LibCollection }
+type LibTitle = GridCard & { popularity: number; genreIds: number[]; companyIds: number[]; networkIds: number[]; originalLanguage: string; collection?: LibCollection }
 
 // belongs_to_collection.backdrop_path may arrive raw (not resolved to a URL by the client).
 const collectionImage = (path?: string | null) => tmdbImage(path, "w780")
@@ -40,11 +41,13 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
     const { region } = useAppSettings()
     const { open } = useMediaDrawer()
     const { genres } = useFilterOptions(tmdb, type)
+    const { languages } = useTmdbLanguages()
 
     const [titles, setTitles] = useState<LibTitle[] | null>(null)
     const [genreIds, setGenreIds] = useState<number[]>([])
     const [networkIds, setNetworkIds] = useState<number[]>([])
     const [studioIds, setStudioIds] = useState<number[]>([])
+    const [originalLanguage, setOriginalLanguage] = useState<string | null>(null)
     const [sortKey, setSortKey] = useState<SortKey>("popularity")
     const [fromYear, setFromYear] = useState<number | null>(null)
     const [toYear, setToYear] = useState<number | null>(null)
@@ -61,6 +64,7 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
         setGenreIds([])
         setNetworkIds([])
         setStudioIds([])
+        setOriginalLanguage(null)
         setSortKey("popularity")
         setFromYear(null)
         setToYear(null)
@@ -89,6 +93,7 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
                             genreIds: (m.genres ?? []).map((g) => g.id),
                             companyIds: (m.production_companies ?? []).map((c) => c.id),
                             networkIds: [],
+                            originalLanguage: m.original_language ?? "",
                             collection: c ? { id: c.id, name: c.name, backdrop: collectionImage(c.backdrop_path ?? c.poster_path) } : undefined,
                         }
                     }
@@ -104,6 +109,7 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
                         genreIds: (s.genres ?? []).map((g) => g.id),
                         companyIds: (s.production_companies ?? []).map((c) => c.id),
                         networkIds: (s.networks ?? []).map((n) => n.id),
+                        originalLanguage: s.original_language ?? "",
                     }
                 } catch {
                     return null
@@ -161,6 +167,7 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
             else list = list.filter((t) => providerSets[t.id] && networkIds.some((p) => providerSets[t.id].has(p)))
         }
         if (studioIds.length) list = list.filter((t) => t.companyIds.some((c) => studioIds.includes(c)))
+        if (originalLanguage) list = list.filter((t) => t.originalLanguage === originalLanguage)
         if (fromYear) list = list.filter((t) => t.year && t.year >= fromYear)
         if (toYear) list = list.filter((t) => t.year && t.year <= toYear)
         const cmp: Record<SortKey, (a: LibTitle, b: LibTitle) => number> = {
@@ -171,7 +178,7 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
             az: (a, b) => a.title.localeCompare(b.title),
         }
         return [...list].sort(cmp[sortKey])
-    }, [titles, genreIds, networkIds, studioIds, fromYear, toYear, sortKey, type, providerSets])
+    }, [titles, genreIds, networkIds, studioIds, originalLanguage, fromYear, toYear, sortKey, type, providerSets])
 
     const pageCards = filtered.slice(0, visibleCount)
     const busy = titles === null || externalLoading || (type === "movie" && networkIds.length > 0 && providerLoading)
@@ -195,7 +202,7 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
         setVisibleCount(PAGE_SIZE)
     }
 
-    const anyFilter = genreIds.length > 0 || networkIds.length > 0 || studioIds.length > 0 || fromYear != null || toYear != null
+    const anyFilter = genreIds.length > 0 || networkIds.length > 0 || studioIds.length > 0 || originalLanguage != null || fromYear != null || toYear != null
     const noLibrary = !busy && (titles?.length ?? 0) === 0 && !anyFilter
 
     return (
@@ -211,6 +218,12 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
                     onToggleNetwork={toggle(setNetworkIds)}
                     studioIds={studioIds}
                     onToggleStudio={toggle(setStudioIds)}
+                    languages={languages}
+                    originalLanguage={originalLanguage}
+                    onOriginalLanguage={(code) => {
+                        setOriginalLanguage(code)
+                        setVisibleCount(PAGE_SIZE)
+                    }}
                     sortKey={sortKey}
                     onSortChange={(k) => {
                         setSortKey(k)

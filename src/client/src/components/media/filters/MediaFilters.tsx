@@ -28,6 +28,11 @@ export interface MediaFiltersProps {
     // Studios are TMDB production companies (movies & TV).
     studioIds: number[]
     onToggleStudio: (id: number) => void
+    // Original-language filter: a single language (TMDB with_original_language is one iso-639-1 code).
+    // `languages` is the option list (code + English label); the caller supplies it (useTmdbLanguages).
+    languages: { code: string; label: string }[]
+    originalLanguage: string | null
+    onOriginalLanguage: (code: string | null) => void
     sortKey: SortKey
     onSortChange: (key: SortKey) => void
     fromYear: number | null
@@ -53,6 +58,9 @@ export function MediaFilters({
     showNetworks = true,
     studioIds,
     onToggleStudio,
+    languages,
+    originalLanguage,
+    onOriginalLanguage,
     sortKey,
     onSortChange,
     fromYear,
@@ -61,12 +69,15 @@ export function MediaFilters({
     onToYear,
 }: MediaFiltersProps) {
     const sortLabel = SORT_OPTIONS.find((o) => o.value === sortKey)?.label ?? "Most Popular"
+    const languageOptions = [{ value: "any", label: "All Languages" }, ...languages.map((l) => ({ value: l.code, label: l.label }))]
+    const languageLabel = originalLanguage ? (languages.find((l) => l.code === originalLanguage)?.label ?? originalLanguage) : "All Languages"
 
     return (
         <>
             <MultiSelectFilter allLabel="All Genres" nounLabel="Genres" items={genres} selected={genreIds} onToggle={onToggleGenre} />
             {showNetworks && <MultiSelectFilter allLabel="All Networks" nounLabel="Networks" items={networkItems} selected={networkIds} onToggle={onToggleNetwork} />}
             <MultiSelectFilter allLabel="All Studios" nounLabel="Studios" items={STUDIOS} selected={studioIds} onToggle={onToggleStudio} />
+            <SingleSelectFilter scrollable triggerLabel={languageLabel} value={originalLanguage ?? "any"} options={languageOptions} onChange={(v) => onOriginalLanguage(v === "any" ? null : v)} />
             <SingleSelectFilter triggerLabel={sortLabel} value={sortKey} options={SORT_OPTIONS} onChange={(v) => onSortChange(v as SortKey)} />
             <SingleSelectFilter
                 scrollable

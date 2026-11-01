@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
 import { ShuffleIcon } from "lucide-react"
-import type { CountryISO3166_1, DiscoverMovieParams, DiscoverMovieSortBy, DiscoverTVParams, DiscoverTVSortBy, MovieResultItem, DiscoverTVResultItem } from "@lorenzopant/tmdb"
+import type { CountryISO3166_1, DiscoverMovieParams, DiscoverMovieSortBy, DiscoverTVParams, DiscoverTVSortBy, LanguageISO6391, MovieResultItem, DiscoverTVResultItem } from "@lorenzopant/tmdb"
 import { useTmdb } from "@/hooks/use-tmdb"
 import { useAppSettings } from "@/hooks/use-appsettings.ts"
 import { yearOf } from "@/lib/tmdb.utils"
@@ -12,6 +12,7 @@ import { MediaGrid } from "@/components/media/MediaGrid.tsx"
 import { MediaFilters, SORT_OPTIONS, type SortKey } from "@/components/media/filters/MediaFilters.tsx"
 import { NETWORKS, STREAMING } from "@/components/media/filters/catalog.ts"
 import { useFilterOptions } from "@/components/media/filters/useFilterOptions.ts"
+import { useTmdbLanguages } from "@/hooks/use-tmdb-languages"
 import { Button } from "@/components/ui/button"
 import { Combobox, ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList } from "@/components/ui/combobox"
 
@@ -63,6 +64,7 @@ export default function Discover() {
     })
     const [networkIds, setNetworkIds] = useState<number[]>([])
     const [studioIds, setStudioIds] = useState<number[]>([])
+    const [originalLanguage, setOriginalLanguage] = useState<string | null>(null)
     const [sortKey, setSortKey] = useState<SortKey>(() => {
         const s = searchParams.get("sort")
         return SORT_OPTIONS.some((o) => o.value === s) ? (s as SortKey) : "popularity"
@@ -75,6 +77,7 @@ export default function Discover() {
 
     // Shared genre list for the filter bar (networks + studios are curated constants).
     const { genres } = useFilterOptions(tmdb, effectiveType)
+    const { languages } = useTmdbLanguages()
 
     // Genre/network id spaces differ between movie and TV, so selections reset whenever the effective
     // TMDB type changes (Anime still maps to "tv"). Skip the first run so a genre arriving via ?genre=
@@ -89,6 +92,7 @@ export default function Discover() {
         setGenreIds([])
         setNetworkIds([])
         setStudioIds([])
+        setOriginalLanguage(null)
         setPage(1)
     }, [effectiveType])
 
@@ -102,6 +106,7 @@ export default function Discover() {
             ...(genrePart.length ? { with_genres: genrePart.join("|") } : {}),
             ...(studioIds.length ? { with_companies: studioIds.join("|") } : {}),
             ...(networkIds.length ? { with_watch_providers: networkIds.join("|"), watch_region: (region ?? "US") as CountryISO3166_1 } : {}),
+            ...(originalLanguage ? { with_original_language: originalLanguage as LanguageISO6391 } : {}),
             ...(sortKey === "rating" ? { "vote_count.gte": 50 } : {}),
             ...(fromYear ? { "primary_release_date.gte": `${fromYear}-01-01` } : {}),
             ...(toYear ? { "primary_release_date.lte": `${toYear}-12-31` } : {}),
@@ -117,6 +122,7 @@ export default function Discover() {
             with_genres: genrePart.join("|"),
             ...(networkIds.length ? { with_networks: networkIds.join("|") } : {}),
             ...(studioIds.length ? { with_companies: studioIds.join("|") } : {}),
+            ...(originalLanguage ? { with_original_language: originalLanguage as LanguageISO6391 } : {}),
             ...(sortKey === "rating" ? { "vote_count.gte": 50 } : {}),
             ...(mediaKind === "anime" ? { with_origin_country: ANIME_ORIGIN_COUNTRY } : {}),
             ...(fromYear ? { "first_air_date.gte": `${fromYear}-01-01` } : {}),
@@ -161,7 +167,7 @@ export default function Discover() {
             mounted = false
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [tmdb, effectiveType, mediaKind, sortKey, region, fromYear, toYear, page, genreIds.join(","), networkIds.join(","), studioIds.join(",")])
+    }, [tmdb, effectiveType, mediaKind, sortKey, region, fromYear, toYear, page, genreIds.join(","), networkIds.join(","), studioIds.join(","), originalLanguage])
 
     const [isSurprising, setIsSurprising] = useState(false)
 
@@ -209,7 +215,7 @@ export default function Discover() {
     const heroFetcher = useCallback(
         () => Promise.all([fetchPage(1)]),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [tmdb, effectiveType, mediaKind, sortKey, region, fromYear, toYear, genreIds.join(","), networkIds.join(","), studioIds.join(",")]
+        [tmdb, effectiveType, mediaKind, sortKey, region, fromYear, toYear, genreIds.join(","), networkIds.join(","), studioIds.join(","), originalLanguage]
     )
 
     return (
@@ -228,6 +234,12 @@ export default function Discover() {
                             onToggleNetwork={toggleNetwork}
                             studioIds={studioIds}
                             onToggleStudio={toggleStudio}
+                            languages={languages}
+                            originalLanguage={originalLanguage}
+                            onOriginalLanguage={(code) => {
+                                setOriginalLanguage(code)
+                                setPage(1)
+                            }}
                             sortKey={sortKey}
                             onSortChange={(k) => {
                                 setSortKey(k)
