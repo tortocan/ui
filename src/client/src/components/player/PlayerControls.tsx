@@ -8,6 +8,7 @@ import { formatTime } from "./utils/time"
 import { PlayerSettings } from "./PlayerSettings"
 import { SeekBar } from "./SeekBar"
 import type { PreviewStatus } from "./hooks/useSeekPreviewVideo"
+import type { SpriteCue } from "./hooks/useThumbnailSprites"
 
 interface PlayerControlsProps {
     isPlaying: boolean
@@ -23,6 +24,7 @@ interface PlayerControlsProps {
     previewAttach: (el: HTMLDivElement | null) => void
     onPreviewTime: (time: number) => void
     previewStatus: PreviewStatus
+    spriteAt?: (time: number) => SpriteCue | null
     onScrubbingChange?: (active: boolean) => void
     onToggleMute: () => void
     onVolumeChange: (volume: number[]) => void
@@ -60,6 +62,7 @@ export function PlayerControls({
     previewAttach,
     onPreviewTime,
     previewStatus,
+    spriteAt,
     onScrubbingChange,
     onToggleMute,
     onVolumeChange,
@@ -142,6 +145,7 @@ export function PlayerControls({
                     previewAttach={previewAttach}
                     onPreviewTime={onPreviewTime}
                     previewStatus={previewStatus}
+                    spriteAt={spriteAt}
                     onScrubbingChange={onScrubbingChange}
                 />
 

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react"
 import { ChevronUp, Loader2 } from "lucide-react"
 import { formatTime } from "./utils/time"
 import type { PreviewStatus } from "./hooks/useSeekPreviewVideo"
+import type { SpriteCue } from "./hooks/useThumbnailSprites"
 import { cn } from "@/lib/utils"
 
 interface SeekBarProps {
@@ -16,11 +17,13 @@ interface SeekBarProps {
     /** Drive the preview frame to this time (hover on desktop, drag on touch). */
     onPreviewTime: (time: number) => void
     previewStatus: PreviewStatus
+    /** Backend sprite-sheet tile for a scrub time (instant); null → fall back to the live-frame engine. */
+    spriteAt?: (time: number) => SpriteCue | null
     /** Let the player freeze its controls-autohide timer while a scrub is in flight (touch emits no mousemove). */
     onScrubbingChange?: (active: boolean) => void
 }
 
-const TILE_W = 176 // px — the preview tile width (keep in sync with the w-44 frame)
+const TILE_W = 160 // px — the preview tile width (matches the 160×90 sprite cell / the w-40 frame)
 const PULL_RANGE = 220 // px of upward pull to reach minimum sensitivity
 const MIN_SENS = 0.08 // most precise seek (8% of normal horizontal sensitivity)
 const PRECISE_AT = 24 // px pulled up before the "precise" indicator kicks in
@@ -30,7 +33,7 @@ const PRECISE_AT = 24 // px pulled up before the "precise" indicator kicks in
  * scrubber, and dragging the finger UP reduces seek sensitivity ("pull up for precise seeking").
  * Replaces the Radix Slider so the vertical gesture can be expressed; keyboard + ARIA are preserved.
  */
-export function SeekBar({ currentTime, duration, buffered = 0, onSeek, previewAttach, onPreviewTime, previewStatus, onScrubbingChange }: SeekBarProps) {
+export function SeekBar({ currentTime, duration, buffered = 0, onSeek, previewAttach, onPreviewTime, previewStatus, spriteAt, onScrubbingChange }: SeekBarProps) {
     const trackRef = useRef<HTMLDivElement>(null)
     const gestureRef = useRef<{ startX: number; startY: number; startTime: number; rectLeft: number; width: number } | null>(null)
     const dragTimeRef = useRef(0) // live drag target (state lags a frame; the commit reads this)
@@ -54,6 +57,11 @@ export function SeekBar({ currentTime, duration, buffered = 0, onSeek, previewAt
 
     const clampTileX = (x: number, width: number) => Math.max(TILE_W / 2, Math.min(width - TILE_W / 2, x))
 
+    // Only drive the (slow) live-frame engine when the backend sprite sheet has no tile for this time.
+    const drivePreview = (t: number) => {
+        if (!spriteAt?.(t)) onPreviewTime(t)
+    }
+
     const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
         if (dragging) {
             const g = gestureRef.current
@@ -68,7 +76,7 @@ export function SeekBar({ currentTime, duration, buffered = 0, onSeek, previewAt
             setTileTime(t)
             setPrecise(up > PRECISE_AT)
             setTileX(clampTileX(e.clientX - g.rectLeft, g.width))
-            onPreviewTime(t)
+            drivePreview(t)
             return
         }
         // Hover preview (mouse only — touch has no hover).
@@ -78,7 +86,7 @@ export function SeekBar({ currentTime, duration, buffered = 0, onSeek, previewAt
         const t = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * duration
         setTileTime(t)
         setTileX(clampTileX(e.clientX - rect.left, rect.width))
-        onPreviewTime(t)
+        drivePreview(t)
     }
 
     const onPointerLeave = () => {
@@ -102,7 +110,7 @@ export function SeekBar({ currentTime, duration, buffered = 0, onSeek, previewAt
         setTileTime(startTime)
         setPrecise(false)
         setTileX(clampTileX(e.clientX - rect.left, rect.width))
-        onPreviewTime(startTime)
+        drivePreview(startTime)
         onScrubbingChange?.(true)
         e.preventDefault()
     }
@@ -149,21 +157,39 @@ export function SeekBar({ currentTime, duration, buffered = 0, onSeek, previewAt
                             <span>{precise ? "Precise seeking" : "Pull up for precise seeking"}</span>
                         </div>
                     )}
-                    <div className="relative h-[99px] w-44 overflow-hidden rounded-lg border border-white/20 bg-black shadow-xl">
+                    <div className="relative h-[90px] w-40 overflow-hidden rounded-lg border border-white/20 bg-black shadow-xl">
+                        {/* Live-frame engine (fallback), always mounted so it keeps the element stable. */}
                         <div ref={previewAttach} className="h-full w-full" />
-                        {/* Dim+spinner ONLY before the first frame (or on a hard error). Once a frame has
-                            shown, keep it visible during subsequent seeks so the tile doesn't flicker dark. */}
-                        {previewStatus === "error" && !everReady ? (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                                <span className="text-xs text-white/60">No preview</span>
-                            </div>
-                        ) : (
-                            !everReady && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[1px]">
-                                    <Loader2 className="size-5 animate-spin text-white/70" />
-                                </div>
-                            )
-                        )}
+                        {(() => {
+                            const sprite = spriteAt?.(tileTime) ?? null
+                            if (sprite) {
+                                // Backend sprite sheet: show the exact 160×90 cell instantly (no decode).
+                                return (
+                                    <div
+                                        className="absolute inset-0"
+                                        style={{
+                                            backgroundImage: `url("${sprite.url}")`,
+                                            backgroundPosition: `-${sprite.x}px -${sprite.y}px`,
+                                            backgroundRepeat: "no-repeat",
+                                        }}
+                                    />
+                                )
+                            }
+                            // No sprite yet → live-frame engine's dim/spinner ONLY before its first frame.
+                            if (previewStatus === "error" && !everReady)
+                                return (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                                        <span className="text-xs text-white/60">No preview</span>
+                                    </div>
+                                )
+                            if (!everReady)
+                                return (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[1px]">
+                                        <Loader2 className="size-5 animate-spin text-white/70" />
+                                    </div>
+                                )
+                            return null
+                        })()}
                     </div>
                     <span className="rounded bg-black/70 px-1.5 py-0.5 text-xs font-medium tabular-nums text-white">{formatTime(tileTime)}</span>
                 </div>

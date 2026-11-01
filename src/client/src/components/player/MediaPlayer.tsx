@@ -12,6 +12,7 @@ import { useAudioTracks } from "@/components/player/hooks/useAudioTracks.ts"
 import { useScrobble } from "@/components/player/hooks/useScrobble.ts"
 import { CustomSubtitles } from "@/components/player/CustomSubtitles"
 import { useSeekPreviewVideo } from "./hooks/useSeekPreviewVideo"
+import { useThumbnailSprites } from "./hooks/useThumbnailSprites"
 
 export function MediaPlayer() {
     const videoRef = useRef<HTMLVideoElement>(null)
@@ -68,8 +69,9 @@ export function MediaPlayer() {
 
     const selectedSource = media?.playback.selectedSource
 
-    // Seek-preview frame engine (a 2nd hidden <video> seeked to the scrub time; shown in the tile).
+    // Seek-preview: backend sprite sheet (instant) when available, else the client-side frame engine.
     const { attach: previewAttach, seekTo: previewSeekTo, status: previewStatus } = useSeekPreviewVideo(selectedSource)
+    const { spriteAt } = useThumbnailSprites(selectedSource)
 
     // Initialize HLS or Native Video
     useEffect(() => {
@@ -376,6 +378,7 @@ export function MediaPlayer() {
                 previewAttach={previewAttach}
                 onPreviewTime={previewSeekTo}
                 previewStatus={previewStatus}
+                spriteAt={spriteAt}
                 onScrubbingChange={handleScrubbingChange}
                 onToggleMute={toggleMute}
                 onVolumeChange={handleVolumeChange}
