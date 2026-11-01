@@ -2,8 +2,11 @@ import { useEffect, useMemo, useState } from "react"
 import { ChevronDown, ChevronUp, GripVertical, Lock, Plus, X } from "lucide-react"
 import { useAppSettings, supportedLocales } from "@/hooks/use-appsettings"
 import { useTmdb } from "@/hooks/use-tmdb"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { cn } from "@/lib/utils"
+
+type Lang = { code: string; label: string; native?: string }
 
 /**
  * A per-profile, reorderable list of PREFERRED search languages. The profile's own language is always
@@ -11,8 +14,8 @@ import { cn } from "@/lib/utils"
  * which the user reorders and extends. Search runs one query per language in this order and merges — so
  * the order is the priority (earlier languages win the displayed title).
  *
- * The "Add a language" picker offers EVERY TMDB language (iso-639-1 from TMDB's configuration), not
- * just the handful the UI is translated into — search isn't limited to UI-translation locales.
+ * The "Add a language" control is a searchable combobox listing EVERY TMDB language (iso-639-1 from
+ * TMDB's configuration), by English name (native names are unreliable — some render as "?????").
  *
  * Reordering works three ways so it's available everywhere: native HTML5 drag-and-drop (desktop mouse)
  * and up/down buttons (touch + keyboard). The working list excludes the profile locale, so writing it
@@ -23,16 +26,18 @@ export function PreferredLanguages() {
     const tmdb = useTmdb()
     const [dragIndex, setDragIndex] = useState<number | null>(null)
     const [overIndex, setOverIndex] = useState<number | null>(null)
+    const [pickerOpen, setPickerOpen] = useState(false)
 
-    // Every TMDB language (code → label). Falls back to the UI-locale labels before the fetch resolves.
-    const [tmdbLangs, setTmdbLangs] = useState<{ code: string; label: string }[]>([])
+    // Every TMDB language. Label is the ENGLISH name (always Latin + meaningful; native names can be
+    // empty or unrenderable). Falls back to the UI-locale set until the fetch resolves.
+    const [tmdbLangs, setTmdbLangs] = useState<Lang[]>([])
     useEffect(() => {
         let cancelled = false
         void tmdb.configuration
             .languages()
             .then((list) => {
                 if (cancelled) return
-                setTmdbLangs(list.map((l) => ({ code: l.iso_639_1, label: l.name?.trim() || l.english_name })).filter((l) => l.code))
+                setTmdbLangs(list.filter((l) => l.iso_639_1 && l.english_name).map((l) => ({ code: l.iso_639_1, label: l.english_name, native: l.name?.trim() || undefined })))
             })
             .catch(() => {})
         return () => {
@@ -42,7 +47,7 @@ export function PreferredLanguages() {
 
     const labelMap = useMemo(() => {
         const m = new Map<string, string>(supportedLocales.map((l) => [l.iso639, l.label]))
-        for (const l of tmdbLangs) m.set(l.code, l.label) // TMDB's names win once loaded
+        for (const l of tmdbLangs) if (!m.has(l.code)) m.set(l.code, l.label) // keep the native UI-locale labels
         return m
     }, [tmdbLangs])
     const labelOf = (code: string) => labelMap.get(code) ?? code
@@ -50,10 +55,10 @@ export function PreferredLanguages() {
     // The profile's own language is implicit (pinned first) — never a draggable item.
     const items = useMemo(() => searchLocales.filter((l) => l !== locale), [searchLocales, locale])
 
-    // All TMDB languages not already chosen and not the profile's; sorted by label. Before the TMDB list
-    // loads, fall back to the UI locales so the picker is never empty.
-    const available = useMemo(() => {
-        const source = tmdbLangs.length ? tmdbLangs : supportedLocales.map((l) => ({ code: l.iso639, label: l.label }))
+    // All TMDB languages not already chosen and not the profile's, sorted by English name. Falls back to
+    // the UI locales before the TMDB list loads so the picker is never empty.
+    const available = useMemo<Lang[]>(() => {
+        const source: Lang[] = tmdbLangs.length ? tmdbLangs : supportedLocales.map((l) => ({ code: l.iso639, label: l.label }))
         return source.filter((l) => l.code !== locale && !items.includes(l.code)).sort((a, b) => a.label.localeCompare(b.label))
     }, [tmdbLangs, locale, items])
 
@@ -64,7 +69,10 @@ export function PreferredLanguages() {
         next.splice(to, 0, item)
         setSearchLocales(next)
     }
-    const add = (code: string) => setSearchLocales([...items, code])
+    const add = (code: string) => {
+        setSearchLocales([...items, code])
+        setPickerOpen(false)
+    }
     const remove = (code: string) => setSearchLocales(items.filter((x) => x !== code))
 
     const row = "flex items-center gap-2 rounded-lg border bg-card px-3 py-2"
@@ -122,21 +130,28 @@ export function PreferredLanguages() {
             ))}
 
             {available.length > 0 && (
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
+                <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+                    <PopoverTrigger asChild>
                         <button type="button" className={cn(row, "w-full justify-start text-muted-foreground transition-colors hover:bg-muted")}>
                             <Plus className="size-4" />
                             <span className="text-sm font-medium">Add a language</span>
                         </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="max-h-72 w-(--radix-dropdown-menu-trigger-width) overflow-y-auto">
-                        {available.map((l) => (
-                            <DropdownMenuItem key={l.code} onClick={() => add(l.code)}>
-                                {l.label}
-                            </DropdownMenuItem>
-                        ))}
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-(--radix-popover-trigger-width) p-0">
+                        <Command>
+                            <CommandInput placeholder="Search languages…" />
+                            <CommandList className="max-h-72">
+                                <CommandEmpty>No language found.</CommandEmpty>
+                                {available.map((l) => (
+                                    // English name only — some TMDB native names are empty/unrenderable ("?????").
+                                    <CommandItem key={l.code} value={`${l.label} ${l.native ?? ""} ${l.code}`} onSelect={() => add(l.code)}>
+                                        {l.label}
+                                    </CommandItem>
+                                ))}
+                            </CommandList>
+                        </Command>
+                    </PopoverContent>
+                </Popover>
             )}
         </div>
     )
