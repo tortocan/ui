@@ -56,6 +56,11 @@ export function MediaCollection({ collectionId, name, currentId }: MediaCollecti
 
     const heading = useMemo(() => name || "Collection", [name])
 
+    // Start the rail scrolled so the current film is visible (it may be the last entry). Embla's
+    // startIndex applies at init; the Rail only mounts once `cards` is loaded (we return null before
+    // that), so the index is correct on first paint.
+    const activeIndex = useMemo(() => Math.max(0, (cards ?? []).findIndex((c) => c.id === currentId)), [cards, currentId])
+
     if (!cards || cards.length === 0) return null
 
     return (
@@ -66,6 +71,7 @@ export function MediaCollection({ collectionId, name, currentId }: MediaCollecti
                 getKey={(c) => c.id}
                 itemClassName={RAIL_ITEM_CLASS}
                 contentClassName="-ml-2 md:-ml-4"
+                opts={{ align: "start", loop: false, dragFree: true, startIndex: activeIndex }}
                 renderItem={(c) => <MediaCard id={c.id} type={c.type} title={c.title} imagePath={c.poster} imageAlt={c.title} year={c.year} rating={c.rating} active={c.id === currentId} />}
             />
         </section>

@@ -28,19 +28,17 @@ export const MediaCard = React.memo(
         return (
             <Card ref={ref} className={cn("group overflow-hidden border-none py-0 transition-all", className)} onClick={() => open({ type: type, id: id })}>
                 <CardContent className="p-0">
-                    <div
-                        className={cn(
-                            "relative overflow-hidden rounded-md bg-muted transition-all",
-                            aspectRatio === "portrait" ? "aspect-2/3" : "aspect-video",
-                            active && "ring-2 ring-primary ring-offset-2 ring-offset-black"
-                        )}
-                    >
+                    <div className={cn("relative overflow-hidden rounded-md bg-muted transition-all", aspectRatio === "portrait" ? "aspect-2/3" : "aspect-video")}>
                         <img
                             src={imagePath ?? "/favicon.svg"}
                             alt={imageAlt || title}
                             className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.08]"
                             loading="lazy"
                         />
+
+                        {/* Current-selection emphasis: an inset ring overlay ON TOP of the poster, so it's
+                            never clipped by the card's own overflow-hidden (an outset ring was). */}
+                        {active && <div className="pointer-events-none absolute inset-0 z-30 rounded-md ring-4 ring-primary ring-inset" />}
 
                         {/* Streaming-provider logo, top-right. */}
                         <ProviderBadge type={type} id={id} />
