@@ -47,8 +47,9 @@ export const supportedLocales = [
 /** A supported UI/metadata language — the iso639 code of one of {@link supportedLocales}. */
 export type SupportedLocales = (typeof supportedLocales)[number]["iso639"]
 
-/** The TMDB `language` (primary translation) for a given UI locale, e.g. "en" → "en-US". */
-export function tmdbLanguageFor(locale: SupportedLocales): string {
+/** The TMDB `language` (primary translation) for a language code, e.g. "en" → "en-US". A code that
+ * isn't one of the UI locales (any TMDB iso-639-1, used for search-only languages) passes through. */
+export function tmdbLanguageFor(locale: string): string {
     return supportedLocales.find((l) => l.iso639 === locale)?.primaryTranslationTmdb ?? locale
 }
 
@@ -60,8 +61,9 @@ export type AppSettings = {
     region?: CountryISO3166_1
 
     // Extra languages to search across (beyond the profile's own locale, which is always included).
-    // Empty = search only the profile's language. Lets e.g. an English profile also find Spanish titles.
-    searchLocales: SupportedLocales[]
+    // Ordered (priority); any TMDB iso-639-1 code, not just the UI-translation locales. Empty = search
+    // only the profile's language. Lets e.g. an English profile also find Spanish/Japanese/... titles.
+    searchLocales: string[]
 
     autoplayNext: boolean
     showSearch: boolean
@@ -85,7 +87,7 @@ export type AppSettings = {
 
     setLocale: (locale: SupportedLocales) => void
     setRegion: (region: CountryISO3166_1) => void
-    setSearchLocales: (value: SupportedLocales[]) => void
+    setSearchLocales: (value: string[]) => void
     setAutoplayNext: (value: boolean) => void
     setShowSearch: (value: boolean) => void
     setLibraryOnly: (value: boolean) => void

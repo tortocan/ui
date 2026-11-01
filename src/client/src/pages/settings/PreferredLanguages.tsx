@@ -1,30 +1,61 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { ChevronDown, ChevronUp, GripVertical, Lock, Plus, X } from "lucide-react"
-import { useAppSettings, supportedLocales, type SupportedLocales } from "@/hooks/use-appsettings"
+import { useAppSettings, supportedLocales } from "@/hooks/use-appsettings"
+import { useTmdb } from "@/hooks/use-tmdb"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 
-const labelOf = (iso: SupportedLocales) => supportedLocales.find((l) => l.iso639 === iso)?.label ?? iso
-
 /**
  * A per-profile, reorderable list of PREFERRED search languages. The profile's own language is always
- * searched first (shown pinned + locked at the top); below it is the ordered list of extra languages
- * (stored in `searchLocales`), which the user reorders and extends. Search runs one query per language
- * in this order and merges — so the order is the priority (earlier languages win the displayed title).
+ * searched first (pinned + locked); below it is the ordered list of extra languages (`searchLocales`),
+ * which the user reorders and extends. Search runs one query per language in this order and merges — so
+ * the order is the priority (earlier languages win the displayed title).
  *
- * Reordering works three ways so it's available everywhere: native HTML5 drag-and-drop (desktop mouse),
- * and up/down buttons (touch + keyboard, since HTML5 DnD doesn't fire on touch). The working list
- * excludes the profile locale, so writing it back also prunes any stale duplicate of the profile
- * language (e.g. if the user later switches their profile language to one already in the list).
+ * The "Add a language" picker offers EVERY TMDB language (iso-639-1 from TMDB's configuration), not
+ * just the handful the UI is translated into — search isn't limited to UI-translation locales.
+ *
+ * Reordering works three ways so it's available everywhere: native HTML5 drag-and-drop (desktop mouse)
+ * and up/down buttons (touch + keyboard). The working list excludes the profile locale, so writing it
+ * back also prunes any stale duplicate of the profile language.
  */
 export function PreferredLanguages() {
     const { locale, searchLocales, setSearchLocales } = useAppSettings()
+    const tmdb = useTmdb()
     const [dragIndex, setDragIndex] = useState<number | null>(null)
     const [overIndex, setOverIndex] = useState<number | null>(null)
 
+    // Every TMDB language (code → label). Falls back to the UI-locale labels before the fetch resolves.
+    const [tmdbLangs, setTmdbLangs] = useState<{ code: string; label: string }[]>([])
+    useEffect(() => {
+        let cancelled = false
+        void tmdb.configuration
+            .languages()
+            .then((list) => {
+                if (cancelled) return
+                setTmdbLangs(list.map((l) => ({ code: l.iso_639_1, label: l.name?.trim() || l.english_name })).filter((l) => l.code))
+            })
+            .catch(() => {})
+        return () => {
+            cancelled = true
+        }
+    }, [tmdb])
+
+    const labelMap = useMemo(() => {
+        const m = new Map<string, string>(supportedLocales.map((l) => [l.iso639, l.label]))
+        for (const l of tmdbLangs) m.set(l.code, l.label) // TMDB's names win once loaded
+        return m
+    }, [tmdbLangs])
+    const labelOf = (code: string) => labelMap.get(code) ?? code
+
     // The profile's own language is implicit (pinned first) — never a draggable item.
     const items = useMemo(() => searchLocales.filter((l) => l !== locale), [searchLocales, locale])
-    const available = supportedLocales.filter((l) => l.iso639 !== locale && !items.includes(l.iso639))
+
+    // All TMDB languages not already chosen and not the profile's; sorted by label. Before the TMDB list
+    // loads, fall back to the UI locales so the picker is never empty.
+    const available = useMemo(() => {
+        const source = tmdbLangs.length ? tmdbLangs : supportedLocales.map((l) => ({ code: l.iso639, label: l.label }))
+        return source.filter((l) => l.code !== locale && !items.includes(l.code)).sort((a, b) => a.label.localeCompare(b.label))
+    }, [tmdbLangs, locale, items])
 
     const move = (from: number, to: number) => {
         if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) return
@@ -33,8 +64,8 @@ export function PreferredLanguages() {
         next.splice(to, 0, item)
         setSearchLocales(next)
     }
-    const add = (iso: SupportedLocales) => setSearchLocales([...items, iso])
-    const remove = (iso: SupportedLocales) => setSearchLocales(items.filter((x) => x !== iso))
+    const add = (code: string) => setSearchLocales([...items, code])
+    const remove = (code: string) => setSearchLocales(items.filter((x) => x !== code))
 
     const row = "flex items-center gap-2 rounded-lg border bg-card px-3 py-2"
     const iconBtn = "rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
@@ -49,9 +80,9 @@ export function PreferredLanguages() {
             </div>
 
             {/* Extra preferred languages — drag (desktop) or the up/down buttons (touch/keyboard) to reorder. */}
-            {items.map((iso, i) => (
+            {items.map((code, i) => (
                 <div
-                    key={iso}
+                    key={code}
                     draggable
                     onDragStart={(e) => {
                         setDragIndex(i)
@@ -76,15 +107,15 @@ export function PreferredLanguages() {
                     className={cn(row, "cursor-grab active:cursor-grabbing", dragIndex === i && "opacity-50", overIndex === i && dragIndex !== i && "border-primary")}
                 >
                     <GripVertical className="size-4 shrink-0 text-muted-foreground" />
-                    <span className="flex-1 text-sm font-medium">{labelOf(iso)}</span>
+                    <span className="flex-1 text-sm font-medium">{labelOf(code)}</span>
                     <span className="text-[10px] font-medium text-muted-foreground tabular-nums">{i + 2}</span>
-                    <button type="button" onClick={() => move(i, i - 1)} disabled={i === 0} aria-label={`Move ${labelOf(iso)} up`} className={iconBtn}>
+                    <button type="button" onClick={() => move(i, i - 1)} disabled={i === 0} aria-label={`Move ${labelOf(code)} up`} className={iconBtn}>
                         <ChevronUp className="size-4" />
                     </button>
-                    <button type="button" onClick={() => move(i, i + 1)} disabled={i === items.length - 1} aria-label={`Move ${labelOf(iso)} down`} className={iconBtn}>
+                    <button type="button" onClick={() => move(i, i + 1)} disabled={i === items.length - 1} aria-label={`Move ${labelOf(code)} down`} className={iconBtn}>
                         <ChevronDown className="size-4" />
                     </button>
-                    <button type="button" onClick={() => remove(iso)} aria-label={`Remove ${labelOf(iso)}`} className={iconBtn}>
+                    <button type="button" onClick={() => remove(code)} aria-label={`Remove ${labelOf(code)}`} className={iconBtn}>
                         <X className="size-4" />
                     </button>
                 </div>
@@ -99,13 +130,11 @@ export function PreferredLanguages() {
                         </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="max-h-72 w-(--radix-dropdown-menu-trigger-width) overflow-y-auto">
-                        {[...available]
-                            .sort((a, b) => a.label.localeCompare(b.label))
-                            .map((l) => (
-                                <DropdownMenuItem key={l.iso639} onClick={() => add(l.iso639)}>
-                                    {l.label}
-                                </DropdownMenuItem>
-                            ))}
+                        {available.map((l) => (
+                            <DropdownMenuItem key={l.code} onClick={() => add(l.code)}>
+                                {l.label}
+                            </DropdownMenuItem>
+                        ))}
                     </DropdownMenuContent>
                 </DropdownMenu>
             )}
