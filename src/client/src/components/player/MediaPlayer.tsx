@@ -71,7 +71,7 @@ export function MediaPlayer() {
 
     // Seek-preview: backend sprite sheet (instant) when available, else the client-side frame engine.
     const { attach: previewAttach, seekTo: previewSeekTo, status: previewStatus } = useSeekPreviewVideo(selectedSource)
-    const { spriteAt } = useThumbnailSprites(selectedSource)
+    const { spriteAt, ensureLoaded: ensureThumbs } = useThumbnailSprites(selectedSource)
 
     // Initialize HLS or Native Video
     useEffect(() => {
@@ -379,6 +379,7 @@ export function MediaPlayer() {
                 onPreviewTime={previewSeekTo}
                 previewStatus={previewStatus}
                 spriteAt={spriteAt}
+                ensureLoaded={ensureThumbs}
                 onScrubbingChange={handleScrubbingChange}
                 onToggleMute={toggleMute}
                 onVolumeChange={handleVolumeChange}

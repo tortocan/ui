@@ -61,31 +61,44 @@ function parseVtt(text: string, vttUrl: string): SpriteCue[] {
 
 /**
  * Loads gatearr's backend-generated seek-preview sprite track (sprite sheet + WebVTT) for the current
- * source and exposes <c>spriteAt(time)</c> for instant scrub tiles. The sheet is generated eagerly on
- * stream start but can take ~a minute, so a 404 is retried with backoff; until it lands, <c>ready</c> is
- * false and the SeekBar falls back to the live-frame engine.
+ * source and exposes <c>spriteAt(time)</c> for instant scrub tiles. LAZY: nothing is fetched until the
+ * user first scrubs and calls <c>ensureLoaded()</c> — so passive hover triggers no network at all. The
+ * sheet is generated on the backend (~a minute), so a 404 is retried with backoff; until it lands,
+ * <c>ready</c> is false and the SeekBar falls back to the (also lazy) live-frame engine.
  */
 export function useThumbnailSprites(source: NormalizedSource | undefined) {
     const [cues, setCues] = useState<SpriteCue[] | null>(null)
     const lastRef = useRef<SpriteCue | null>(null)
+    const startedRef = useRef(false)
+    const cancelledRef = useRef(false)
 
+    // Reset (and stop any in-flight retry loop) when the source changes.
     useEffect(() => {
         setCues(null)
         lastRef.current = null
+        startedRef.current = false
+        cancelledRef.current = false
+        return () => {
+            cancelledRef.current = true
+        }
+    }, [source?.url])
+
+    // Start fetching the VTT (once) — called on the first scrub, NOT on mount/hover.
+    const ensureLoaded = useCallback(() => {
+        if (startedRef.current) return
         const streamUrl = source?.url
         if (!streamUrl) return
         const vttUrl = deriveVttUrl(streamUrl)
         if (!vttUrl) return
-
-        let cancelled = false
+        startedRef.current = true
         let tries = 0
-        let timer = 0
         const attempt = async () => {
+            if (cancelledRef.current) return
             try {
                 const res = await fetch(vttUrl)
                 if (res.ok) {
                     const parsed = parseVtt(await res.text(), vttUrl)
-                    if (!cancelled && parsed.length) {
+                    if (!cancelledRef.current && parsed.length) {
                         setCues(parsed)
                         return
                     }
@@ -93,14 +106,9 @@ export function useThumbnailSprites(source: NormalizedSource | undefined) {
             } catch {
                 /* network / not ready */
             }
-            // Not ready yet (generation ~a minute). Retry a bounded number of times, then give up (live-frame fallback stays).
-            if (!cancelled && tries++ < 24) timer = window.setTimeout(attempt, 5000)
+            if (!cancelledRef.current && tries++ < 24) window.setTimeout(attempt, 5000) // bounded backoff
         }
         void attempt()
-        return () => {
-            cancelled = true
-            if (timer) window.clearTimeout(timer)
-        }
     }, [source?.url])
 
     const spriteAt = useCallback(
@@ -119,5 +127,5 @@ export function useThumbnailSprites(source: NormalizedSource | undefined) {
         [cues]
     )
 
-    return { ready: !!cues, spriteAt }
+    return { ready: !!cues, spriteAt, ensureLoaded }
 }

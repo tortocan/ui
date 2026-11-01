@@ -19,6 +19,8 @@ interface SeekBarProps {
     previewStatus: PreviewStatus
     /** Backend sprite-sheet tile for a scrub time (instant); null → fall back to the live-frame engine. */
     spriteAt?: (time: number) => SpriteCue | null
+    /** Start loading the sprite track — called lazily on the first scrub (NOT on hover/mount). */
+    ensureLoaded?: () => void
     /** Let the player freeze its controls-autohide timer while a scrub is in flight (touch emits no mousemove). */
     onScrubbingChange?: (active: boolean) => void
 }
@@ -33,10 +35,11 @@ const PRECISE_AT = 24 // px pulled up before the "precise" indicator kicks in
  * scrubber, and dragging the finger UP reduces seek sensitivity ("pull up for precise seeking").
  * Replaces the Radix Slider so the vertical gesture can be expressed; keyboard + ARIA are preserved.
  */
-export function SeekBar({ currentTime, duration, buffered = 0, onSeek, previewAttach, onPreviewTime, previewStatus, spriteAt, onScrubbingChange }: SeekBarProps) {
+export function SeekBar({ currentTime, duration, buffered = 0, onSeek, previewAttach, onPreviewTime, previewStatus, spriteAt, ensureLoaded, onScrubbingChange }: SeekBarProps) {
     const trackRef = useRef<HTMLDivElement>(null)
     const gestureRef = useRef<{ startX: number; startY: number; startTime: number; rectLeft: number; width: number } | null>(null)
     const dragTimeRef = useRef(0) // live drag target (state lags a frame; the commit reads this)
+    const previewTimerRef = useRef(0) // debounce for the (expensive) live-frame fallback seek
 
     const [tileX, setTileX] = useState<number | null>(null) // tile center px within the track; null = hidden
     const [tileTime, setTileTime] = useState(0)
@@ -57,44 +60,37 @@ export function SeekBar({ currentTime, duration, buffered = 0, onSeek, previewAt
 
     const clampTileX = (x: number, width: number) => Math.max(TILE_W / 2, Math.min(width - TILE_W / 2, x))
 
-    // Only drive the (slow) live-frame engine when the backend sprite sheet has no tile for this time.
+    // The (slow, request-heavy) live-frame engine is only driven when the sprite sheet has no tile for
+    // this time, AND it's DEBOUNCED — fire the 2nd-video seek only after the scrub settles for ~150ms.
+    // The sprite tile itself (a CSS crop) updates instantly via setTileTime, so scrubbing stays snappy.
     const drivePreview = (t: number) => {
-        if (!spriteAt?.(t)) onPreviewTime(t)
+        if (spriteAt?.(t)) return // sprite available → free + instant, no live seek
+        if (previewTimerRef.current) window.clearTimeout(previewTimerRef.current)
+        previewTimerRef.current = window.setTimeout(() => onPreviewTime(t), 150)
     }
 
+    // No hover preview: the tile shows + loads ONLY during an active scrub (pointer down + drag), so
+    // passive mouse-over triggers zero network. Scrubbing is driven entirely from onPointerDown/Move.
     const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-        if (dragging) {
-            const g = gestureRef.current
-            if (!g || !hasDur) return
-            const dx = e.clientX - g.startX
-            const up = Math.max(0, g.startY - e.clientY)
-            const sens = Math.max(MIN_SENS, Math.min(1, 1 - up / PULL_RANGE))
-            let t = g.startTime + (dx / g.width) * duration * sens
-            t = Math.max(0, Math.min(duration, t))
-            dragTimeRef.current = t
-            setDragTime(t)
-            setTileTime(t)
-            setPrecise(up > PRECISE_AT)
-            setTileX(clampTileX(e.clientX - g.rectLeft, g.width))
-            drivePreview(t)
-            return
-        }
-        // Hover preview (mouse only — touch has no hover).
-        if (e.pointerType !== "mouse" || !hasDur || !trackRef.current) return
-        const rect = trackRef.current.getBoundingClientRect()
-        if (rect.width <= 0) return
-        const t = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * duration
+        if (!dragging) return
+        const g = gestureRef.current
+        if (!g || !hasDur) return
+        const dx = e.clientX - g.startX
+        const up = Math.max(0, g.startY - e.clientY)
+        const sens = Math.max(MIN_SENS, Math.min(1, 1 - up / PULL_RANGE))
+        let t = g.startTime + (dx / g.width) * duration * sens
+        t = Math.max(0, Math.min(duration, t))
+        dragTimeRef.current = t
+        setDragTime(t)
         setTileTime(t)
-        setTileX(clampTileX(e.clientX - rect.left, rect.width))
+        setPrecise(up > PRECISE_AT)
+        setTileX(clampTileX(e.clientX - g.rectLeft, g.width))
         drivePreview(t)
-    }
-
-    const onPointerLeave = () => {
-        if (!dragging) setTileX(null)
     }
 
     const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
         if (!hasDur || !trackRef.current) return
+        ensureLoaded?.() // start fetching the sprite track now (first scrub) — not on mount/hover
         const rect = trackRef.current.getBoundingClientRect()
         if (rect.width <= 0) return
         try {
@@ -127,7 +123,8 @@ export function SeekBar({ currentTime, duration, buffered = 0, onSeek, previewAt
         setPrecise(false)
         gestureRef.current = null
         onScrubbingChange?.(false)
-        if (e.pointerType !== "mouse") setTileX(null) // touch: hide tile; mouse keeps hovering
+        if (previewTimerRef.current) window.clearTimeout(previewTimerRef.current)
+        setTileX(null) // no hover preview — the tile only lives for the duration of a scrub
     }
     const endDrag = (e: React.PointerEvent<HTMLDivElement>) => finishDrag(e, true)
     // pointercancel = the OS aborted the gesture (2nd finger, notification, edge-gesture); don't seek.
@@ -207,7 +204,6 @@ export function SeekBar({ currentTime, duration, buffered = 0, onSeek, previewAt
                 aria-valuetext={`${formatTime(value)} of ${formatTime(duration)}`}
                 className="group relative cursor-pointer touch-none rounded-full py-3 outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 onPointerMove={onPointerMove}
-                onPointerLeave={onPointerLeave}
                 onPointerDown={onPointerDown}
                 onPointerUp={endDrag}
                 onPointerCancel={cancelDrag}

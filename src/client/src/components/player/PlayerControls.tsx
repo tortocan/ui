@@ -25,6 +25,7 @@ interface PlayerControlsProps {
     onPreviewTime: (time: number) => void
     previewStatus: PreviewStatus
     spriteAt?: (time: number) => SpriteCue | null
+    ensureLoaded?: () => void
     onScrubbingChange?: (active: boolean) => void
     onToggleMute: () => void
     onVolumeChange: (volume: number[]) => void
@@ -63,6 +64,7 @@ export function PlayerControls({
     onPreviewTime,
     previewStatus,
     spriteAt,
+    ensureLoaded,
     onScrubbingChange,
     onToggleMute,
     onVolumeChange,
@@ -146,6 +148,7 @@ export function PlayerControls({
                     onPreviewTime={onPreviewTime}
                     previewStatus={previewStatus}
                     spriteAt={spriteAt}
+                    ensureLoaded={ensureLoaded}
                     onScrubbingChange={onScrubbingChange}
                 />
 
