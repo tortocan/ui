@@ -143,4 +143,5 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 *.ignore
-build/node_modules
+build/
+node_modules
