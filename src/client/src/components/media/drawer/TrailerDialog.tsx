@@ -398,23 +398,34 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
                                 const avail: string[] = p.getAvailableQualityLevels?.() ?? []
                                 setLevels(avail.filter((l) => l !== "auto"))
                                 setQuality(p.getPlaybackQuality?.() || "auto")
-                                // Caption tracks + the active one. includeAsr surfaces auto-generated tracks;
-                                // identity is trackKey() (languageCode/displayName collide across variants).
-                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                const tl = p.getOption?.("captions", "tracklist", { includeAsr: true }) as any[] | undefined
-                                if (Array.isArray(tl)) {
-                                    const norm = normalizeCaptionTracks(tl)
-                                    const sig = norm.map((t) => `${t.key}=${t.label}`).join("\n")
-                                    if (sig !== tracksSigRef.current) {
-                                        tracksSigRef.current = sig
-                                        setTracks(norm)
+                                // Caption tracks + the active one, in their OWN try: some player builds reject
+                                // the {includeAsr} 3rd arg (returns undefined / throws), which emptied the list.
+                                // Fall back to the plain call (what populated the list before) so subtitles never
+                                // vanish. identity is trackKey() (languageCode/displayName collide across variants).
+                                try {
+                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                    let tl = p.getOption?.("captions", "tracklist", { includeAsr: true }) as any[] | undefined
+                                    if (!Array.isArray(tl) || tl.length === 0) {
+                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                        const plain = p.getOption?.("captions", "tracklist") as any[] | undefined
+                                        if (Array.isArray(plain) && plain.length) tl = plain
                                     }
+                                    if (Array.isArray(tl)) {
+                                        const norm = normalizeCaptionTracks(tl)
+                                        const sig = norm.map((t) => `${t.key}=${t.label}`).join("\n")
+                                        if (sig !== tracksSigRef.current) {
+                                            tracksSigRef.current = sig
+                                            setTracks(norm)
+                                        }
+                                    }
+                                    // Active track: {} / null / no identity fields → off. Otherwise its trackKey.
+                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                    const active = p.getOption?.("captions", "track") as any
+                                    const hasTrack = active && (active.vss_id || active.languageCode)
+                                    setTrack(hasTrack ? trackKey(active) : null)
+                                } catch {
+                                    /* captions module not ready / 3rd-arg unsupported on this build */
                                 }
-                                // Active track: {} / null / no identity fields → off. Otherwise its trackKey.
-                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                const active = p.getOption?.("captions", "track") as any
-                                const hasTrack = active && (active.vss_id || active.languageCode)
-                                setTrack(hasTrack ? trackKey(active) : null)
                             } catch {
                                 /* ignore */
                             }
