@@ -99,6 +99,7 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
     const playerRef = useRef<any>(null)
     const qualitySetRef = useRef(false)
     const draggingRef = useRef(false) // a slider (seek/volume) is being dragged — don't let the poll fight it
+    const lastFocusedRef = useRef<HTMLElement | null>(null) // element to restore focus to when the trailer closes
     const { client, valid, baseUrl } = useOmss()
     const { profiles, activeProfile } = useProfiles()
 
@@ -109,6 +110,8 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
     const close = useCallback(() => {
         exitFs()
         setActive(false)
+        // Restore focus to whatever opened the trailer (modal focus management).
+        lastFocusedRef.current?.focus?.()
     }, [])
 
     // ---- Player controls (driven via the YT API, since native controls are hidden) ----
@@ -245,12 +248,14 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
 
     // Launch straight into fullscreen from the click gesture (the only moment the browser grants it).
     const launch = useCallback(() => {
+        lastFocusedRef.current = document.activeElement as HTMLElement | null
         setActive(true)
         setFollowed(false)
         setPickerOpen(false)
         const el = stageRef.current
         if (el) {
             el.classList.remove("hidden")
+            el.focus() // move focus into the dialog on open
             void Promise.resolve(requestFs(el)).catch(() => {})
         }
     }, [])
@@ -262,7 +267,31 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
         qualitySetRef.current = false
 
         const onKey = (e: KeyboardEvent) => {
-            if (e.key === "Escape") close()
+            if (e.key === "Escape") {
+                close()
+                return
+            }
+            // Trap Tab inside the overlay so focus can't wander to the page/drawer behind it.
+            if (e.key === "Tab") {
+                const root = stageRef.current
+                if (!root) return
+                const focusable = Array.from(root.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')).filter((el) => !el.hasAttribute("disabled") && el.offsetParent !== null)
+                if (focusable.length === 0) {
+                    e.preventDefault()
+                    root.focus()
+                    return
+                }
+                const first = focusable[0]
+                const last = focusable[focusable.length - 1]
+                const activeEl = document.activeElement as HTMLElement | null
+                if (e.shiftKey && (activeEl === first || !root.contains(activeEl))) {
+                    e.preventDefault()
+                    last.focus()
+                } else if (!e.shiftKey && (activeEl === last || !root.contains(activeEl))) {
+                    e.preventDefault()
+                    first.focus()
+                }
+            }
         }
         const onFsChange = () => setIsFs(!!fsElement())
         document.addEventListener("keydown", onKey)
@@ -385,7 +414,14 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
                 createPortal(
                     // pointer-events-auto: the modal drawer sets body { pointer-events: none }, and this overlay is
                     // portaled to body (outside the drawer), so without it every click is dead.
-                    <div ref={stageRef} className={cn("pointer-events-auto fixed inset-0 z-[2147483647] bg-black select-none", !active && "hidden")}>
+                    <div
+                        ref={stageRef}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label={`${title} trailer`}
+                        tabIndex={-1}
+                        className={cn("pointer-events-auto fixed inset-0 z-[2147483647] bg-black outline-none select-none", !active && "hidden")}
+                    >
                         <div ref={hostRef} className="h-full w-full" />
 
                         {/* Full-area gesture + tap layer (over the whole player). Swipe up = follow, down = close,
@@ -455,8 +491,8 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
                             profile is preselected and locked; others toggle. */}
                         {pickerOpen && (
                             <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/70 p-6" onClick={() => setPickerOpen(false)}>
-                                <div className="w-full max-w-sm rounded-2xl bg-zinc-900/95 p-5 text-white shadow-2xl ring-1 ring-white/10" onClick={(e) => e.stopPropagation()}>
-                                    <h3 className="text-base font-semibold">Follow on which profiles?</h3>
+                                <div role="dialog" aria-modal="true" aria-labelledby="trailer-follow-picker-title" className="w-full max-w-sm rounded-2xl bg-zinc-900/95 p-5 text-white shadow-2xl ring-1 ring-white/10" onClick={(e) => e.stopPropagation()}>
+                                    <h3 id="trailer-follow-picker-title" className="text-base font-semibold">Follow on which profiles?</h3>
                                     <p className="mt-1 text-xs text-white/60">We'll notify the selected profiles about new releases for {title}.</p>
                                     <div className="mt-4 max-h-64 space-y-1 overflow-y-auto">
                                         {profiles.map((p) => {

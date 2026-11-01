@@ -65,11 +65,11 @@ export function NotificationsBell() {
                     <ScrollArea className="max-h-96">
                         <ul className="divide-y">
                             {items.map((n) => (
-                                <li key={n.id}>
+                                <li key={n.id} className="flex items-stretch transition-colors hover:bg-accent">
                                     <button
                                         type="button"
                                         onClick={() => openItem(n)}
-                                        className="flex w-full items-start gap-2 px-4 py-3 text-left transition-colors hover:bg-accent"
+                                        className="flex min-w-0 flex-1 items-start gap-2 px-4 py-3 text-left"
                                     >
                                         <span className={`mt-1.5 size-2 shrink-0 rounded-full ${n.readAt == null ? "bg-primary" : "bg-transparent"}`} />
                                         <span className="min-w-0 flex-1">
@@ -78,18 +78,14 @@ export function NotificationsBell() {
                                                 {n.kind === "upcoming" ? "Upcoming" : "Available"} · {ago(n.createdAt)}
                                             </span>
                                         </span>
-                                        <span
-                                            role="button"
-                                            tabIndex={-1}
-                                            aria-label="Dismiss"
-                                            onClick={(e) => {
-                                                e.stopPropagation()
-                                                void remove(n.id)
-                                            }}
-                                            className="shrink-0 rounded px-1 text-xs text-muted-foreground hover:text-foreground"
-                                        >
-                                            ✕
-                                        </span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        aria-label="Dismiss notification"
+                                        onClick={() => void remove(n.id)}
+                                        className="shrink-0 px-3 text-xs text-muted-foreground hover:text-foreground"
+                                    >
+                                        ✕
                                     </button>
                                 </li>
                             ))}

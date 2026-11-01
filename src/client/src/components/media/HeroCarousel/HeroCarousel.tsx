@@ -24,9 +24,13 @@ export function HeroCarousel({ tmdb, fetcher }: { tmdb: TMDB; fetcher: HeroFetch
     const [activeSlide, setActiveSlide] = useState(0)
     const [progressKey, setProgressKey] = useState(0)
 
-    // Autoplay is fully managed by the embla-carousel-autoplay plugin (no custom hover-pause hook).
-    // delay matches the dot progress ring (6500ms); it keeps playing through interaction/hover.
-    const plugins = useMemo(() => [Autoplay({ delay: 6500, stopOnInteraction: false, stopOnMouseEnter: false, stopOnFocusIn: false })], [])
+    // Autoplay via embla-carousel-autoplay; delay matches the dot progress ring (6500ms). Keep embla's
+    // accessibility safeguards ON (WCAG 2.2.2 Pause/Stop/Hide): pause on hover, on keyboard focus, and
+    // on interaction so the motion can be stopped, and don't auto-start for prefers-reduced-motion users.
+    const plugins = useMemo(() => {
+        const reduceMotion = typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+        return [Autoplay({ delay: 6500, playOnInit: !reduceMotion, stopOnInteraction: true, stopOnMouseEnter: true, stopOnFocusIn: true })]
+    }, [])
 
     // Keep the active dot + its progress ring in step with whatever slide the plugin (or a swipe) lands on.
     useEffect(() => {
@@ -58,8 +62,8 @@ export function HeroCarousel({ tmdb, fetcher }: { tmdb: TMDB; fetcher: HeroFetch
     return (
         <Carousel setApi={setHeroApi} opts={{ loop: true }} plugins={plugins} className="h-full w-full">
             <CarouselContent className="ml-0 h-full">
-                {slides.map((slide) => (
-                    <CarouselItem key={`${slide.type}-${slide.id}`} className="pl-0">
+                {slides.map((slide, index) => (
+                    <CarouselItem key={`${slide.type}-${slide.id}`} className="pl-0" aria-hidden={activeSlide !== index} inert={activeSlide !== index}>
                         <MediaHeroCard
                             image={slide.image}
                             logoUrl={slide.logo}
@@ -102,7 +106,9 @@ export function HeroCarousel({ tmdb, fetcher }: { tmdb: TMDB; fetcher: HeroFetch
 
                         return (
                             <button
-                                key={`dot-${slide.title}-${slide.year}`}
+                                key={`dot-${slide.type}-${slide.id}`}
+                                aria-label={`Go to ${slide.title}`}
+                                aria-current={isActive}
                                 onClick={() => {
                                     heroApi?.scrollTo(index)
                                     setProgressKey((p) => p + 1)
