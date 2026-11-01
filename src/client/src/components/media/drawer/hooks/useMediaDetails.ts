@@ -4,7 +4,7 @@ import { getMovieDetails, getTVDetails } from "../services/media.service"
 import { mapMedia } from "../mappers/media.mapper"
 import type { MediaNormalized } from "../types/media.types"
 
-export function useMediaDetails(type: "movie" | "tv", id: number) {
+export function useMediaDetails(type: "movie" | "tv", id: number, language?: string) {
     const tmdb = useTmdb()
     const [data, setData] = useState<MediaNormalized | null>(null)
     const [isLoading, setIsLoading] = useState(true)
@@ -14,14 +14,14 @@ export function useMediaDetails(type: "movie" | "tv", id: number) {
         setIsLoading(true)
         setError(null)
         try {
-            const details = type === "movie" ? await getMovieDetails(tmdb, id) : await getTVDetails(tmdb, id)
+            const details = type === "movie" ? await getMovieDetails(tmdb, id, language) : await getTVDetails(tmdb, id, language)
             setData(mapMedia(details, type))
         } catch (err) {
             setError(err instanceof Error ? err : new Error("Failed to fetch details"))
         } finally {
             setIsLoading(false)
         }
-    }, [tmdb, type, id])
+    }, [tmdb, type, id, language])
 
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect

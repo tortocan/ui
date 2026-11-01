@@ -76,6 +76,7 @@ export const mapMedia = (data: MovieDetailsWithAppends<typeof MOVIE_APPENDS> | T
             airDate: s.air_date ?? "N/A",
         })),
         collection: movieData?.belongs_to_collection ? { id: movieData.belongs_to_collection.id, name: movieData.belongs_to_collection.name } : undefined,
+        originalLanguage: (data as { original_language?: string }).original_language,
     }
 }
 

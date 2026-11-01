@@ -20,6 +20,8 @@ export interface MediaNormalized {
     seasons?: MediaSeason[]
     /** The TMDB franchise this movie belongs to, when any (drives the "Collection" tag + rail). */
     collection?: { id: number; name: string }
+    /** The title's original-language iso-639-1 code (drives the original-language toggle tag). */
+    originalLanguage?: string
 }
 
 export interface MediaCast {

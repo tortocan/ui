@@ -1,9 +1,12 @@
-import { ArrowLeft, Play, RotateCcw } from "lucide-react"
+import { ArrowLeft, Languages, Play, RotateCcw } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
 import { useOmss } from "@/hooks/use-omss"
+import { useAppSettings } from "@/hooks/use-appsettings"
+import { useTmdbLanguages } from "@/hooks/use-tmdb-languages"
 import { Button } from "@/components/ui/button"
 import { MediaHeroCard } from "@/components/media/MediaHeroCard.tsx"
+import { CHIP } from "@/components/media/TitleCardContent.tsx"
 import { useMediaDetails } from "./hooks/useMediaDetails"
 import { MediaCast } from "./MediaCast"
 import { MediaCollection } from "./MediaCollection"
@@ -24,7 +27,13 @@ interface MediaDrawerProps {
 }
 
 export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDrawerProps) {
-    const { data, isLoading } = useMediaDetails(payload.type, payload.id)
+    const { locale } = useAppSettings()
+    const { labelOf } = useTmdbLanguages()
+    // Toggle the displayed metadata between the profile (first) language and the title's original one.
+    const [showOriginal, setShowOriginal] = useState(false)
+    // The original-language code is known from the first (profile-language) fetch; feed it back when toggled.
+    const [originalLang, setOriginalLang] = useState<string | null>(null)
+    const { data, isLoading } = useMediaDetails(payload.type, payload.id, showOriginal && originalLang ? originalLang : undefined)
     const { closeAll, close } = useMediaDrawer()
 
     const navigate = useNavigate()
@@ -75,6 +84,26 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
             cancelled = true
         }
     }, [client, valid, data])
+
+    // Remember the title's original language from the (profile-language) fetch so the toggle can request it.
+    useEffect(() => {
+        if (data?.originalLanguage) setOriginalLang(data.originalLanguage)
+    }, [data?.originalLanguage])
+
+    // The original-language toggle chip — only when the original differs from the profile language.
+    // Green (profile accent) while the original is showing; a plain chip otherwise.
+    const canToggleLang = !!originalLang && originalLang !== locale
+    const langChip = canToggleLang ? (
+        <button
+            type="button"
+            onClick={() => setShowOriginal((v) => !v)}
+            title={showOriginal ? "Showing the original language — click for your language" : "Show the original language"}
+            className={cn(CHIP, "transition-colors", showOriginal ? "border-primary/60 bg-primary/25" : "hover:bg-white/20")}
+        >
+            <Languages className="size-4 opacity-80" />
+            {labelOf(originalLang!)}
+        </button>
+    ) : null
 
     const handlePlay = () => {
         if (!data) return
@@ -127,6 +156,7 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
                             meta={data.runtime ? formatRuntime(data.runtime) : null}
                             genres={data.genres}
                             tags={data.collection ? ["Collection"] : undefined}
+                            actionChips={langChip}
                             description={data.overview}
                             networkLogo={data.networkLogo}
                             studioLogo={data.studioLogo}

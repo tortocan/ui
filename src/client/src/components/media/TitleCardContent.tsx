@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { StarRating } from "@/components/media/StarRating"
 import { cn } from "@/lib/utils"
 
-const CHIP = "inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-sm font-medium text-white backdrop-blur-md"
+export const CHIP = "inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-sm font-medium text-white backdrop-blur-md"
 // An unreleased title's date chip takes the primary accent (same color as the Play button) so an
 // upcoming release reads at a glance.
 const CHIP_UNRELEASED = "border-primary bg-primary text-primary-foreground"
@@ -42,6 +42,8 @@ export interface TitleCardContentProps {
     badge?: ReactNode
     /** Extra accent chips rendered after the genres (e.g. "Collection"); each gets a Layers icon. */
     tags?: string[]
+    /** Interactive chip(s) rendered at the end of the chip row (e.g. the original-language toggle). */
+    actionChips?: ReactNode
     /** Release/first-air date string; the year is shown. */
     date?: string | null
     /** Runtime (movies) or status like "Returning Series"/"Ended" (TV). */
@@ -72,6 +74,7 @@ export function TitleCardContent({
     rating,
     badge,
     tags,
+    actionChips,
     date,
     meta,
     genres,
@@ -115,6 +118,7 @@ export function TitleCardContent({
                     {t}
                 </span>
             ))}
+            {actionChips}
         </div>
     )
 
