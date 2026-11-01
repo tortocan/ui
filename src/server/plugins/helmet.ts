@@ -9,7 +9,9 @@ export async function registerHelmetPlugin(app: FastifyInstance) {
 
                 connectSrc: ["'self'", "https://api.themoviedb.org", "https://image.tmdb.org", app.config.VITE_STANDALONE ? "*" : (app.config.VITE_OMSS_API_URL ?? "")],
 
-                imgSrc: ["'self'", "data:", "https://image.tmdb.org"],
+                // gatearr (VITE_OMSS_API_URL) is added so the seek-preview sprite sheet (a CSS
+                // background-image from gatearr) isn't blocked — connectSrc alone covers the VTT fetch.
+                imgSrc: ["'self'", "data:", "https://image.tmdb.org", app.config.VITE_STANDALONE ? "*" : (app.config.VITE_OMSS_API_URL ?? "")],
 
                 // YouTube IFrame Player API loader + the www-widgetapi.js it injects (trailer player).
                 scriptSrc: ["'self'", "'unsafe-inline'", "https://www.youtube.com", "https://s.ytimg.com"],
