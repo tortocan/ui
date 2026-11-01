@@ -2,15 +2,26 @@ import { useEffect, useMemo, useState } from "react"
 import type { CountryISO3166_1 } from "@lorenzopant/tmdb"
 import { useTmdb } from "@/hooks/use-tmdb"
 import { useAppSettings } from "@/hooks/use-appsettings.ts"
+import { useOmss } from "@/hooks/use-omss"
+import { useMediaDrawer } from "@/components/media/drawer/hooks/useMediaDrawer"
 import { MediaGrid, type GridCard } from "@/components/media/MediaGrid.tsx"
 import { MediaFilters, type SortKey } from "@/components/media/filters/MediaFilters.tsx"
 import { NETWORKS, STREAMING } from "@/components/media/filters/catalog.ts"
 import { useFilterOptions } from "@/components/media/filters/useFilterOptions.ts"
+import { Rail } from "@/components/media/MediaRail/Rail.tsx"
+import { CollectionCard } from "@/components/media/CollectionCard.tsx"
 
 const PAGE_SIZE = 35
 const CHUNK = 20 // concurrent TMDB detail calls per batch
 
-type LibTitle = GridCard & { popularity: number; genreIds: number[]; companyIds: number[]; networkIds: number[] }
+type LibCollection = { id: number; name: string; backdrop: string | null }
+type LibTitle = GridCard & { popularity: number; genreIds: number[]; companyIds: number[]; networkIds: number[]; collection?: LibCollection }
+
+// belongs_to_collection.backdrop_path may arrive raw (not resolved to a URL by the client).
+function collectionImage(path?: string | null): string | null {
+    if (!path) return null
+    return path.startsWith("http") ? path : `https://image.tmdb.org/t/p/w780${path}`
+}
 
 async function inChunks<T, R>(items: T[], size: number, fn: (item: T) => Promise<R>): Promise<R[]> {
     const out: R[] = []
@@ -30,6 +41,8 @@ async function inChunks<T, R>(items: T[], size: number, fn: (item: T) => Promise
 export function LibraryBrowser({ ids, type, externalLoading = false, heading }: { ids: number[]; type: "movie" | "tv"; externalLoading?: boolean; heading?: string }) {
     const tmdb = useTmdb()
     const { region } = useAppSettings()
+    const { client, valid } = useOmss()
+    const { open } = useMediaDrawer()
     const { genres } = useFilterOptions(tmdb, type)
 
     const [titles, setTitles] = useState<LibTitle[] | null>(null)
@@ -68,6 +81,7 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
                 try {
                     if (type === "movie") {
                         const m = await tmdb.movies.details({ movie_id: id })
+                        const c = m.belongs_to_collection
                         return {
                             id,
                             type: "movie",
@@ -79,6 +93,7 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
                             genreIds: (m.genres ?? []).map((g) => g.id),
                             companyIds: (m.production_companies ?? []).map((c) => c.id),
                             networkIds: [],
+                            collection: c ? { id: c.id, name: c.name, backdrop: collectionImage(c.backdrop_path ?? c.poster_path) } : undefined,
                         }
                     }
                     const s = await tmdb.tv_series.details({ series_id: id })
@@ -165,6 +180,41 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
     const pageCards = filtered.slice(0, visibleCount)
     const busy = titles === null || externalLoading || (type === "movie" && networkIds.length > 0 && providerLoading)
 
+    // Collections (movies only): group the FILTERED titles by their TMDB franchise, keeping franchises
+    // with 2+ owned movies — so applying a filter also narrows/hides collection cards. Most owned first.
+    const collections = useMemo(() => {
+        if (type !== "movie") return []
+        const map = new Map<number, { col: LibCollection; movies: LibTitle[] }>()
+        for (const t of filtered) {
+            if (!t.collection) continue
+            const g = map.get(t.collection.id) ?? { col: t.collection, movies: [] }
+            g.movies.push(t)
+            map.set(t.collection.id, g)
+        }
+        return [...map.values()].filter((g) => g.movies.length >= 2).sort((a, b) => b.movies.length - a.movies.length)
+    }, [filtered, type])
+
+    // Continue the franchise: open the first in-progress movie, else the earliest unwatched, else the
+    // first — resolved from the scrobbler (chronological order). Opens the resume-aware drawer.
+    async function openCollection(movies: LibTitle[]) {
+        const ordered = [...movies].sort((a, b) => a.year - b.year)
+        if (valid) {
+            try {
+                const states = await Promise.all(ordered.map((m) => client.getScrobbleFor({ mediaType: "movie", tmdbId: m.id }).catch(() => null)))
+                const inProgress = ordered.find((_, i) => {
+                    const s = states[i]
+                    return s && s.progress > 2 && s.progress < 95
+                })
+                if (inProgress) return open({ type: "movie", id: inProgress.id })
+                const unwatched = ordered.find((_, i) => !states[i]?.watched)
+                if (unwatched) return open({ type: "movie", id: unwatched.id })
+            } catch {
+                // fall through to the first movie
+            }
+        }
+        open({ type: "movie", id: ordered[0].id })
+    }
+
     const toggle = (setter: (fn: (p: number[]) => number[]) => void) => (id: number) => {
         setter((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
         setVisibleCount(PAGE_SIZE)
@@ -203,6 +253,17 @@ export function LibraryBrowser({ ids, type, externalLoading = false, heading }: 
                     }}
                 />
             </div>
+
+            {/* Collection big-cards first (movies only); respond to the same filters as the grid. */}
+            {collections.length > 0 && (
+                <Rail
+                    items={collections}
+                    getKey={(c) => c.col.id}
+                    itemClassName="basis-4/5 pl-2 sm:basis-1/2 md:basis-1/3 md:pl-4 lg:basis-1/4 last:mr-4 md:last:mr-6"
+                    contentClassName="-ml-2 md:-ml-4"
+                    renderItem={(c) => <CollectionCard name={c.col.name} backdrop={c.col.backdrop} count={c.movies.length} onClick={() => void openCollection(c.movies)} />}
+                />
+            )}
 
             <MediaGrid
                 cards={pageCards}
