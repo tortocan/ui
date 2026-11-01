@@ -403,7 +403,7 @@ export default function Settings() {
                                         <p className="pt-1 text-sm text-muted-foreground">{t("appearance.subtitles.positionInfo", "Height above the bottom of the video")}</p>
                                     </div>
                                     <div className="flex w-48 shrink-0 items-center gap-3">
-                                        <Slider value={[subtitlePosition]} onValueChange={([v]) => setSubtitlePosition(v)} min={5} max={40} step={1} aria-label="Subtitle position" />
+                                        <Slider value={[subtitlePosition]} onValueChange={([v]) => setSubtitlePosition(v)} min={0} max={40} step={1} aria-label="Subtitle position" />
                                         <span className="w-10 text-right text-sm text-muted-foreground tabular-nums">{subtitlePosition}%</span>
                                     </div>
                                 </div>
