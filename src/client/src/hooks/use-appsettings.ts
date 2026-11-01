@@ -59,6 +59,10 @@ export type AppSettings = {
     locale: SupportedLocales
     region?: CountryISO3166_1
 
+    // Extra languages to search across (beyond the profile's own locale, which is always included).
+    // Empty = search only the profile's language. Lets e.g. an English profile also find Spanish titles.
+    searchLocales: SupportedLocales[]
+
     autoplayNext: boolean
     showSearch: boolean
     standalone: boolean
@@ -81,6 +85,7 @@ export type AppSettings = {
 
     setLocale: (locale: SupportedLocales) => void
     setRegion: (region: CountryISO3166_1) => void
+    setSearchLocales: (value: SupportedLocales[]) => void
     setAutoplayNext: (value: boolean) => void
     setShowSearch: (value: boolean) => void
     setLibraryOnly: (value: boolean) => void

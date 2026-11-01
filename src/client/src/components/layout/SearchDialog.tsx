@@ -1,15 +1,15 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useTmdb } from "@/hooks/use-tmdb"
 import { useDebouncedValue } from "@/hooks/use-debounce"
-import type { MultiSearchResultItem } from "@lorenzopant/tmdb"
+import type { Language, MultiSearchResultItem } from "@lorenzopant/tmdb"
 import { useSearchParams } from "react-router-dom"
-import { LucideClapperboard, LucideFilter, LucidePlay, LucideTv } from "lucide-react"
+import { LucideClapperboard, LucideFilter, LucideGlobe, LucidePlay, LucideTv } from "lucide-react"
 import { useTranslation } from "react-i18next"
-import { useAppSettings } from "@/hooks/use-appsettings.ts"
+import { useAppSettings, supportedLocales, tmdbLanguageFor, type SupportedLocales } from "@/hooks/use-appsettings.ts"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group.tsx"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx"
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx"
 import { useMediaDrawer } from "@/components/media/drawer/hooks/useMediaDrawer.ts"
 import { StarRating } from "@/components/media/StarRating"
 
@@ -17,9 +17,19 @@ type MediaFilter = "all" | "movie" | "tv"
 
 export function SearchDialog() {
     const tmdb = useTmdb()
-    const { showSearch, setShowSearch } = useAppSettings()
+    const { showSearch, setShowSearch, locale, searchLocales, setSearchLocales } = useAppSettings()
     const { t } = useTranslation(["searchdialog", "common"])
     const { open } = useMediaDrawer()
+
+    // Languages to search across: the profile's own locale (always) + any extra chosen in the filter.
+    // One TMDB search per language, merged — so e.g. an English profile can also find Spanish titles.
+    const searchLangs = useMemo(() => {
+        const codes = [tmdbLanguageFor(locale), ...searchLocales.map((l) => tmdbLanguageFor(l))]
+        return Array.from(new Set(codes)) as Language[]
+    }, [locale, searchLocales])
+    const toggleSearchLocale = (iso: SupportedLocales) => {
+        setSearchLocales(searchLocales.includes(iso) ? searchLocales.filter((l) => l !== iso) : [...searchLocales, iso])
+    }
 
     const [query, setQuery] = useState("")
     const debouncedQuery = useDebouncedValue(query, 400)
@@ -101,13 +111,32 @@ export function SearchDialog() {
             setLoading(true)
 
             try {
-                const res = await tmdb.search.multi({
-                    query: debouncedQuery,
-                })
+                // One search per configured language; merge by identity (the profile's language comes
+                // first, so its display titles win on dedupe), then order by popularity so the most
+                // relevant float up regardless of which language returned them.
+                const perLang = await Promise.all(
+                    searchLangs.map((language) =>
+                        tmdb.search
+                            .multi({ query: debouncedQuery, language })
+                            .then((r) => r.results)
+                            .catch(() => [] as MultiSearchResultItem[])
+                    )
+                )
 
-                if (!cancelled) {
-                    setResults(res.results.filter((item) => item.media_type !== "person") ?? [])
+                const seen = new Set<string>()
+                const merged: MultiSearchResultItem[] = []
+                for (const list of perLang) {
+                    for (const item of list) {
+                        if (item.media_type === "person") continue
+                        const key = `${item.media_type}-${item.id}`
+                        if (seen.has(key)) continue
+                        seen.add(key)
+                        merged.push(item)
+                    }
                 }
+                merged.sort((a, b) => (("popularity" in b ? b.popularity : 0) ?? 0) - (("popularity" in a ? a.popularity : 0) ?? 0))
+
+                if (!cancelled) setResults(merged)
             } catch (err) {
                 console.error(err)
             } finally {
@@ -122,7 +151,7 @@ export function SearchDialog() {
         return () => {
             cancelled = true
         }
-    }, [debouncedQuery, tmdb])
+    }, [debouncedQuery, tmdb, searchLangs])
 
     const handleSelect = (item: MultiSearchResultItem) => {
         open({
@@ -202,7 +231,7 @@ export function SearchDialog() {
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <button className="flex items-center gap-1 pr-1">
-                                        <LucideFilter className={`h-4 w-4 ${filter !== "all" ? "text-primary" : "text-muted-foreground"}`} />
+                                        <LucideFilter className={`h-4 w-4 ${filter !== "all" || searchLocales.length > 0 ? "text-primary" : "text-muted-foreground"}`} />
                                     </button>
                                 </DropdownMenuTrigger>
 
@@ -221,6 +250,29 @@ export function SearchDialog() {
                                         <LucideTv className="mr-2 h-4 w-4" />
                                         {t("common:tvShow.plural")}
                                     </DropdownMenuItem>
+
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuLabel className="flex items-center gap-2 text-xs text-muted-foreground">
+                                        <LucideGlobe className="h-3.5 w-3.5" />
+                                        {t("searchLanguages", "Search languages")}
+                                    </DropdownMenuLabel>
+                                    {[...supportedLocales]
+                                        .sort((a, b) => a.label.localeCompare(b.label))
+                                        .map((l) => {
+                                            const isProfile = l.iso639 === locale
+                                            return (
+                                                <DropdownMenuCheckboxItem
+                                                    key={l.iso639}
+                                                    // The profile's own language is always searched — checked and locked.
+                                                    checked={isProfile || searchLocales.includes(l.iso639)}
+                                                    disabled={isProfile}
+                                                    onCheckedChange={() => toggleSearchLocale(l.iso639)}
+                                                    onSelect={(e) => e.preventDefault()}
+                                                >
+                                                    {l.label}
+                                                </DropdownMenuCheckboxItem>
+                                            )
+                                        })}
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </InputGroupAddon>
