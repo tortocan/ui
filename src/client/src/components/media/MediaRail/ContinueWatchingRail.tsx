@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { Rail } from "./Rail.tsx"
-import { MediaCard } from "./MediaCard.tsx"
+import { ContinueWatchingCard } from "./ContinueWatchingCard.tsx"
 import { useOmss } from "@/hooks/use-omss"
 import { useTmdb } from "@/hooks/use-tmdb"
 
@@ -9,9 +9,10 @@ type ContinueItem = {
     id: number
     type: "movie" | "tv"
     title: string
-    poster: string | null
-    year: number
-    rating: number
+    backdrop: string | null
+    season?: number
+    episode?: number
+    runtime?: number
     progress: number
 }
 
@@ -41,10 +42,10 @@ export function ContinueWatchingRail() {
                     try {
                         if (r.mediaType === "movie") {
                             const m = await tmdb.movies.details({ movie_id: r.tmdbId })
-                            return { key: r.mediaKey, id: r.tmdbId, type: "movie", title: m.title, poster: m.poster_path, year: m.release_date ? new Date(m.release_date).getFullYear() : 0, rating: m.vote_average, progress: r.progress }
+                            return { key: r.mediaKey, id: r.tmdbId, type: "movie", title: m.title, backdrop: m.backdrop_path, runtime: m.runtime ?? undefined, progress: r.progress }
                         }
                         const s = await tmdb.tv_series.details({ series_id: r.tmdbId })
-                        return { key: r.mediaKey, id: r.tmdbId, type: "tv", title: s.name, poster: s.poster_path, year: s.first_air_date ? new Date(s.first_air_date).getFullYear() : 0, rating: s.vote_average, progress: r.progress }
+                        return { key: r.mediaKey, id: r.tmdbId, type: "tv", title: s.name, backdrop: s.backdrop_path, season: r.season || undefined, episode: r.episode || undefined, runtime: s.episode_run_time?.[0], progress: r.progress }
                     } catch {
                         return null
                     }
@@ -65,16 +66,10 @@ export function ContinueWatchingRail() {
             <Rail
                 items={items}
                 getKey={(it) => it.key}
-                itemClassName="basis-1/2 pl-2 sm:basis-1/3 md:basis-1/4 md:pl-4 lg:basis-1/5 xl:basis-1/7 last:mr-4 md:last:mr-6"
+                itemClassName="basis-4/5 pl-2 sm:basis-1/2 md:basis-1/3 md:pl-4 lg:basis-1/4 xl:basis-1/5 last:mr-4 md:last:mr-6"
                 contentClassName="-ml-2 md:-ml-4"
                 renderItem={(it) => (
-                    <div className="relative">
-                        <MediaCard title={it.title} imagePath={it.poster} imageAlt={it.title} id={it.id} type={it.type} year={it.year} rating={it.rating} />
-                        {/* Resume progress bar */}
-                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1 overflow-hidden rounded-b-md bg-white/25">
-                            <div className="h-full bg-primary" style={{ width: `${Math.max(2, Math.min(100, it.progress))}%` }} />
-                        </div>
-                    </div>
+                    <ContinueWatchingCard id={it.id} type={it.type} title={it.title} backdrop={it.backdrop} season={it.season} episode={it.episode} runtime={it.runtime} progress={it.progress} />
                 )}
             />
         </div>
