@@ -17,7 +17,7 @@ export function CollectionCard({ name, backdrop, count, onClick }: CollectionCar
         <button
             type="button"
             onClick={onClick}
-            className="group relative block aspect-video w-full overflow-hidden rounded-xl bg-muted text-left shadow-md transition-all hover:shadow-xl focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+            className="group relative block aspect-[4/3] w-full overflow-hidden rounded-xl bg-muted text-left shadow-md transition-all hover:shadow-xl focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
         >
             {backdrop ? (
                 <img src={backdrop} alt={name} loading="lazy" className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-105" />
