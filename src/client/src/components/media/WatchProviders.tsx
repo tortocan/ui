@@ -35,15 +35,16 @@ function fetchProviders(tmdb: ReturnType<typeof useTmdb>, type: "movie" | "tv", 
  * active region (the per-profile TMDB Region). Shown next to Play/Trailer on the media detail. Renders
  * nothing when the title has no subscription provider in the region. Cached across uses.
  */
-export function WatchProviders({ type, id, className }: { type: "movie" | "tv"; id: number; className?: string }) {
+export function WatchProviders({ type, id, region: regionOverride, className }: { type: "movie" | "tv"; id: number; region?: string; className?: string }) {
     const tmdb = useTmdb()
-    const { region } = useAppSettings()
+    const { region: profileRegion } = useAppSettings()
+    const region = regionOverride ?? profileRegion ?? "US"
     const [list, setList] = useState<Provider[]>([])
 
     useEffect(() => {
         let cancelled = false
         setList([])
-        void fetchProviders(tmdb, type, id, region ?? "US").then((l) => {
+        void fetchProviders(tmdb, type, id, region).then((l) => {
             if (!cancelled) setList(l)
         })
         return () => {

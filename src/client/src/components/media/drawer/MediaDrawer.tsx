@@ -27,6 +27,14 @@ interface MediaDrawerProps {
     className?: string
 }
 
+// A representative streaming region for a language (TMDB watch-providers are region-keyed). Used so
+// the original-language toggle also shows that language's availability. Uppercasing the iso-639-1 code
+// already yields the right country for many European languages (es→ES, fr→FR …); the rest are explicit.
+const LANG_REGION: Record<string, string> = { en: "US", es: "ES", pt: "BR", ja: "JP", ko: "KR", zh: "CN", hi: "IN", ar: "AE", uk: "UA", el: "GR", cs: "CZ", da: "DK", sv: "SE", nb: "NO", no: "NO" }
+function regionForLanguage(code: string): string {
+    return LANG_REGION[code] ?? code.toUpperCase()
+}
+
 export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDrawerProps) {
     const { locale } = useAppSettings()
     const { labelOf } = useTmdbLanguages()
@@ -92,6 +100,11 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
     useEffect(() => {
         if (data?.originalLanguage) setOriginalLang(data.originalLanguage)
     }, [data?.originalLanguage])
+
+    // While showing the original language, the collection rail + streaming providers follow it too:
+    // the rail is fetched in that language, and providers use the region that matches the language.
+    const displayLang = showOriginal && originalLang ? originalLang : locale
+    const providerRegion = showOriginal && originalLang ? regionForLanguage(originalLang) : undefined
 
     // The original-language toggle chip — only when the original differs from the profile language.
     // Green (profile accent) while the original is showing; a plain chip otherwise.
@@ -182,8 +195,8 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
                                     </>
                                 )
                             }
-                            secondary={<TrailerDialog trailerId={data.trailer} title={data.title} mediaType={data.type} tmdbId={Number(data.id)} language={showOriginal && originalLang ? originalLang : locale} />}
-                            afterActions={<WatchProviders type={data.type} id={Number(data.id)} />}
+                            secondary={<TrailerDialog trailerId={data.trailer} title={data.title} mediaType={data.type} tmdbId={Number(data.id)} language={displayLang} />}
+                            afterActions={<WatchProviders type={data.type} id={Number(data.id)} region={providerRegion} />}
                         />
 
                         {/* DETAIL SECTIONS — float ~10% up over the hero card's bottom, exactly like the
@@ -201,7 +214,7 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
                             {/* COLLECTION — the rest of the franchise, above Top Cast. */}
                             {data.collection && (
                                 <div className="mb-8">
-                                    <MediaCollection collectionId={data.collection.id} name={data.collection.name} currentId={Number(data.id)} />
+                                    <MediaCollection collectionId={data.collection.id} name={data.collection.name} currentId={Number(data.id)} language={tmdbLanguageFor(displayLang)} />
                                 </div>
                             )}
 

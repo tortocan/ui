@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import type { Language } from "@lorenzopant/tmdb"
 import { Rail } from "@/components/media/MediaRail/Rail.tsx"
 import { MediaCard } from "@/components/media/MediaRail/MediaCard.tsx"
 import { useTmdb } from "@/hooks/use-tmdb"
@@ -16,6 +17,8 @@ interface MediaCollectionProps {
     name: string
     /** The movie currently open — kept in the rail and emphasized as the current selection. */
     currentId: number
+    /** Display language override (follows the detail's original-language toggle), e.g. "es"/"en-US". */
+    language?: string
 }
 
 /**
@@ -24,7 +27,7 @@ interface MediaCollectionProps {
  * currently open is kept in the rail and emphasized (highlighted). Shown above Top Cast; self-hides
  * while loading or if the franchise has no members.
  */
-export function MediaCollection({ collectionId, name, currentId }: MediaCollectionProps) {
+export function MediaCollection({ collectionId, name, currentId, language }: MediaCollectionProps) {
     const tmdb = useTmdb()
     const [cards, setCards] = useState<{ id: number; type: "movie"; title: string; poster: string | null; year: number; rating: number }[] | null>(null)
 
@@ -33,7 +36,7 @@ export function MediaCollection({ collectionId, name, currentId }: MediaCollecti
         setCards(null)
         void (async () => {
             try {
-                const col = await tmdb.collections.details({ collection_id: collectionId })
+                const col = await tmdb.collections.details({ collection_id: collectionId, ...(language ? { language: language as Language } : {}) })
                 const members = [...(col.parts ?? [])]
                     .sort((a, b) => (a.release_date || "9999").localeCompare(b.release_date || "9999"))
                     .map((p) => ({
@@ -52,7 +55,7 @@ export function MediaCollection({ collectionId, name, currentId }: MediaCollecti
         return () => {
             cancelled = true
         }
-    }, [tmdb, collectionId])
+    }, [tmdb, collectionId, language])
 
     const heading = useMemo(() => name || "Collection", [name])
 
