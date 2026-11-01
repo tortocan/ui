@@ -34,7 +34,8 @@ export function PlayerSettings({ ref, playbackRate, onPlaybackRateChange, qualit
     const { audioTracks, selectedAudioTrack, selectAudioTrack } = useAudioTracks()
 
     const sources = useMemo(() => {
-        return state.media?.playback.sources.reverse() || []
+        // Copy before reversing — reverse() mutates in place, and this array lives in React state.
+        return [...(state.media?.playback.sources ?? [])].reverse()
     }, [state.media?.playback.sources])
 
     const selectedSource = state.media?.playback.selectedSource

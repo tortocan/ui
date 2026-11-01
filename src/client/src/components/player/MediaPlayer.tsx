@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react"
+import React, { useCallback, useEffect, useRef, useState } from "react"
 import Hls from "hls.js"
 import { useNavigate } from "react-router-dom"
 import { useTranslation } from "react-i18next"
@@ -335,6 +335,14 @@ export function MediaPlayer() {
 
     const handleRetry = () => setReloadNonce((n) => n + 1)
 
+    // Stable callbacks so the autoplay-next countdown effect isn't torn down + restarted (bar snaps to 0,
+    // advance delayed) on unrelated re-renders — the controls auto-hide toggles state frequently.
+    const handleAutoplayNext = useCallback(() => {
+        setShowAutoplay(false)
+        handleEpisodeEnded()
+    }, [handleEpisodeEnded])
+    const handleAutoplayCancel = useCallback(() => setShowAutoplay(false), [])
+
     if (!selectedSource)
         return (
             <LoadingState
@@ -421,14 +429,7 @@ export function MediaPlayer() {
                 onQualityChange={handleQualityChange}
             />
 
-            <EpisodeAutoplayOverlay
-                show={showAutoplay}
-                onNext={() => {
-                    setShowAutoplay(false)
-                    handleEpisodeEnded()
-                }}
-                onCancel={() => setShowAutoplay(false)}
-            />
+            <EpisodeAutoplayOverlay show={showAutoplay} onNext={handleAutoplayNext} onCancel={handleAutoplayCancel} />
 
             {error && (
                 <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/95">
