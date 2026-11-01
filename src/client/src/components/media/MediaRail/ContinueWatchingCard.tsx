@@ -1,6 +1,6 @@
 import { Play } from "lucide-react"
+import { useNavigate } from "react-router-dom"
 import { formatRuntime } from "@/components/media/drawer/mappers/media.mapper.ts"
-import { useMediaDrawer } from "@/components/media/drawer/hooks/useMediaDrawer"
 import { ProviderBadge } from "@/components/media/ProviderBadge.tsx"
 
 export interface ContinueWatchingCardProps {
@@ -19,18 +19,23 @@ export interface ContinueWatchingCardProps {
 /**
  * Apple TV-style landscape card for the Continue Watching rail: a 16:9 backdrop under a bottom gradient
  * with the title, an "S{s}, E{e} · {runtime}" (or runtime for a movie) meta line, a hover Play glyph,
- * and a resume progress bar pinned to the bottom edge. Clicking opens the media drawer (resume-aware).
+ * and a resume progress bar pinned to the bottom edge. Clicking jumps straight into the player, which
+ * seeks to the stored resume position on load (no detail drawer in between).
  */
 export function ContinueWatchingCard({ id, type, title, backdrop, season, episode, runtime, progress }: ContinueWatchingCardProps) {
-    const { open } = useMediaDrawer()
+    const navigate = useNavigate()
 
     const rt = formatRuntime(runtime ?? undefined)
     const meta = type === "tv" && season && episode ? `S${season}, E${episode}${rt ? ` · ${rt}` : ""}` : rt
 
+    // Resume directly. The player's useScrobble hook seeks to the saved position on load. For a show we
+    // carry the in-progress season/episode straight through; a movie goes to its watch route.
+    const watchPath = type === "movie" ? `/watch/movie/${id}` : season != null && episode != null ? `/watch/tv/${id}/?s=${season}&e=${episode}` : `/watch/tv/${id}`
+
     return (
         <button
             type="button"
-            onClick={() => open({ type, id })}
+            onClick={() => navigate(watchPath)}
             className="group relative block aspect-video w-full overflow-hidden rounded-xl bg-muted text-left shadow-md transition-all hover:shadow-xl focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
         >
             <img src={backdrop ?? "/favicon.svg"} alt={title} loading="lazy" className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-105" />
