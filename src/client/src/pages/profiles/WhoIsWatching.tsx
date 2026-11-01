@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { Plus } from "lucide-react"
+import { toast } from "sonner"
 import { useProfiles } from "@/app/providers/profile-provider"
 import { ProfileAvatar } from "@/components/profile/ProfileAvatar"
 import { Input } from "@/components/ui/input"
@@ -25,8 +26,8 @@ export default function WhoIsWatching() {
         if (created) {
             selectProfile(created.id)
         } else {
-            setAdding(false)
-            setName("")
+            // Keep the form open with the typed name so the input isn't silently discarded on failure.
+            toast.error("Couldn't create profile. Please try again.")
         }
     }
 
@@ -57,6 +58,7 @@ export default function WhoIsWatching() {
                                 if (e.key === "Escape") setAdding(false)
                             }}
                             placeholder="Name"
+                            aria-label="Profile name"
                             className="h-8 text-center"
                         />
                         <Button size="sm" onClick={() => void submitNew()} disabled={!name.trim() || busy}>
