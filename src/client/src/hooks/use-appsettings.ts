@@ -65,6 +65,11 @@ export type AppSettings = {
     // only the profile's language. Lets e.g. an English profile also find Spanish/Japanese/... titles.
     searchLocales: string[]
 
+    // When true, a title's detail defaults to its ORIGINAL-language content (title/overview/trailer +
+    // that region's streaming) instead of the profile language; falls back to the profile language when
+    // a title has no distinct original (original language == the profile language).
+    preferOriginalContent: boolean
+
     autoplayNext: boolean
     showSearch: boolean
     standalone: boolean
@@ -88,6 +93,7 @@ export type AppSettings = {
     setLocale: (locale: SupportedLocales) => void
     setRegion: (region: CountryISO3166_1) => void
     setSearchLocales: (value: string[]) => void
+    setPreferOriginalContent: (value: boolean) => void
     setAutoplayNext: (value: boolean) => void
     setShowSearch: (value: boolean) => void
     setLibraryOnly: (value: boolean) => void

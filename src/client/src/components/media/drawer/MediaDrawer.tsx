@@ -37,10 +37,12 @@ function regionForLanguage(code: string): string {
 }
 
 export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDrawerProps) {
-    const { locale } = useAppSettings()
+    const { locale, preferOriginalContent } = useAppSettings()
     const { labelOf } = useTmdbLanguages()
     // Toggle the displayed metadata between the profile (first) language and the title's original one.
     const [showOriginal, setShowOriginal] = useState(false)
+    // Apply the "prefer original" setting at most once per opened title (user can still toggle after).
+    const preferAppliedRef = useRef(false)
     // The original-language code is known from the first (profile-language) fetch; feed it back when toggled.
     const [originalLang, setOriginalLang] = useState<string | null>(null)
     const { data, isLoading } = useMediaDetails(payload.type, payload.id, showOriginal && originalLang ? tmdbLanguageFor(originalLang) : undefined)
@@ -112,10 +114,17 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
         // produces a new data ref but the same title — doesn't re-run this and flicker the Play button.
     }, [client, valid, data?.type, data?.id])
 
-    // Remember the title's original language from the (profile-language) fetch so the toggle can request it.
+    // Remember the title's original language from the (profile-language) fetch so the toggle can request
+    // it. If "prefer original content" is on and the title has a distinct original, default to it (once);
+    // a title whose original IS the profile language stays on the profile language (the US/profile fallback).
     useEffect(() => {
-        if (data?.originalLanguage) setOriginalLang(data.originalLanguage)
-    }, [data?.originalLanguage])
+        if (!data?.originalLanguage) return
+        setOriginalLang(data.originalLanguage)
+        if (preferOriginalContent && data.originalLanguage !== locale && !preferAppliedRef.current) {
+            preferAppliedRef.current = true
+            setShowOriginal(true)
+        }
+    }, [data?.originalLanguage, preferOriginalContent, locale])
 
     // While showing the original language, the collection rail + streaming providers follow it too:
     // the rail is fetched in that language, and providers use the region that matches the language.

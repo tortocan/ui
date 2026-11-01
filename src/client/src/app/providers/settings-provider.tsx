@@ -30,6 +30,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     const [locale, setLocale] = useProfileState<SupportedLocales>("app.locale", "en")
     const [region, setRegion] = useProfileState<CountryISO3166_1 | undefined>("app.region", getCountry())
     const [searchLocales, setSearchLocales] = useProfileState<string[]>("app.searchLocales", [])
+    const [preferOriginalContent, setPreferOriginalContent] = useProfileState<boolean>("app.preferOriginalContent", false)
 
     // Keep the UI language (i18next) in step with the active profile's locale. Switching a profile
     // reloads the app, which re-initialises `locale` from the new profile's namespace; this effect then
@@ -78,6 +79,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
             locale,
             region,
             searchLocales,
+            preferOriginalContent,
             autoplayNext,
             standalone,
             showSearch,
@@ -96,6 +98,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
             setLocale,
             setRegion,
             setSearchLocales,
+            setPreferOriginalContent,
             setAutoplayNext,
             setShowSearch,
             setLibraryOnly,
@@ -110,7 +113,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
             setTmdbApiKey,
             setTmdbOptions,
         }),
-        [locale, region, searchLocales, autoplayNext, standalone, showSearch, libraryOnly, showHeaderIcons, showHeaderLogo, showCarouselDots, showFooter, subtitleFontSize, subtitleColor, subtitleBackground, subtitlePosition, tmdbApiKey, tmdbOptions, setLocale, setRegion, setSearchLocales, setAutoplayNext, setShowSearch, setLibraryOnly, setShowHeaderIcons, setShowHeaderLogo, setShowCarouselDots, setShowFooter, setSubtitleFontSize, setSubtitleColor, setSubtitleBackground, setSubtitlePosition, setTmdbApiKey, setTmdbOptions]
+        [locale, region, searchLocales, preferOriginalContent, autoplayNext, standalone, showSearch, libraryOnly, showHeaderIcons, showHeaderLogo, showCarouselDots, showFooter, subtitleFontSize, subtitleColor, subtitleBackground, subtitlePosition, tmdbApiKey, tmdbOptions, setLocale, setRegion, setSearchLocales, setPreferOriginalContent, setAutoplayNext, setShowSearch, setLibraryOnly, setShowHeaderIcons, setShowHeaderLogo, setShowCarouselDots, setShowFooter, setSubtitleFontSize, setSubtitleColor, setSubtitleBackground, setSubtitlePosition, setTmdbApiKey, setTmdbOptions]
     )
 
     return <AppSettingsContext.Provider value={value}>{children}</AppSettingsContext.Provider>

@@ -66,9 +66,9 @@ export default function Settings() {
 
     const {
         region, locale, autoplayNext, tmdbApiKey, libraryOnly, showHeaderIcons, showHeaderLogo, showCarouselDots, showFooter,
-        subtitleFontSize, subtitleColor, subtitleBackground, subtitlePosition,
+        subtitleFontSize, subtitleColor, subtitleBackground, subtitlePosition, preferOriginalContent,
         setLocale, setAutoplayNext, setRegion, setLibraryOnly, setShowHeaderIcons, setShowHeaderLogo, setShowCarouselDots, setShowFooter,
-        setSubtitleFontSize, setSubtitleColor, setSubtitleBackground, setSubtitlePosition, standalone,
+        setSubtitleFontSize, setSubtitleColor, setSubtitleBackground, setSubtitlePosition, setPreferOriginalContent, standalone,
     } = useAppSettings()
     const tmdb = useTmdb()
 
@@ -773,6 +773,19 @@ export default function Settings() {
                                         ))}
                                     </SelectContent>
                                 </Select>
+                            </div>
+
+                            <div className="mt-3 flex items-center justify-between gap-6 border-t pt-6">
+                                <div>
+                                    <Label>{t("tmdb.preferOriginal.label", "Prefer original-language content")}</Label>
+                                    <span className="mt-1 flex text-muted-foreground">
+                                        {t(
+                                            "tmdb.preferOriginal.info",
+                                            "On a title's detail, show its original-language title, overview, trailer and that region's streaming by default instead of your language. Falls back to your language when a title has no distinct original. You can still toggle per title."
+                                        )}
+                                    </span>
+                                </div>
+                                <Switch checked={preferOriginalContent} onCheckedChange={setPreferOriginalContent} />
                             </div>
 
                             <div className="mt-3 border-t pt-6">
