@@ -23,7 +23,7 @@ interface SeekBarProps {
     onScrubbingChange?: (active: boolean) => void
 }
 
-const TILE_W = 160 // px — the preview tile width (matches the 160×90 sprite cell / the w-40 frame)
+const TILE_W = 320 // px — the preview tile width (matches the 320×180 sprite cell / the w-80 frame)
 const PULL_RANGE = 220 // px of upward pull to reach minimum sensitivity
 const MIN_SENS = 0.08 // most precise seek (8% of normal horizontal sensitivity)
 const PRECISE_AT = 24 // px pulled up before the "precise" indicator kicks in
@@ -157,7 +157,7 @@ export function SeekBar({ currentTime, duration, buffered = 0, onSeek, previewAt
                             <span>{precise ? "Precise seeking" : "Pull up for precise seeking"}</span>
                         </div>
                     )}
-                    <div className="relative h-[90px] w-40 overflow-hidden rounded-lg border border-white/20 bg-black shadow-xl">
+                    <div className="relative h-[180px] w-80 max-w-[90vw] overflow-hidden rounded-lg border border-white/20 bg-black shadow-xl">
                         {/* Live-frame engine (fallback), always mounted so it keeps the element stable. */}
                         <div ref={previewAttach} className="h-full w-full" />
                         {(() => {
