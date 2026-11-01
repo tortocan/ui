@@ -182,7 +182,7 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
                                     </>
                                 )
                             }
-                            secondary={<TrailerDialog trailerId={data.trailer} title={data.title} mediaType={data.type} tmdbId={Number(data.id)} />}
+                            secondary={<TrailerDialog trailerId={data.trailer} title={data.title} mediaType={data.type} tmdbId={Number(data.id)} language={showOriginal && originalLang ? originalLang : locale} />}
                             afterActions={<WatchProviders type={data.type} id={Number(data.id)} />}
                         />
 

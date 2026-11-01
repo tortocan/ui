@@ -72,9 +72,12 @@ interface TrailerDialogProps {
     /** Passed from the drawer so swipe-up can follow this title for release notifications. */
     mediaType?: "movie" | "tv"
     tmdbId?: number
+    /** Active display language (iso-639-1, e.g. "es") — biases the YouTube player + search fallback so
+     * the trailer loads in the toggled language. `trailerId`/`title` already reflect it. */
+    language?: string
 }
 
-export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, mediaType, tmdbId }) => {
+export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, mediaType, tmdbId, language }) => {
     const [active, setActive] = useState(false)
     const [followed, setFollowed] = useState(false)
     // Custom-control state, polled from the player.
@@ -291,6 +294,7 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
                     fs: 0,
                     vq: "hd1080", // best-effort HD hint (YouTube still auto-selects — quality can't be forced via the API)
                     origin: window.location.origin,
+                    ...(language ? { hl: language } : {}), // bias the player + search-fallback results to the language
                 },
                 events: {
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -366,7 +370,7 @@ export const TrailerDialog: React.FC<TrailerDialogProps> = ({ trailerId, title, 
             setDur(0)
             setVol(100)
         }
-    }, [active, trailerId, title, close])
+    }, [active, trailerId, title, language, close])
 
     return (
         <>

@@ -129,7 +129,8 @@ export function TitleCardContent({
         playLabel != null || secondary != null || afterActions != null ? (
             <div className="flex flex-wrap items-center gap-3">
                 {playLabel != null && (
-                    <Button className="rounded-full px-8 font-semibold shadow-lg transition-all hover:scale-105 hover:shadow-xl" onClick={onPlay}>
+                    // Styled as a tag/chip (profile accent), matching the Collection / language tags.
+                    <Button className={cn(CHIP, "h-auto border-primary/50 bg-primary/20 font-semibold shadow-lg transition-colors hover:bg-primary/30")} onClick={onPlay}>
                         {playLabel}
                     </Button>
                 )}
