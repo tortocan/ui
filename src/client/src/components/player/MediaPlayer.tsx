@@ -130,33 +130,46 @@ export function MediaPlayer() {
         }
     }, [selectedSource, reloadNonce, setError, setIsLoading, setIsPlaying])
 
-    // Apply the selected audio track to the <video> element (OMSS only gives the track list; the
-    // player stored the choice without applying it). For a multi-audio mp4, HTMLMediaElement exposes
-    // `video.audioTracks` (Safari) whose `.enabled` flag switches the active track. Match by language
-    // code, falling back to the OMSS list index. Skip when the target is already active (the load-time
-    // default) so we never toggle `.enabled` needlessly. No-op when the element exposes <=1 track.
+    // Apply the selected audio track. HLS (hls.js / MSE) is the primary source type and does NOT populate
+    // HTMLMediaElement.audioTracks in Chrome/Firefox, so switching must go through the hls.js API
+    // (hls.audioTrack). Fall back to the HTMLMediaElement list (.enabled) for a multi-audio mp4 / Safari
+    // native HLS. Match by language code, else the OMSS list index; skip when the target is already active.
     useEffect(() => {
         const video = videoRef.current as (HTMLVideoElement & { audioTracks?: any }) | null
         if (!video || !selectedAudioTrack) return
-        const apply = () => {
-            const list = video.audioTracks
-            if (!list || list.length <= 1) return
+
+        const matchIndex = (langs: (string | undefined)[], count: number): number => {
             const want = (selectedAudioTrack.language ?? "").toLowerCase()
-            let target = -1
             if (want) {
-                for (let i = 0; i < list.length; i++) {
-                    const l = (list[i].language ?? "").toLowerCase()
-                    if (l && (l === want || l.slice(0, 2) === want.slice(0, 2))) { target = i; break }
+                for (let i = 0; i < count; i++) {
+                    const l = (langs[i] ?? "").toLowerCase()
+                    if (l && (l === want || l.slice(0, 2) === want.slice(0, 2))) return i
                 }
             }
-            if (target < 0) {
-                const idx = audioTracks.findIndex(
-                    (t) => t.language === selectedAudioTrack.language && t.label === selectedAudioTrack.label)
-                if (idx >= 0 && idx < list.length) target = idx
+            const idx = audioTracks.findIndex((t) => t.language === selectedAudioTrack.language && t.label === selectedAudioTrack.label)
+            return idx >= 0 && idx < count ? idx : -1
+        }
+
+        const apply = () => {
+            const hls = hlsRef.current
+            if (hls && hls.audioTracks && hls.audioTracks.length > 1) {
+                const target = matchIndex(
+                    hls.audioTracks.map((t) => t.lang),
+                    hls.audioTracks.length
+                )
+                if (target >= 0 && hls.audioTrack !== target) hls.audioTrack = target
+                return
             }
+            const list = video.audioTracks
+            if (!list || list.length <= 1) return
+            const target = matchIndex(
+                Array.from({ length: list.length }, (_, i) => list[i].language as string | undefined),
+                list.length
+            )
             if (target < 0 || list[target].enabled) return
             for (let i = 0; i < list.length; i++) list[i].enabled = i === target
         }
+
         apply()
         video.addEventListener("loadedmetadata", apply)
         return () => video.removeEventListener("loadedmetadata", apply)
@@ -232,7 +245,7 @@ export function MediaPlayer() {
         setShowControls(true)
         if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current)
         if (scrubbingRef.current) return // don't re-arm the autohide while a scrub is in flight
-        controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 3000)
+        controlsTimeoutRef.current = window.setTimeout(() => setShowControls(false), 3000)
     }
 
     // A scrub pauses the controls-autohide (touch drags emit no mousemove, so the timer must be frozen).
