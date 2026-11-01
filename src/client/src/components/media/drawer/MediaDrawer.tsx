@@ -2,7 +2,7 @@ import { ArrowLeft, Languages, Play, RotateCcw } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
 import { useOmss } from "@/hooks/use-omss"
-import { useAppSettings } from "@/hooks/use-appsettings"
+import { useAppSettings, tmdbLanguageFor } from "@/hooks/use-appsettings"
 import { useTmdbLanguages } from "@/hooks/use-tmdb-languages"
 import { Button } from "@/components/ui/button"
 import { MediaHeroCard } from "@/components/media/MediaHeroCard.tsx"
@@ -33,7 +33,7 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
     const [showOriginal, setShowOriginal] = useState(false)
     // The original-language code is known from the first (profile-language) fetch; feed it back when toggled.
     const [originalLang, setOriginalLang] = useState<string | null>(null)
-    const { data, isLoading } = useMediaDetails(payload.type, payload.id, showOriginal && originalLang ? originalLang : undefined)
+    const { data, isLoading } = useMediaDetails(payload.type, payload.id, showOriginal && originalLang ? tmdbLanguageFor(originalLang) : undefined)
     const { closeAll, close } = useMediaDrawer()
 
     const navigate = useNavigate()
@@ -83,7 +83,9 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
         return () => {
             cancelled = true
         }
-    }, [client, valid, data])
+        // Keyed on the stable title identity (not the whole `data` object) so a language toggle — which
+        // produces a new data ref but the same title — doesn't re-run this and flicker the Play button.
+    }, [client, valid, data?.type, data?.id])
 
     // Remember the title's original language from the (profile-language) fetch so the toggle can request it.
     useEffect(() => {
@@ -97,8 +99,9 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
         <button
             type="button"
             onClick={() => setShowOriginal((v) => !v)}
+            disabled={isLoading}
             title={showOriginal ? "Showing the original language — click for your language" : "Show the original language"}
-            className={cn(CHIP, "transition-colors", showOriginal ? "border-primary/60 bg-primary/25" : "hover:bg-white/20")}
+            className={cn(CHIP, "transition-colors", showOriginal ? "border-primary/60 bg-primary/25" : "hover:bg-white/20", isLoading && "opacity-60")}
         >
             <Languages className="size-4 opacity-80" />
             {labelOf(originalLang!)}
@@ -139,7 +142,9 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
                     <DrawerDescription>Content below</DrawerDescription>
                 </DrawerHeader>
 
-                {isLoading ? (
+                {/* Only skeleton the INITIAL load (no data yet). A language-toggle refetch keeps the
+                    current content mounted — avoids a full-screen skeleton flash + hero re-animation. */}
+                {isLoading && !data ? (
                     <MediaDrawerSkeleton />
                 ) : !data ? (
                     <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Failed to load media details.</div>
