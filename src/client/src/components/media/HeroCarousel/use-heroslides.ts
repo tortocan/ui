@@ -5,8 +5,10 @@ import { toHeroSlides } from "./mapper"
 import { fetchDetailedMedia, resolveHeroFetcher } from "./utils"
 import type { HeroFetcherResult, HeroSlide } from "./types"
 import { toast } from "sonner"
+import { useAppSettings, tmdbLanguageFor } from "@/hooks/use-appsettings"
 
 export function useHeroSlides(tmdb: TMDB, fetcher: HeroFetcherResult) {
+    const { locale } = useAppSettings()
     const [slides, setSlides] = useState<HeroSlide[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(false)
@@ -21,7 +23,7 @@ export function useHeroSlides(tmdb: TMDB, fetcher: HeroFetcherResult) {
 
             try {
                 const mixed = await resolveHeroFetcher(fetcher)
-                const detailed = await fetchDetailedMedia(mixed, tmdb)
+                const detailed = await fetchDetailedMedia(mixed, tmdb, tmdbLanguageFor(locale))
 
                 const filtered = detailed.filter((m) => m.images.logos.length > 0 && (m.images.backdrops.length > 0 || m.backdrop_path !== undefined))
 
@@ -45,7 +47,7 @@ export function useHeroSlides(tmdb: TMDB, fetcher: HeroFetcherResult) {
         return () => {
             mounted = false
         }
-    }, [tmdb, fetcher, reloadNonce])
+    }, [tmdb, fetcher, reloadNonce, locale])
 
     const reload = useCallback(() => setReloadNonce((n) => n + 1), [])
 

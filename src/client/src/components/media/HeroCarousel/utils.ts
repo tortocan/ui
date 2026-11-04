@@ -1,6 +1,6 @@
 import type { HeroFetcherResult, MixedMediaItem } from "./types"
 
-import type { TMDB } from "@lorenzopant/tmdb"
+import type { Language, TMDB } from "@lorenzopant/tmdb"
 import { shuffle } from "@/lib/array.utils.ts"
 
 export async function resolveHeroFetcher(fetcher: HeroFetcherResult): Promise<MixedMediaItem[]> {
@@ -25,19 +25,24 @@ export async function resolveHeroFetcher(fetcher: HeroFetcherResult): Promise<Mi
     return shuffle(mixed)
 }
 
-export async function fetchDetailedMedia(items: MixedMediaItem[], tmdb: TMDB) {
+// `language` is passed explicitly (never omitted) so each slide's cached detail response is keyed by
+// language — a language-less request collides with whatever language was cached first for that id
+// (see MediaDrawer), which rendered hero titles in the wrong language.
+export async function fetchDetailedMedia(items: MixedMediaItem[], tmdb: TMDB, language: string) {
     return Promise.all(
         items.map((item) => {
             if (item.type === "movie") {
                 return tmdb.movies.details({
                     movie_id: item.id,
                     append_to_response: ["images", "videos"],
+                    language: language as Language,
                 })
             }
 
             return tmdb.tv_series.details({
                 series_id: item.id,
                 append_to_response: ["images", "videos"],
+                language: language as Language,
             })
         })
     )

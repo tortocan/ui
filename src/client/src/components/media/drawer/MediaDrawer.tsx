@@ -32,7 +32,11 @@ export function MediaDrawer({ payload, canGoBack, isOpen, className }: MediaDraw
     // The original-language code is known from the first (profile-language) fetch; feed it back when toggled.
     const [originalLang, setOriginalLang] = useState<string | null>(null)
     // MediaDrawerRoot routes collections to CollectionDrawer, so payload.type is always movie|tv here.
-    const { data, isLoading } = useMediaDetails(payload.type as "movie" | "tv", payload.id, showOriginal && originalLang ? tmdbLanguageFor(originalLang) : undefined)
+    // ALWAYS pass an explicit language (profile language, or the original when toggled) — never omit it.
+    // The TMDB SDK response cache (cache:true) keys on the request, and a language-less request collides
+    // with whatever language was cached first for this id (e.g. a zh-CN fetch from another profile),
+    // which showed titles in the wrong language (a Chinese title under an English profile).
+    const { data, isLoading } = useMediaDetails(payload.type as "movie" | "tv", payload.id, tmdbLanguageFor(showOriginal && originalLang ? originalLang : locale))
     const { closeAll, close } = useMediaDrawer()
 
     // UI chrome language for THIS drawer only: a fixed-T bound to the toggled language (not a global
