@@ -401,11 +401,16 @@ export function MediaPlayer() {
                 onPlaying={() => setIsLoading(false)}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
-                onError={() => setError(t("states.error", "Something went wrong during playback."))}
+                onError={() => {
+                    // Only surface the fatal overlay for a REAL media error (a MediaError set on the
+                    // element). Some non-fatal error events carry no MediaError — notably, a cross-origin
+                    // poster that fails a CORS check fires `error` in WebKit while video.error stays null —
+                    // and those must NOT replace working playback with an error screen.
+                    if (videoRef.current?.error) setError(t("states.error", "Something went wrong during playback."))
+                }}
                 onClick={togglePlay}
                 autoPlay
                 preload="auto"
-                crossOrigin="anonymous"
                 poster={media?.backdropUrl.replace("w300", "original")}
                 playsInline
             />

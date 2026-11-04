@@ -34,7 +34,11 @@ export function useSeekPreviewVideo(source: NormalizedSource | undefined) {
         el.muted = true
         el.defaultMuted = true
         el.playsInline = true
-        el.preload = "auto"
+        // "metadata", NOT "auto": this hidden second element shares the main player's (often multi-GB,
+        // progressive) stream. With "auto" the browser eagerly prebuffers the whole file in parallel with
+        // the real player, starving it until it hangs. "metadata" loads just enough to know the duration;
+        // actual preview frames are fetched on demand by the range requests each scrub seek issues.
+        el.preload = "metadata"
         el.setAttribute("playsinline", "")
         el.tabIndex = -1
         el.style.width = "100%"
