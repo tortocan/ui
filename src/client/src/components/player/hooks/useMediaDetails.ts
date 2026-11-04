@@ -22,11 +22,14 @@ export function useMediaDetails(id: string, type: MediaType, season?: number, ep
                     const movie = await tmdbService.getMovieDetails(tmdb, id)
                     setDetails({ movie })
                 } else {
-                    const show = await tmdbService.getTvDetails(tmdb, id)
-                    let epDetails: TVEpisode | undefined
-                    if (season !== undefined && episode !== undefined) {
-                        epDetails = await tmdbService.getEpisodeDetails(tmdb, id, season, episode)
-                    }
+                    // The show details and the episode details are independent TMDB reads — fetch them
+                    // concurrently instead of serially so an episode open costs one round-trip, not two.
+                    const [show, epDetails] = await Promise.all([
+                        tmdbService.getTvDetails(tmdb, id),
+                        season !== undefined && episode !== undefined
+                            ? tmdbService.getEpisodeDetails(tmdb, id, season, episode)
+                            : Promise.resolve<TVEpisode | undefined>(undefined),
+                    ])
                     setDetails({ show, episode: epDetails })
                 }
             } catch (e) {

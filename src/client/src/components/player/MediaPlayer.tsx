@@ -77,6 +77,27 @@ export function MediaPlayer() {
     const { attach: previewAttach, seekTo: previewSeekTo, status: previewStatus } = useSeekPreviewVideo(selectedSource)
     const { spriteAt, ensureLoaded: ensureThumbs } = useThumbnailSprites(selectedSource)
 
+    // Warm the stream origin's DNS + TLS the moment we know the source URL, so the first byte-range
+    // request isn't stalled by a cold cross-origin connection handshake. The stream is served from
+    // gatearr (a different origin than the UI), so this preconnect shaves setup off time-to-first-byte.
+    useEffect(() => {
+        if (!selectedSource?.url) return
+        let origin: string
+        try {
+            origin = new URL(selectedSource.url).origin
+        } catch {
+            return
+        }
+        const link = document.createElement("link")
+        link.rel = "preconnect"
+        link.href = origin
+        link.crossOrigin = "anonymous"
+        document.head.appendChild(link)
+        return () => {
+            document.head.removeChild(link)
+        }
+    }, [selectedSource?.url])
+
     // Initialize HLS or Native Video
     useEffect(() => {
         const video = videoRef.current
